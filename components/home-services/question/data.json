@@ -1,0 +1,112 @@
+[
+  {
+    "service_id": 1,
+    "service": "House Cleaning",
+    "slug": "house_cleaning",
+    "questions": [
+      {
+        "id": 1,
+        "question": "What type of cleaning do you need?",
+        "type": "multiple_choice",
+        "options": ["Regular cleaning", "Deep cleaning", "Move-in/move-out cleaning", "Post-renovation cleaning"]
+      },
+      {
+        "id": 2,
+        "question": "How often do you need this service?",
+        "type": "multiple_choice",
+        "options": ["One time", "Weekly", "Bi-weekly", "Monthly"]
+      },
+      {
+        "id": 3,
+        "question": "How many bedrooms need cleaning?",
+        "type": "number"
+      },
+      {
+        "id": 4,
+        "question": "Do you have pets in the home?",
+        "type": "yes_no"
+      }
+    ]
+  },
+  {
+    "service_id": 2,
+    "service": "Personal Training",
+    "slug": "carpet_cleaning",
+    "questions": [
+      {
+        "id": 5,
+        "question": "What is your main fitness goal?",
+        "type": "multiple_choice",
+        "options": ["Lose weight", "Build muscle", "Improve endurance", "Increase flexibility", "General fitness"]
+      },
+      {
+        "id": 6,
+        "question": "Where do you want the training to take place?",
+        "type": "multiple_choice",
+        "options": ["Gym", "Home", "Outdoors", "Online"]
+      },
+      {
+        "id": 7,
+        "question": "How many sessions per week?",
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "service_id": 3,
+    "service": "Wedding Photography",
+    "slug": "lawn_triming",
+    "questions": [
+      {
+        "id": 8,
+        "question": "When is your wedding date?",
+        "type": "date"
+      },
+      {
+        "id": 9,
+        "question": "How many guests are you expecting?",
+        "type": "number"
+      },
+      {
+        "id": 10,
+        "question": "What parts of the day do you want covered?",
+        "type": "multiple_choice",
+        "options": ["Ceremony only", "Ceremony & reception", "Full day coverage"]
+      },
+      {
+        "id": 11,
+        "question": "Do you also need a videographer?",
+        "type": "yes_no"
+      }
+    ]
+  },
+  {
+    "service_id": 4,
+    "service": "Web Design",
+    "slug": "interior_painting",
+    "questions": [
+      {
+        "id": 12,
+        "question": "What type of website do you need?",
+        "type": "multiple_choice",
+        "options": ["Business website", "E-commerce store", "Portfolio", "Blog", "Other"]
+      },
+      {
+        "id": 13,
+        "question": "Do you already have domain and hosting?",
+        "type": "yes_no"
+      },
+      {
+        "id": 14,
+        "question": "How many pages will the site have?",
+        "type": "number"
+      },
+      {
+        "id": 15,
+        "question": "What is your budget range?",
+        "type": "multiple_choice",
+        "options": ["Under $500", "$500–$1,000", "$1,000–$5,000", "$5,000+"]
+      }
+    ]
+  }
+]
