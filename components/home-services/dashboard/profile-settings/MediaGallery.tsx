@@ -1,17 +1,49 @@
+"use client";
+import { getAccessToken, getMediacUrl } from "@/app/api/axios";
 import { Button } from "@/components/ui/button";
+import ErrorDisplay from "@/components/ui/ErrorDisplay";
 import { Input } from "@/components/ui/input";
-import { ChartNoAxesCombined, Plus } from "lucide-react";
+import { useProfessionalMedia } from "@/hooks/profileSettings/useProfileSettings";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
+import { ChartNoAxesCombined, Loader2, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+
+type MediaItem = { fileUrl?: string; youtubeEmbed?: string };
 
 const MediaGallery = () => {
-  const gallery = [
-    { image: "/assets/home-service/service (1).jpg" },
-    { image: "/assets/home-service/service (2).jpg" },
-    { image: "/assets/home-service/service (3).jpg" },
-    { image: "/assets/home-service/service (4).jpg" },
-  ];
+  const [medialURL, setMediaURL] = useState("");
+  const token = getAccessToken() || "";
+  const { data: professionalData } = useProfesssionalProgress(token);
+
+  const proId = useMemo(() => {
+    if (!professionalData) return null;
+    const id = Array.isArray(professionalData)
+      ? professionalData?.[0]?._id
+      : professionalData?._id;
+    if (id) localStorage.setItem("proId", id);
+    return id;
+  }, [professionalData]);
+
+  const {
+    data: proMeida,
+    isLoading,
+    isError,
+  } = useProfessionalMedia(proId, token);
+  const proMediaData = proMeida?.data || [];
+  useEffect(() => {
+    const url = getMediacUrl();
+    setMediaURL(url);
+  }, []);
+
   const EditMedia = "add-media";
+  if (isError) {
+    return <ErrorDisplay />;
+  }
+  if (isLoading) {
+    return <Loader2 />;
+  }
   return (
     <div className="max-w-6xl mx-auto p-4">
       <div className="rounded-lg bg-white dark:bg-gray-800 p-4 md:p-6 my-4">
@@ -26,22 +58,40 @@ const MediaGallery = () => {
         </div>
 
         {/* Gallery Grid */}
+        {/* Gallery Grid */}
         <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 mb-6">
+          {/* Upload Button */}
           <div className="w-full aspect-square border flex justify-center items-center border-dashed border-gray-200 dark:border-gray-700 rounded-md">
             <label htmlFor="input-file" className="cursor-pointer">
               <Plus className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
             </label>
             <Input type="file" id="input-file" className="hidden" />
           </div>
-          {gallery.map((item, index) => (
-            <div key={index} className="w-full aspect-square">
-              <Image
-                src={item.image}
-                width={100}
-                height={100}
-                alt="gallery image"
-                className="w-full h-full rounded-md object-cover"
-              />
+
+          {/* Render professional media */}
+          {proMediaData?.data?.map((item: MediaItem, index: number) => (
+            <div
+              key={index}
+              className="w-full aspect-square rounded-md overflow-hidden"
+            >
+              {/* If it's an image */}
+              {item.fileUrl && (
+                <Image
+                  src={`${medialURL}${item.fileUrl}`}
+                  width={100}
+                  height={100}
+                  alt="Professional media"
+                  className="w-full h-full object-cover rounded-md"
+                />
+              )}
+
+              {/* If it's a YouTube embed */}
+              {item.youtubeEmbed && (
+                <div
+                  className="w-full h-full"
+                  dangerouslySetInnerHTML={{ __html: item.youtubeEmbed }}
+                />
+              )}
             </div>
           ))}
         </div>

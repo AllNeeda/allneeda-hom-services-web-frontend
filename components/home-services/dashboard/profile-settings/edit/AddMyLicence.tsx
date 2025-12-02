@@ -11,8 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { InfoIcon } from "lucide-react";
+import { getAccessToken } from "@/app/api/axios";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
+import {
+  useLicenseTypes,
+  useLocation,
+} from "@/hooks/profileSettings/useProfileSettings";
+import { postProfessionalLicense } from "@/app/api/dashboard/professionalLicense";
+import { LicensePayload } from "@/types/professionalLicenseTypes";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const AddMyLicence = () => {
   const router = useRouter();
@@ -21,9 +31,65 @@ const AddMyLicence = () => {
   const [ownerName, setOwnerName] = useState("");
   const [licenseExpiration, setLicenseExpiration] = useState("");
   const [licensingAgency, setLicensingAgency] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    confirm("Confirm to submit the form");
+  const token = getAccessToken() || "";
+  const { data: professionalData } = useProfesssionalProgress(token);
+
+  const { data: licenseTypes } = useLicenseTypes();
+  const { data: locations, isLoading } = useLocation();
+
+  const licenseTypeOptions = useMemo(() => {
+    if (!licenseTypes) return [];
+    return licenseTypes.data.map((type: { _id: string; name: string }) => ({
+      value: type._id,
+      label: type.name,
+    }));
+  }, [licenseTypes]);
+
+  const locationOptions = useMemo(() => {
+    if (!locations) return [];
+    return locations.map(
+      (loc: { _id: string; city: string; state: string }) => ({
+        value: loc._id,
+        label: `${loc.city}, ${loc.state}`,
+      })
+    );
+  }, [locations]);
+
+  const proId = useMemo(() => {
+    if (!professionalData) return null;
+    const id = Array.isArray(professionalData)
+      ? professionalData?.[0]?._id
+      : professionalData?._id;
+    if (id) localStorage.setItem("proId", id);
+    return id;
+  }, [professionalData]);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const licenseData: LicensePayload = {
+      professional_id: proId,
+      state_id: stateName,
+      license_type_id: licenceType,
+      license_owner_name: ownerName,
+      license_expiration: licenseExpiration || null,
+      link_to_licensing_agency: licensingAgency || null,
+      status: "pending",
+    };
+
+    console.log("Submitting license data:", licenseData);
+    try {
+      const response = await postProfessionalLicense(licenseData, token);
+      console.log("License submission response:", response);
+      toast.success("License submitted successfully!");
+
+      return response;
+    } catch (error) {
+      console.error("Error saving license: ", error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -49,54 +115,46 @@ const AddMyLicence = () => {
             >
               State <span className="text-red-500">*</span>
             </label>
+
             <Select
               value={stateName}
               onValueChange={(val) => setStateName(val)}
             >
               <SelectTrigger className="w-full h-11 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
-                <SelectValue placeholder="Select a state" />
+                <SelectValue
+                  placeholder={
+                    isLoading ? "Loading states..." : "Select a state"
+                  }
+                />
               </SelectTrigger>
+
               <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                 <SelectGroup>
                   <SelectLabel className="text-gray-700 dark:text-gray-300">
                     State
                   </SelectLabel>
-                  <SelectItem
-                    value="ak"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Alaska
-                  </SelectItem>
-                  <SelectItem
-                    value="al"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Alabama
-                  </SelectItem>
-                  <SelectItem
-                    value="ar"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Argentina
-                  </SelectItem>
-                  <SelectItem
-                    value="az"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Arizona
-                  </SelectItem>
-                  <SelectItem
-                    value="ca"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    California
-                  </SelectItem>
-                  <SelectItem
-                    value="co"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Colorado
-                  </SelectItem>
+
+                  {isLoading ? (
+                    <SelectItem
+                      value="loading"
+                      disabled
+                      className="focus:bg-gray-100 dark:focus:bg-gray-700"
+                    >
+                      Loading...
+                    </SelectItem>
+                  ) : (
+                    locationOptions.map(
+                      (loc: { value: string; label: string }) => (
+                        <SelectItem
+                          key={loc.value}
+                          value={loc.value}
+                          className="focus:bg-gray-100 dark:focus:bg-gray-700"
+                        >
+                          {loc.label}
+                        </SelectItem>
+                      )
+                    )
+                  )}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -122,48 +180,17 @@ const AddMyLicence = () => {
                   <SelectLabel className="text-gray-700 dark:text-gray-300">
                     License Types
                   </SelectLabel>
-                  <SelectItem
-                    value="Architect"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Architect
-                  </SelectItem>
-                  <SelectItem
-                    value="attorney-occupational-license"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Attorney Occupational License
-                  </SelectItem>
-                  <SelectItem
-                    value="brokerage-firm-securities"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Brokerage Firm (Securities)
-                  </SelectItem>
-                  <SelectItem
-                    value="boroker-securities"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Broker (Securities)
-                  </SelectItem>
-                  <SelectItem
-                    value="c19b-marble-contractor"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    C19b – Marble Contractor
-                  </SelectItem>
-                  <SelectItem
-                    value="car-towing-usdot"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Car Towing - USDOT
-                  </SelectItem>
-                  <SelectItem
-                    value="contractor-duct-air-tightness-testing"
-                    className="focus:bg-gray-100 dark:focus:bg-gray-700"
-                  >
-                    Contractor – Duct Air Tightness Testing
-                  </SelectItem>
+                  {licenseTypeOptions.map(
+                    (type: { value: string; label: string }) => (
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        className="focus:bg-gray-100 dark:focus:bg-gray-700"
+                      >
+                        {type.label}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -235,10 +262,12 @@ const AddMyLicence = () => {
             <Button
               type="button"
               onClick={handleSubmit}
-              className="flex-1 h-11 bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white"
-              disabled={!stateName || !licenceType || !ownerName}
+              className={`flex-1 h-11 bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white ${
+                submitting && "bg-sky-400"
+              }`}
+              disabled={!stateName || !licenceType || !ownerName || submitting}
             >
-              Submit License
+              {submitting ? "Submitting..." : "Submit License"}
             </Button>
             <Button
               type="button"
@@ -251,7 +280,7 @@ const AddMyLicence = () => {
           </div>
         </div>
       </div>
-
+      <Toaster className="border border-green-500 dark:bg-green-400 bg-green-100 text-green-500 dark:text-white" />
       {/* Help Text */}
       <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         <div className="flex items-start gap-2">

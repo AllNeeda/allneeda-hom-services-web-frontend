@@ -11,9 +11,9 @@ const ManageServices = () => {
   >("category");
 
   const tabs = [
-    { id: "category", label: "Add Category" },
-    { id: "subcategory", label: "Add Subcategory" },
-    { id: "service", label: "Add Service" },
+    { id: "category", label: "Categories" },
+    { id: "subcategory", label: "Subcategories" },
+    { id: "service", label: "Services" },
   ] as const;
 
   const renderTabContent = () => {
@@ -30,7 +30,7 @@ const ManageServices = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">

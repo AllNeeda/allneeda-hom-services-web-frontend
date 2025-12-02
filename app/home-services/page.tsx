@@ -131,7 +131,6 @@ const HomeServicesPage = () => {
   const handleAcceptLocation = async () => {
     try {
       const loc = await getLocationInfo();
-      console.log("user location: ", loc);
       setUserLocation(loc);
       setLocationModalOpen(false);
 

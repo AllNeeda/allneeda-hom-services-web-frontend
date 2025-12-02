@@ -13,6 +13,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Questioner from "../../question/Questioner";
+import { useEffect, useState } from "react";
+import { getPorfessionalsStaticURL } from "@/app/api/axios";
 
 interface Professional {
   id: string;
@@ -52,6 +54,7 @@ export default function ProfessionalList({
   serviceId,
 }: ProfessionalListProps) {
   console.log(selectedType);
+  const [BASEDIR, setBaseDir] = useState("");
   // Format price range display
   const formatPriceRange = (min: number, max: number, pricingType: string) => {
     if (pricingType === "fixed") {
@@ -67,6 +70,11 @@ export default function ProfessionalList({
   };
   const selectedProfessionals: string[] = professionals.map((item) => item.id);
   console.log("PROFESSIONAL SELECTED FOR LEAD: ", selectedProfessionals);
+  console.log("Professional Image url: ", professionals);
+
+  useEffect(() => {
+    setBaseDir(getPorfessionalsStaticURL());
+  }, []);
 
   return (
     <div className="grid gap-4 bg-white dark:bg-gray-900">
@@ -84,7 +92,7 @@ export default function ProfessionalList({
             <div className="w-full h-32 sm:w-24 sm:h-24 relative flex-shrink-0">
               {professional.imageUrl ? (
                 <Image
-                  src={professional.imageUrl}
+                  src={`${BASEDIR}/${professional.imageUrl}`}
                   fill
                   alt={professional.company}
                   className="object-cover rounded"

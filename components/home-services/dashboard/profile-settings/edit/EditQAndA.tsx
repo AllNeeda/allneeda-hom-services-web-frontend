@@ -1,99 +1,151 @@
-import { useState } from "react";
+"use client";
+import { useMemo, useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Save, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Save, X } from "lucide-react";
+import { getAccessToken } from "@/app/api/axios";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
+import { useFAQ } from "@/hooks/profileSettings/useProfileSettings";
+import ErrorDisplay from "@/components/ui/ErrorDisplay";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { addAnswerService } from "@/app/api/services/professional";
 
 interface FAQItem {
-  id: number;
+  _id?: string;
+  question_id: string;
+  professional_id: string;
   question: string;
   answer: string;
   expanded: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const EditQAndA = () => {
-  const [faqs, setFaqs] = useState<FAQItem[]>([
-    {
-      id: 1,
-      question:
-        "What should the customer know about your pricing (e.g., discounts, fees)?",
-      answer: "",
-      expanded: true,
-    },
-    {
-      id: 2,
-      question: "What is your typical process for working with a new customer?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 3,
-      question:
-        "What education and/or training do you have that relates to your work?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 4,
-      question: "How did you get started doing this type of work?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 5,
-      question: "What types of customers have you worked with?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 6,
-      question:
-        "Describe a recent project you are fond of. How long did it take?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 7,
-      question:
-        "What advice would you give a customer looking to hire a provider in your area of work?",
-      answer: "",
-      expanded: false,
-    },
-    {
-      id: 8,
-      question:
-        "What questions should customers think through before talking to professionals about their project?",
-      answer: "",
-      expanded: false,
-    },
-  ]);
+  const token = getAccessToken() || "";
+  const { data: professionalData } = useProfesssionalProgress(token);
 
-  const handleAnswerChange = (id: number, value: string) => {
-    setFaqs(
-      faqs.map((faq) => (faq.id === id ? { ...faq, answer: value } : faq))
-    );
-  };
+  const proId = useMemo(() => {
+    if (!professionalData) return null;
+    const id = Array.isArray(professionalData)
+      ? professionalData?.[0]?._id
+      : professionalData?._id;
+    if (id) localStorage.setItem("proId", id);
+    return id;
+  }, [professionalData]);
 
-  const toggleExpand = (id: number) => {
+  const { data: FAQData, isError, isLoading } = useFAQ(proId, token);
+  const QuestionData = FAQData?.questions || [];
+
+  // Initialize state with real data from API
+  const [faqs, setFaqs] = useState<FAQItem[]>([]);
+
+  // Update state when API data loads using useEffect
+  useEffect(() => {
+    if (QuestionData.length > 0 && proId && faqs.length === 0) {
+      const initializedFaqs = QuestionData.map((faq: any, index: number) => ({
+        _id: faq._id, // The FAQ entry ID
+        question_id: faq.question_id, // The question ID
+        professional_id: proId, // Professional ID
+        question: faq.question,
+        answer: faq.answer || "",
+        expanded: index === 0, // Expand first item by default
+        createdAt: faq.createdAt,
+        updatedAt: faq.updatedAt,
+      }));
+      setFaqs(initializedFaqs);
+    }
+  }, [QuestionData, proId, faqs.length]);
+
+  const handleAnswerChange = (question_id: string, value: string) => {
     setFaqs(
       faqs.map((faq) =>
-        faq.id === id ? { ...faq, expanded: !faq.expanded } : faq
+        faq.question_id === question_id ? { ...faq, answer: value } : faq
       )
     );
   };
 
-  const handleSave = () => {
-    // Here you would typically save the data to your backend
-    console.log("Saved FAQs:", faqs);
-    alert("FAQs saved successfully!");
+  const toggleExpand = (question_id: string) => {
+    setFaqs(
+      faqs.map((faq) =>
+        faq.question_id === question_id
+          ? { ...faq, expanded: !faq.expanded }
+          : faq
+      )
+    );
+  };
+
+  const handleSave = async () => {
+    const saveData = faqs.map((faq) => ({
+      _id: faq._id,
+      question_id: faq.question_id,
+      professional_id: faq.professional_id,
+      answer: faq.answer,
+    }));
+
+    try {
+      const response = await addAnswerService(saveData, token);
+      if (response.success) {
+        console.log("Saved FAQs data format:", saveData);
+        toast.success("FAQs saved successfully!", {
+          duration: 4000,
+          position: "top-right",
+          className: "!bg-green-100 !text-green-500 !border !border-green-500",
+          style: {
+            padding: "16px",
+            fontWeight: "bold",
+          },
+        });
+      }
+    } catch (error) {
+      toast.error(`Unable to save the answer: ${error}`);
+    }
   };
 
   const handleCancel = () => {
-    // Reset form or navigate away
-    setFaqs(faqs.map((faq) => ({ ...faq, answer: "" })));
+    // Reset form with original data from API
+    if (proId && QuestionData.length > 0) {
+      const resetFaqs = QuestionData.map((faq: any, index: number) => ({
+        _id: faq._id,
+        question_id: faq.question_id,
+        professional_id: proId,
+        question: faq.question,
+        answer: faq.answer || "",
+        expanded: index === 0,
+        createdAt: faq.createdAt,
+        updatedAt: faq.updatedAt,
+      }));
+      setFaqs(resetFaqs);
+    }
   };
 
+  if (isError) {
+    return <ErrorDisplay />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (faqs.length === 0 && QuestionData.length === 0) {
+    return (
+      <div className="mx-auto p-6 bg-white dark:bg-gray-900 rounded">
+        <div className="text-center py-8">
+          <p className="text-gray-600 dark:text-gray-400">
+            No FAQ questions available.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className=" mx-auto p-6 bg-white dark:bg-gray-900 rounded">
+    <div className="mx-auto p-6 bg-white dark:bg-gray-900 rounded">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
           Edit FAQs
@@ -103,16 +155,16 @@ const EditQAndA = () => {
           your services.
         </p>
       </div>
-
+      <Toaster />
       <div className="space-y-4">
         {faqs.map((faq) => (
           <div
-            key={faq.id}
-            className="border rounded-lg overflow-hidden dark:border-gray-700"
+            key={faq.question_id}
+            className="border rounded overflow-hidden dark:border-gray-700"
           >
             <button
               className="flex justify-between items-center w-full p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750"
-              onClick={() => toggleExpand(faq.id)}
+              onClick={() => toggleExpand(faq.question_id)}
             >
               <span className="font-medium text-left text-gray-800 dark:text-white">
                 {faq.question}
@@ -128,7 +180,9 @@ const EditQAndA = () => {
               <div className="p-4 bg-white dark:bg-gray-900">
                 <Textarea
                   value={faq.answer}
-                  onChange={(e) => handleAnswerChange(faq.id, e.target.value)}
+                  onChange={(e) =>
+                    handleAnswerChange(faq.question_id, e.target.value)
+                  }
                   placeholder="Type your answer here..."
                   className="min-h-32 resize-y dark:bg-gray-800 dark:border-gray-700 dark:text-white"
                 />

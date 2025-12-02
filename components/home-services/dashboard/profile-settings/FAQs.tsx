@@ -1,6 +1,33 @@
+"use client";
+import { getAccessToken } from "@/app/api/axios";
+import ErrorDisplay from "@/components/ui/ErrorDisplay";
+import { useFAQ } from "@/hooks/profileSettings/useProfileSettings";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
 
 const FAQs = () => {
+  const token = getAccessToken() || "";
+  const { data: professionalData } = useProfesssionalProgress(token);
+
+  const proId = useMemo(() => {
+    if (!professionalData) return null;
+    const id = Array.isArray(professionalData)
+      ? professionalData?.[0]?._id
+      : professionalData?._id;
+    if (id) localStorage.setItem("proId", id);
+    return id;
+  }, [professionalData]);
+  const { data: FAQData, isError, isLoading } = useFAQ(proId, token);
+  const QuestionData = FAQData?.questions || [];
+  if (isError) {
+    return <ErrorDisplay />;
+  }
+  if (isLoading) {
+    return <Loader2 />;
+  }
+
   const EditFAQs = "edit-q-and-a";
   return (
     <div className="rounded bg-white dark:bg-gray-800 p-4 my-4">
@@ -14,58 +41,15 @@ const FAQs = () => {
         </Link>
       </div>
       <div className="flex flex-col">
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What should the customer know about your pricing (e.g., discounts,
-            fees)?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What is your typical process for working with a new customer?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What education and/or training do you have that relates to your
-            work?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            How did you get started doing this type of work?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What types of customers have you worked with?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            Describe a recent project you are fond of. How long did it take?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What advice would you give a customer looking to hire a provider in
-            your area of work?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
-          <p className="font-bold text-md">
-            What questions should customers think through before talking to
-            professionals about their project?
-          </p>
-          <p className="text-sm">Not Answered</p>
-        </div>
+        {QuestionData.map((q: any) => (
+          <div
+            key={q._id}
+            className="border-b border-gray-200 dark:border-gray-700 p-4"
+          >
+            <p className="font-bold text-md">{q.question}</p>
+            <p className="text-sm">{q.answer ? q.answer : "Not Answerd"}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

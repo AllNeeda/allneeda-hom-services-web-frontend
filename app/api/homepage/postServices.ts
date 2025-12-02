@@ -69,10 +69,20 @@ export const getCategoryServiceCount = async () => {
 export const getSubcategoryServiceCount = async () => {
   try {
     const response = await api.get('/subcategories/with-service-count');
-    console.log("Api response: ", response);
     return response;
   } catch (error) {
     console.error("Error getting subcategories: ", error);
     throw error;
   }
 }
+
+export const getServices = async () => {
+  try {
+    const response = await api.get('/services');
+    return response;
+  } catch (error) {
+    console.error("Error getting services: ", error);
+    throw error;
+  }
+}
+

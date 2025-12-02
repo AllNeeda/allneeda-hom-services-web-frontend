@@ -1,3 +1,4 @@
+"use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -12,7 +13,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X } from "lucide-react";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
+import { getAccessToken } from "@/app/api/axios";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
+import { useAllServices } from "@/hooks/useHomeServices";
+import { postFeaturedService } from "@/app/api/services/professional";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { useRouter } from "next/navigation";
 
 const AddProject = () => {
   const [serviceName, setServiceName] = useState("");
@@ -21,11 +29,13 @@ const AddProject = () => {
   const [approximatePrice, setApproximatePrice] = useState("");
   const [durationValue, setDurationValue] = useState("");
   const [durationType, setDurationType] = useState("");
-  const [year, setYear] = useState("");
+  const [year, setYear] = useState<string>("");
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [yearObject, setYearObject] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -65,25 +75,54 @@ const AddProject = () => {
     setImages(newImages);
     setImagePreviews(newPreviews);
   };
+  const token = getAccessToken() || "";
+  const { data: professionalData } = useProfesssionalProgress(token);
+  const proId = useMemo(() => {
+    if (!professionalData) return null;
+    const id = Array.isArray(professionalData)
+      ? professionalData?.[0]?._id
+      : professionalData?._id;
+    if (id) localStorage.setItem("proId", id);
+    return id;
+  }, [professionalData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Form submission logic would go here
-    console.log({
-      serviceName,
-      locationCity,
-      projectTitle,
-      approximatePrice,
-      durationValue,
-      durationType,
-      year,
-      description,
-      images,
-    });
+    setIsSubmitting(true);
+
+    if (!proId) {
+      console.error("No professional ID found");
+      return;
+    }
+
+    const formData = new FormData();
+
+    formData.append("professional_id", proId);
+    formData.append("service_id", serviceName);
+    formData.append("projectTitle", projectTitle);
+    formData.append("approximate_total_price", approximatePrice);
+    formData.append("year", year);
+    formData.append("description", description);
+    formData.append("cityname", locationCity);
+    formData.append("duration_value", durationValue);
+    formData.append("duration_type", durationType);
+
+    images.forEach((file) => formData.append("files", file));
+
+    try {
+      const res = await postFeaturedService(token, formData);
+      console.log("Uploaded Featured Project:", res);
+      toast.success("Featured project saved successfully");
+    } finally {
+      setIsSubmitting(false);
+      handleCancel();
+      router.push("/home-services/dashboard/profile-settings");
+    }
   };
 
   const handleCancel = () => {
-    // Reset form logic
     setServiceName("");
     setLocationCity("");
     setProjectTitle("");
@@ -96,12 +135,27 @@ const AddProject = () => {
     setImagePreviews([]);
   };
 
+  const { data: allServices, isLoading } = useAllServices();
+  const serviceList = allServices?.data || [];
+
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    const yearsArray = [];
+
+    for (let y = 1990; y <= currentYear; y++) {
+      yearsArray.push(y);
+    }
+
+    setYearObject(yearsArray.reverse());
+  }, []);
+
   return (
     <div className="p-6">
       <div className="max-w-2xl mx-auto">
         <h1 className="font-bold text-2xl mb-6">New Project</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex flex-col gap-6 md:flex-row">
+            <Toaster className="border border-green-500 text-green-500" />
             <div className="w-full">
               <label
                 htmlFor="service"
@@ -109,34 +163,28 @@ const AddProject = () => {
               >
                 Service
               </label>
-              <Select
-                value={serviceName}
-                onValueChange={(val) => setServiceName(val)}
-              >
+              <Select onValueChange={(val) => setServiceName(val)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select the service" />
+                  <SelectValue
+                    placeholder={
+                      isLoading ? "Loading services..." : "Select the Services"
+                    }
+                  />
                 </SelectTrigger>
+
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Services</SelectLabel>
-                    <SelectItem value="house-cleaning">
-                      House Cleaning
-                    </SelectItem>
-                    <SelectItem value="carpet-cleaning">
-                      Carpet Cleaning
-                    </SelectItem>
-                    <SelectItem value="interior-painting">
-                      Interior Painting
-                    </SelectItem>
-                    <SelectItem value="interior-design">
-                      Interior Design
-                    </SelectItem>
-                    <SelectItem value="roof-installation">
-                      Roof Installation
-                    </SelectItem>
-                    <SelectItem value="door-repairing">
-                      Door Repairing
-                    </SelectItem>
+
+                    {isLoading ? (
+                      <SelectItem value="N/A">Loading services...</SelectItem>
+                    ) : (
+                      serviceList.map((s: any) => (
+                        <SelectItem value={s._id} key={s._id}>
+                          {s.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -295,18 +343,18 @@ const AddProject = () => {
               >
                 Year
               </label>
-              <Select value={year} onValueChange={(val) => setYear(val)}>
+              <Select onValueChange={(val) => setYear(val)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectLabel>Year</SelectLabel>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2022">2022</SelectItem>
-                    <SelectItem value="2021">2021</SelectItem>
+                    {yearObject.map((y) => (
+                      <SelectItem value={String(y)} key={y}>
+                        {y}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -338,9 +386,10 @@ const AddProject = () => {
           <div className="flex gap-3 justify-start pt-4">
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="bg-sky-600 dark:bg-sky-500 hover:bg-sky-500 dark:hover:bg-sky-400 text-white"
             >
-              Save Project
+              {isSubmitting ? "Saving..." : "Save Project"}
             </Button>
             <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel

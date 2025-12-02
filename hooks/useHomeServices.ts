@@ -9,7 +9,7 @@ import {
   loadUserLocation,
 } from "@/app/api/homepage/popularService";
 import { getLeadDetails, getProfessionalLead, getServiceQuestion } from "@/app/api/homepage/generateLead";
-import { getCategoryServiceCount, getSubcategoryServiceCount } from "@/app/api/homepage/postServices";
+import { getCategoryServiceCount, getServices, getSubcategoryServiceCount } from "@/app/api/homepage/postServices";
 
 
 export const usePopularServices = () => {
@@ -132,6 +132,14 @@ export const useLeadDetails = (LeadId: string) => {
     queryKey: ['LeadDetails', LeadId],
     queryFn: () => getLeadDetails(LeadId),
     enabled: !!LeadId,
+    staleTime: 5*60*1000,
+  });
+}
+
+export const useServices = () => {
+  return useQuery ({
+    queryKey: ['services'],
+    queryFn: () => getServices(),
     staleTime: 5*60*1000,
   });
 }
