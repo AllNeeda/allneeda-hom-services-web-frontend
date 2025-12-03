@@ -1,11 +1,11 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getAccessToken } from "@/app/api/axios";
 import { MapPin, Trash2, Edit, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useGetServiceById } from "@/hooks/useServices";
 import GlobalLoader from "@/components/ui/global-loader";
 import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface ServiceLocation {
   _id: string;
@@ -23,17 +23,12 @@ interface ServiceLocation {
 const ServiceLocation = () => {
   const token = getAccessToken();
   const router = useRouter();
-  const [serviceData, setServiceData] = useState<{ service_id: string; professional_id: string } | null>(null);
+
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
+    const searchParams = useSearchParams();
+    const service_id = searchParams.get("service_id");
+    const professional_id = searchParams.get("professional_id");
 
-  useEffect(() => {
-    const storedService = localStorage.getItem('currentService');
-    if (storedService) {
-      setServiceData(JSON.parse(storedService));
-    }
-  }, []);
-
-  const { service_id, professional_id } = serviceData || {};
 
   const {
     data: serviceByIdData,

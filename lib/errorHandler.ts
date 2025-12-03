@@ -47,21 +47,32 @@ const extractDuplicateKeyMessage = (data: any): string | null => {
 
 const extractBackendMessage = (data: any): string | null => {
   if (!data) return null;
+
+  // Handle duplicate key (Mongo)
   const duplicateMessage = extractDuplicateKeyMessage(data);
   if (duplicateMessage) return duplicateMessage;
+  if (data.validation && data.validation.body) {
+    const v = data.validation.body;
+
+    if (v.message) return v.message;  
+    if (v.keys) return ` ${v.keys.join(", ")}`;
+  }
   if (data.error) return data.error;
   if (data.message) return data.message;
-  if (typeof data === 'string') return data;
+  if (typeof data === "string") return data;
   if (data.detail) return data.detail;
   if (data.title) return data.title;
+
+  // Array errors
   if (Array.isArray(data.errors) && data.errors.length > 0) {
-    return data.errors.map((err: any) => 
-      err.message || err.msg || err.error || JSON.stringify(err)
-    ).join(', ');
+    return data.errors
+      .map((err: any) => err.message || err.msg || err.error || JSON.stringify(err))
+      .join(", ");
   }
-  
+
   return null;
 };
+
 let lastErrorMessage: string | null = null;
 let lastErrorTime: number = 0;
 

@@ -84,7 +84,9 @@ const ServicesList = ({ data }: ServicesListProps) => {
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [loadingServiceId, setLoadingServiceId] = useState<string | null>(null);
   const { mutate: updateStatus } = useUpdateServiceStatus();
-  const { mutate: deleteService } = useDeleteService(); // Add this line
+  const { mutate: deleteService } = useDeleteService();
+
+
 
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -117,8 +119,6 @@ const ServicesList = ({ data }: ServicesListProps) => {
     if (!service.setupProgress.step4) return 'locations';
     return 'service_name'; // fallback
   };
-
-  // Function to navigate to step with cache setup
   const navigateToStep = (step: string, service: TransformedService) => {
     // Set the current service data in cache before navigation
     queryClient.setQueryData(["currentService"], {
@@ -126,22 +126,30 @@ const ServicesList = ({ data }: ServicesListProps) => {
       professional_id: service.originalData.professional_id,
     });
 
+    const params = new URLSearchParams({
+      service_id: service.originalData.service_id,
+      professional_id: service.originalData.professional_id,
+    }).toString();
+
     // Navigate to the step
     switch (step) {
       case 'service_name':
-        router.push('/home-services/dashboard/services/addServices');
+        router.push(`/home-services/dashboard/services/addServices?${params}`);
         break;
       case 'pricing':
-        router.push('/home-services/dashboard/services/pricing');
+        router.push(`/home-services/dashboard/services/pricing?${params}`);
+        break;
+      case 'addypricing':
+        router.push(`/home-services/dashboard/services/addpricing?${params}`);
         break;
       case 'questions':
-        router.push('/home-services/dashboard/services/questions');
+        router.push(`/home-services/dashboard/services/questions?${params}`);
         break;
       case 'locations':
-        router.push('/home-services/dashboard/services/serviceLocation');
+        router.push(`/home-services/dashboard/services/serviceLocation?${params}`);
         break;
       default:
-        router.push('/home-services/dashboard/services/addServices');
+        router.push(`/home-services/dashboard/services/addServices?${params}`);
     }
   };
   const handleEdit = (service: TransformedService) => {
@@ -149,22 +157,25 @@ const ServicesList = ({ data }: ServicesListProps) => {
       service_id: service.originalData.service_id,
       professional_id: service.originalData.professional_id,
     };
-    localStorage.setItem('currentService', JSON.stringify(currentServiceData));
     queryClient.setQueryData(["currentService"], currentServiceData);
-
-    router.push("/home-services/dashboard/services/edit");
+    const params = new URLSearchParams({
+      service_id: service.originalData.service_id,
+      professional_id: service.originalData.professional_id,
+    }).toString();
+    router.push(`/home-services/dashboard/services/edit?${params}`);
   };
-
 
   const handleEditLocation = (service: TransformedService) => {
     const currentServiceData = {
       service_id: service.originalData.service_id,
       professional_id: service.originalData.professional_id,
     };
-    localStorage.setItem('currentService', JSON.stringify(currentServiceData));
+    const params = new URLSearchParams({
+      service_id: service.originalData.service_id,
+      professional_id: service.originalData.professional_id,
+    }).toString();
     queryClient.setQueryData(["currentService"], currentServiceData);
-
-    router.push("/home-services/dashboard/services/locations");
+    router.push(`/home-services/dashboard/services/locations?${params}`);
   };
 
 
@@ -173,13 +184,16 @@ const ServicesList = ({ data }: ServicesListProps) => {
       service_id: service.originalData.service_id,
       professional_id: service.originalData.professional_id,
     };
-    localStorage.setItem('currentService', JSON.stringify(currentServiceData));
+    const params = new URLSearchParams({
+      service_id: service.originalData.service_id,
+      professional_id: service.originalData.professional_id,
+    }).toString();
     queryClient.setQueryData(["currentService"], currentServiceData);
 
-    router.push("/home-services/dashboard/services/questionsDetails");
+    router.push(`/home-services/dashboard/services/questionsDetails?${params}`);
   };
 
-  
+
 
   // Navigate to the next incomplete step
   const navigateToNextStep = (service: TransformedService) => {
@@ -482,32 +496,65 @@ const ServicesList = ({ data }: ServicesListProps) => {
                           }`}
                       >
                         <div className="p-4 space-y-4">
-                          {/* Simple Complete Setup Button - Only show for incomplete services */}
-                          {!service.completed && (
-                            <div className={`rounded-sm p-4 ${showWarning
-                              ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 border border-yellow-200 dark:border-yellow-800'
-                              : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
-                              }`}>
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] mb-1">
-                                    Complete Service Setup
-                                  </h3>
-                                  <p className="text-gray-600 dark:text-gray-300 text-[12px]">
-                                    Finish setting up your service to start receiving leads
-                                  </p>
+
+                          {service.originalData.maximum_price === 0 &&
+                            service.originalData.question_ids?.length > 0 &&
+                            service.originalData.location_ids?.length > 0 && (
+                              <div
+                                className={`rounded-sm p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 border border-yellow-200 dark:border-yellow-800`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] mb-1">
+                                      Complete Service Price
+                                    </h3>
+                                    <p className="text-gray-600 dark:text-gray-300 text-[12px]">
+                                      Finish setting up your service to start receiving leads
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => navigateToStep('addypricing', service)}
+                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
+                                  >
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Set Service Pricing
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => navigateToNextStep(service)}
-                                  className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
-                                >
-                                  <Sparkles className="w-4 h-4 mr-2" />
-                                  Complete Setup
-                                  <ArrowRight className="w-4 h-4 ml-2" />
-                                </button>
                               </div>
-                            </div>
-                          )}
+                            )}
+
+                          {/* Show "Complete Service Setup" only when:
+            1. Service is incomplete
+            2. AND NOT in the specific case above (max_price=0 with questions and locations) */}
+                          {!service.completed &&
+                            !(service.originalData.maximum_price === 0 &&
+                              service.originalData.question_ids?.length > 0 &&
+                              service.originalData.location_ids?.length > 0) && (
+                              <div className={`rounded-sm p-4 ${showWarning
+                                ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 border border-yellow-200 dark:border-yellow-800'
+                                : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                                }`}>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] mb-1">
+                                      Complete Service Setup
+                                    </h3>
+                                    <p className="text-gray-600 dark:text-gray-300 text-[12px]">
+                                      Finish setting up your service to start receiving leads
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => navigateToNextStep(service)}
+                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
+                                  >
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Complete Setup
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
                           {/* Service Configuration */}
                           <div className="space-y-3">

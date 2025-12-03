@@ -5,6 +5,7 @@ import { Loader2, DollarSign, ClipboardList, FileText } from "lucide-react";
 import { ServicePricingPayload, useGetServiceById, useUpdateServicePricing } from "@/hooks/useServices";
 import GlobalLoader from "@/components/ui/global-loader";
 import toast from "react-hot-toast";
+import { useSearchParams } from "next/navigation";
 
 const PRICING_TYPES = [
     { value: "hourly", label: "Hourly Rate" },
@@ -15,15 +16,9 @@ const PRICING_TYPES = [
 
 const ServicePricing = () => {
     const token = getAccessToken();
-    const [serviceData, setServiceData] = useState<{ service_id: string; professional_id: string } | null>(null);
-    useEffect(() => {
-        const storedService = localStorage.getItem('currentService');
-        if (storedService) {
-            setServiceData(JSON.parse(storedService));
-        }
-    }, []);
-
-    const { service_id, professional_id } = serviceData || {};
+    const searchParams = useSearchParams();
+    const service_id = searchParams.get("service_id");
+    const professional_id = searchParams.get("professional_id");
     const {
         data: serviceByIdData,
         isLoading: isServiceLoading,

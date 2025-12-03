@@ -6,6 +6,7 @@ import { getAccessToken } from "@/app/api/axios";
 import GlobalLoader from "@/components/ui/global-loader";
 import { useGetServicesQuestionByServiceId, useSubmitQuestionAnswer } from "@/hooks/useServices";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 
 export interface ServiceQuestion {
   _id: string;
@@ -32,8 +33,11 @@ export default function MultiChoiceServiceForm() {
   const queryClient = useQueryClient();
   const serviceData = queryClient.getQueryData(['currentService']) as
     { service_id: string; professional_id: string } | undefined;
-  const serviceId = serviceData?.service_id as string;
-  const professional_id = serviceData?.professional_id as string;
+  const searchParams = useSearchParams();
+  const serviceID = searchParams.get("service_id");
+  const professionalId = searchParams.get("professional_id");
+  const serviceId = serviceID || serviceData?.service_id as string;
+  const professional_id = professionalId || serviceData?.professional_id as string;
   const { data: questionsData, isLoading: questionsLoading, error } =
     useGetServicesQuestionByServiceId(token, serviceId);
   const { mutate: submitAnswers, isPending: isSubmitting } =

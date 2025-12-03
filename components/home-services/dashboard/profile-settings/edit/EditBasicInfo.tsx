@@ -265,11 +265,11 @@ export default function EditBasicInfo() {
                 {paymentOptions.map((method) => (
                   <label key={method} className="flex items-center gap-2 cursor-pointer select-none">
                     <Checkbox
-                      checked={field.value.includes(method)}
+                      checked={field.value?.includes(method)}
                       onCheckedChange={(checked) =>
                         checked
-                          ? field.onChange([...field.value, method])
-                          : field.onChange(field.value.filter((m) => m !== method))
+                          ? field.onChange([...field.value as any, method])
+                          : field.onChange(field.value?.filter((m) => m !== method))
                       }
                     />
                     {method}

@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { getAccessToken } from "@/app/api/axios";
 import { Loader2, DollarSign, ClipboardList, FileText } from "lucide-react";
-import { ServicePricingPayload, useServicePricing } from "@/hooks/useServices";
+import { ServicePricingPayload, useAddServicePricing } from "@/hooks/useServices";
 import { useProfessionalReview } from "@/hooks/RegisterPro/useRegister";
 import GlobalLoader from "@/components/ui/global-loader";
 import toast from "react-hot-toast";
@@ -43,7 +43,7 @@ type ServicePricingFormData = z.infer<typeof servicePricingSchema>;
 
 const ServicePricing = () => {
     const token = getAccessToken() || "";
-    const { mutate, isPending } = useServicePricing(token);
+    const { mutate, isPending } = useAddServicePricing(token);
     const router = useRouter()
     const { data: professionalData, isLoading: isProfLoading } = useProfessionalReview(token);
     const queryClient = useQueryClient();

@@ -10,7 +10,7 @@ import {
   UpdateServiceStatusAPI,
   UseGetServicesQuestionAPI,
   UseServicePricingAPI,
-  UseSubmitQuestionAnswerAPI
+  UseSubmitQuestionAnswerAPI,
 } from "@/app/api/services/services";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -44,14 +44,8 @@ export function useUpdateServiceStatus() {
       toast.success(response?.message || "Service status updated successfully");
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["services"] }),
-        queryClient.invalidateQueries({ queryKey: ["professionalServices"] })
+        queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
       ]);
-
-    },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to update Service Status"
-      );
     },
     retry: false,
   });
@@ -76,24 +70,30 @@ export function useAddNewService(token: string) {
 
   return useMutation({
     mutationKey: ["AddNewService"],
-    mutationFn: (data: { service_name: string; service_id: string; professional_id: string }) =>
-      AddNewServiceAPI(data, token),
+    mutationFn: (data: {
+      service_name: string;
+      service_id: string;
+      professional_id: string;
+    }) => AddNewServiceAPI(data, token),
 
     onSuccess: async (data, variables) => {
       // Invalidate relevant queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["serviceData"] }),
         queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
-        queryClient.invalidateQueries({ queryKey: ["services"] })
+        queryClient.invalidateQueries({ queryKey: ["services"] }),
       ]);
-
-      // Set current service data for the next steps
       queryClient.setQueryData(["currentService"], {
         service_id: variables.service_id,
         professional_id: variables.professional_id,
       });
 
-      router.push(`/home-services/dashboard/services/pricing`);
+      const params = new URLSearchParams({
+        service_id: variables.service_id,
+        professional_id: variables.professional_id,
+      }).toString();
+
+      router.push(`/home-services/dashboard/services/pricing?${params}`);
     },
   });
 }
@@ -114,55 +114,69 @@ export function useServicePricing(token: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["UseServicePricing"],
-    mutationFn: (data: ServicePricingPayload) => UseServicePricingAPI(data, token),
+    mutationFn: (data: ServicePricingPayload) =>
+      UseServicePricingAPI(data, token),
     onSuccess: async (data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["serviceData"] });
       queryClient.setQueryData(["currentService"], {
         service_id: variables.service_id,
         professional_id: variables.professional_id,
       });
-      const locationArray = data?.data?.location_idslenght > 0 || data?.data?.data?.location_ids.lenght > 0;
-      if (locationArray) {
-        router.push(`/home-services/dashboard/services`);
-      } else {
-        router.push(`/home-services/dashboard/services/questions`);
-      }
-    },
-
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to save service pricing"
-      );
+      const params = new URLSearchParams({
+        service_id: variables.service_id,
+        professional_id: variables.professional_id,
+      }).toString();
+      router.push(`/home-services/dashboard/services/questions?${params}`);
     },
   });
 }
 
+// add service Pricing Only
+export function useAddServicePricing(token: string) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["UseServicePricing"],
+    mutationFn: (data: ServicePricingPayload) =>
+      UseServicePricingAPI(data, token),
+    onSuccess: async (data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["serviceData"] });
+      queryClient.setQueryData(["currentService"], {
+        service_id: variables.service_id,
+        professional_id: variables.professional_id,
+      });
+      router.push(`/home-services/dashboard/services`);
+    },
+  });
+}
 
 
 export function useUpdateServicePricing(token: string) {
   const router = useRouter();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationKey: ['updateServicePricing'],
-    mutationFn: (data: ServicePricingPayload) => UseServicePricingAPI(data, token),
+    mutationKey: ["updateServicePricing"],
+    mutationFn: (data: ServicePricingPayload) =>
+      UseServicePricingAPI(data, token),
     onSuccess: async (response, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['serviceData'] });
-      queryClient.setQueryData(['currentService'], {
+      await queryClient.invalidateQueries({ queryKey: ["serviceData"] });
+      queryClient.setQueryData(["currentService"], {
         service_id: variables.service_id,
         professional_id: variables.professional_id,
       });
-      toast.success(response?.message || 'Service pricing updated successfully');
-      router.push('/home-services/dashboard/services');
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || 'Failed to update service pricing';
-      toast.error(errorMessage);
+      toast.success(
+        response?.message || "Service pricing updated successfully"
+      );
+      router.push("/home-services/dashboard/services");
     },
   });
 }
 
 // Get Service Questions by Service ID Hook
-export function useGetServicesQuestionByServiceId(token: string | null, serviceId: string | null) {
+export function useGetServicesQuestionByServiceId(
+  token: string | null,
+  serviceId: string | null
+) {
   return useQuery({
     queryKey: ["questions", serviceId],
     queryFn: () => UseGetServicesQuestionAPI(token!, serviceId!),
@@ -181,21 +195,14 @@ export interface AnswerPayload {
   answer: string | string[];
 }
 
-interface ApiError {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-}
-
 export const useSubmitQuestionAnswer = (token: string) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationKey: ["submitServiceAnswers"],
-    mutationFn: (data: AnswerPayload[]) => UseSubmitQuestionAnswerAPI(data, token),
+    mutationFn: (data: AnswerPayload[]) =>
+      UseSubmitQuestionAnswerAPI(data, token),
 
     onSuccess: async (data, variables) => {
       if (variables.length > 0) {
@@ -204,15 +211,14 @@ export const useSubmitQuestionAnswer = (token: string) => {
           service_id: variables[0].service_id,
           professional_id: variables[0].professional_id,
         });
-
-        router.push(`/home-services/dashboard/services/serviceLocation`);
+        const params = new URLSearchParams({
+          service_id: variables[0].service_id,
+          professional_id: variables[0].professional_id,
+        }).toString();
+        router.push(
+          `/home-services/dashboard/services/serviceLocation?${params}`
+        );
       }
-    },
-
-    onError: (error: ApiError) => {
-      const errorMessage = error?.response?.data?.message
-        || "Failed to save service answers";
-      toast.error(errorMessage);
     },
   });
 };
@@ -221,7 +227,7 @@ export const useSubmitQuestionAnswer = (token: string) => {
 export interface LocationPayload {
   professional_id: string;
   service_id: string;
-  location_id: string,
+  location_id: string;
   lat: number;
   lng: number;
   city: string;
@@ -245,22 +251,15 @@ export const useServiceLocation = (token: string) => {
           queryClient.invalidateQueries({ queryKey: ["serviceData"] }),
           queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
           queryClient.invalidateQueries({ queryKey: ["services"] }),
-          queryClient.invalidateQueries({ queryKey: ["questions"] })
+          queryClient.invalidateQueries({ queryKey: ["questions"] }),
         ]);
 
         toast.success("New Service Added successfully");
         router.push(`/home-services/dashboard/services`);
-
       } catch {
         toast.success("New Service Added successfully");
         router.push(`/home-services/dashboard/services`);
       }
-    },
-
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message
-        || "Failed to save service location";
-      toast.error(errorMessage);
     },
   });
 };
@@ -270,10 +269,14 @@ export const useDeleteService = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["deleteService"],
-    mutationFn: ({ service_id, professional_id, token }: {
+    mutationFn: ({
+      service_id,
+      professional_id,
+      token,
+    }: {
       service_id: string;
       professional_id: string;
-      token: string
+      token: string;
     }) => DeleteServiceAPI(service_id, professional_id, token),
 
     onSuccess: async () => {
@@ -282,19 +285,12 @@ export const useDeleteService = () => {
           queryClient.invalidateQueries({ queryKey: ["serviceData"] }),
           queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
           queryClient.invalidateQueries({ queryKey: ["services"] }),
-          queryClient.invalidateQueries({ queryKey: ["questions"] })
+          queryClient.invalidateQueries({ queryKey: ["questions"] }),
         ]);
         toast.success("Service deleted successfully");
-
       } catch {
         toast.success("Service deleted successfully");
       }
-    },
-
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message
-        || "Failed to delete service";
-      toast.error(errorMessage);
     },
   });
 };
@@ -315,15 +311,13 @@ export const useGetServiceById = (
   });
 };
 
-
-
-
 export const useUpdateServiceLocation = (token: string) => {
   const router = useRouter();
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["saveServiceLocation"],
-    mutationFn: (data: LocationPayload) => SaveUpdateServiceLocationAPI(data, token),
+    mutationFn: (data: LocationPayload) =>
+      SaveUpdateServiceLocationAPI(data, token),
 
     onSuccess: async () => {
       try {
@@ -331,29 +325,20 @@ export const useUpdateServiceLocation = (token: string) => {
           queryClient.invalidateQueries({ queryKey: ["serviceData"] }),
           queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
           queryClient.invalidateQueries({ queryKey: ["services"] }),
-          queryClient.invalidateQueries({ queryKey: ["questions"] })
+          queryClient.invalidateQueries({ queryKey: ["questions"] }),
         ]);
 
         toast.success("Service Area Updated successfully");
         router.push(`/home-services/dashboard/services`);
-
       } catch {
         toast.success("Service Area Updated successfully");
         router.push(`/home-services/dashboard/services`);
       }
     },
-
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message
-        || "Failed to save service location";
-      toast.error(errorMessage);
-    },
   });
 };
 
-
-
-/// Get Service Location by Location, Pro and Service Id, 
+/// Get Service Location by Location, Pro and Service Id,
 // Updating the service Pricing
 export const useGetServiceLocationById = (
   service_id: string,
@@ -363,7 +348,13 @@ export const useGetServiceLocationById = (
 ) => {
   return useQuery({
     queryKey: ["service", service_id, professional_id],
-    queryFn: () => GetServiceLocationByIdAPI(service_id, professional_id, location_id, token),
+    queryFn: () =>
+      GetServiceLocationByIdAPI(
+        service_id,
+        professional_id,
+        location_id,
+        token
+      ),
     enabled: !!token && !!service_id && !!professional_id && !!location_id,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -371,19 +362,22 @@ export const useGetServiceLocationById = (
   });
 };
 
-
-
-// Add New Question 
+// Add New Question
 export const useAddQuestionAnswer = (token: string) => {
   const router = useRouter();
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["submitServiceAnswers"],
-    mutationFn: (data: AnswerPayload[]) => UseSubmitQuestionAnswerAPI(data, token),
+    mutationFn: (data: AnswerPayload[]) =>
+      UseSubmitQuestionAnswerAPI(data, token),
     onSuccess: async (data, variables) => {
       if (variables.length > 0) {
-        await queryClient.invalidateQueries({ 
-          queryKey: ["service", variables[0].service_id, variables[0].professional_id] 
+        await queryClient.invalidateQueries({
+          queryKey: [
+            "service",
+            variables[0].service_id,
+            variables[0].professional_id,
+          ],
         });
         queryClient.setQueryData(["currentService"], {
           service_id: variables[0].service_id,
@@ -391,11 +385,6 @@ export const useAddQuestionAnswer = (token: string) => {
         });
         router.push(`/home-services/dashboard/services`);
       }
-    },
-    onError: (error: ApiError) => {
-      const errorMessage = error?.response?.data?.message
-        || "Failed to save service answers";
-      toast.error(errorMessage);
     },
   });
 };

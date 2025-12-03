@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   GoogleMap,
@@ -35,20 +35,15 @@ interface LocationData {
 }
 const Map = () => {
   const router = useRouter();
-
   const [locationData, setLocationData] = useState<LocationData | null>(null);
-
-  // Get data from localStorage - FIXED
   useEffect(() => {
     try {
       const constData = localStorage.getItem("currentService");
       if (constData) {
         const parsedData = JSON.parse(constData);
-        console.log("Parsed location data:", parsedData);
         setLocationData(parsedData);
       }
-    } catch (error) {
-      console.error("Error parsing localStorage data:", error);
+    } catch {
       toast.error('Error loading service data');
     }
   }, []);
@@ -56,8 +51,11 @@ const Map = () => {
   const queryClient = useQueryClient();
   const serviceData = queryClient.getQueryData(['currentService']) as
     { service_id: string; professional_id: string } | undefined;
-  const serviceId = serviceData?.service_id as string || locationData?.service_id as string;
-  const professional_id = serviceData?.professional_id as string || locationData?.professional_id as string;
+  const searchParams = useSearchParams();
+  const serviceID = searchParams.get("service_id");
+  const professionalId = searchParams.get("professional_id");
+  const serviceId = serviceID || serviceData?.service_id as string || locationData?.service_id as string;
+  const professional_id = professionalId || serviceData?.professional_id as string || locationData?.professional_id as string;
   const token = getAccessToken() || "";
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
