@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { redirect, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
     GoogleMap,
@@ -409,24 +409,7 @@ const EditLocation = () => {
     // Show missing parameters error
     if (!hasRequiredParams && !isLocationLoading) {
         return (
-            <div className="space-y-4">
-                <div className="bg-red-100 border border-red-200 rounded-sm p-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-red-600 text-md font-medium">
-                            Missing Parameters
-                        </span>
-                    </div>
-                    <p className="text-red-600 text-xs mt-1">
-                        Required parameters (location_id, service_id, professional_id) are missing from the URL.
-                    </p>
-                    <button
-                        onClick={handleBack}
-                        className="mt-4 bg-gray-300 text-gray-800 py-2 px-5 rounded-[4px] text-[13px]"
-                    >
-                        Go Back
-                    </button>
-                </div>
-            </div>
+            redirect('/home-services/dashboard/services')
         );
     }
 

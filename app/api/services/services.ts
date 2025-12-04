@@ -281,7 +281,6 @@ export const DeleteServiceLocationAPI = async (
   token: string
 ) => {
   try {
-    console.log("the location id is", location_id)
     const response = await api.delete("/services/delete_serviceLocation", {
       data: {
         location_id,

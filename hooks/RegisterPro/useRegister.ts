@@ -176,15 +176,18 @@ export function useSaveLocation(token: string) {
 // Create Professional Account - Review Account Profile
 export function useProfessionalReview(token: string) {
   return useQuery({
-    queryKey: ["professionalReview"],
+    queryKey: ["professionalReview", token],
     queryFn: () => getProfessionalStepsAPI(token),
     enabled: !!token,
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
+    staleTime: 0,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
   });
 }
+
 
 // Check Progress Account of Professional
 
@@ -193,9 +196,8 @@ export function useProfesssionalProgress(token: string) {
     queryKey: ["ProfessionalProgress"],
     queryFn: () => ProfessionalProgressAPI(token),
     enabled: !!token,
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 }

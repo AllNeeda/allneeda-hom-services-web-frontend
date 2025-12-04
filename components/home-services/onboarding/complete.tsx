@@ -203,12 +203,6 @@ const ProfessionalProfile = () => {
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-normal">
-                <button className="px-3 sm:px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-sm font-medium transition-all duration-200 text-sm w-full sm:w-auto text-center">
-                  Share Profile
-                </button>
-              </div>
             </div>
           </div>
 
