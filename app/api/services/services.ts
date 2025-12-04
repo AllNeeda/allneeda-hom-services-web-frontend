@@ -272,3 +272,28 @@ export const SaveUpdateServiceLocationAPI = async (payload: LocationPayload, tok
     throw handleApiError(error);
   }
 };
+
+
+
+// delete serivce
+export const DeleteServiceLocationAPI = async (
+  location_id: string,
+  token: string
+) => {
+  try {
+    console.log("the location id is", location_id)
+    const response = await api.delete("/services/delete_serviceLocation", {
+      data: {
+        location_id,
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+

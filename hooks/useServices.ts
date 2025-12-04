@@ -1,6 +1,7 @@
 import {
   AddNewServiceAPI,
   DeleteServiceAPI,
+  DeleteServiceLocationAPI,
   GetProfessionalServicesAPI,
   GetServiceByIdAPI,
   GetServiceLocationByIdAPI,
@@ -149,7 +150,6 @@ export function useAddServicePricing(token: string) {
     },
   });
 }
-
 
 export function useUpdateServicePricing(token: string) {
   const router = useRouter();
@@ -384,6 +384,36 @@ export const useAddQuestionAnswer = (token: string) => {
           professional_id: variables[0].professional_id,
         });
         router.push(`/home-services/dashboard/services`);
+      }
+    },
+  });
+};
+
+// Deleting the service
+export const useDeleteServiceLocation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["deleteServiceLocation"],
+    mutationFn: async ({
+      location_id,
+      token,
+    }: {
+      location_id: string;
+      token: string;
+    }) => {
+      return DeleteServiceLocationAPI(location_id, token);
+    },
+    onSuccess: async () => {
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["serviceData"] }),
+          queryClient.invalidateQueries({ queryKey: ["professionalServices"] }),
+          queryClient.invalidateQueries({ queryKey: ["services"] }),
+          queryClient.invalidateQueries({ queryKey: ["questions"] }),
+        ]);
+        toast.success("Service location deleted successfully");
+      } catch {
+        toast.success("Service location deleted successfully");
       }
     },
   });

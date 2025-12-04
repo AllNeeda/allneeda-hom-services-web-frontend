@@ -1,11 +1,12 @@
 'use client';
 import { useState } from "react";
 import { getAccessToken } from "@/app/api/axios";
-import { MapPin, Trash2, Edit, ChevronDown, ChevronUp, Plus } from "lucide-react";
-import { useGetServiceById } from "@/hooks/useServices";
+import { MapPin, Trash2, Edit, ChevronDown, ChevronUp, Plus, TriangleAlert } from "lucide-react";
+import { useGetServiceById, useDeleteServiceLocation } from "@/hooks/useServices";
 import GlobalLoader from "@/components/ui/global-loader";
 import toast from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 
 interface ServiceLocation {
   _id: string;
@@ -23,40 +24,67 @@ interface ServiceLocation {
 const ServiceLocation = () => {
   const token = getAccessToken();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const service_id = searchParams.get("service_id");
+  const professional_id = searchParams.get("professional_id");
 
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
-    const searchParams = useSearchParams();
-    const service_id = searchParams.get("service_id");
-    const professional_id = searchParams.get("professional_id");
-
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<ServiceLocation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data: serviceByIdData,
     isLoading: isServiceLoading,
-    isError: serviceError
+    isError: serviceError,
+    refetch: refetchServiceLocations
   } = useGetServiceById(service_id!, professional_id!, token!);
+
+  const deleteLocationMutation = useDeleteServiceLocation();
+
   const serviceLocations: ServiceLocation[] = serviceByIdData?.data?.data?.location_ids || [];
+
   const handleEditLocation = (location: ServiceLocation) => {
-    const currentLocationData = {
+    if (!service_id || !professional_id) return;
+    const editparams = new URLSearchParams({
       service_id: service_id,
       professional_id: professional_id,
       location_id: location._id,
-      location_data: location
-    };
-    localStorage.setItem('currentLocation', JSON.stringify(currentLocationData));
-    router.push("/home-services/dashboard/services/editLocation");
+    }).toString();
+    router.push(`/home-services/dashboard/services/editLocation?${editparams}`);
   };
-  const handleDeleteLocation = (locationId: string, locationName: string) => {
-    toast.success(`Delete location ${locationName}`);
+
+  const handleDeleteLocation = (location: ServiceLocation) => {
+    setLocationToDelete(location);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteLocation = async () => {
+    if (!locationToDelete || !service_id || !professional_id || !token) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteLocationMutation.mutateAsync({
+        location_id: locationToDelete._id,
+        token,
+      });
+      refetchServiceLocations();
+    } catch {
+      toast.error('Failed to delete location. Please try again.');
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setLocationToDelete(null);
+    }
   };
 
   const handleAddLocation = () => {
-    const currentServiceData = {
+    if (!service_id || !professional_id) return;
+    const params = new URLSearchParams({
       service_id: service_id,
       professional_id: professional_id,
-    };
-    localStorage.setItem('currentService', JSON.stringify(currentServiceData));
-    router.push("/home-services/dashboard/services/serviceLocation");
+    }).toString();
+    router.push(`/home-services/dashboard/services/serviceLocation?${params}`);
   };
 
   const toggleZipCodes = (locationId: string) => {
@@ -76,6 +104,7 @@ const ServiceLocation = () => {
   if (isServiceLoading) {
     return <GlobalLoader />;
   }
+
   if (serviceError) {
     return (
       <div className="dark:bg-gray-900 min-h-screen flex items-center justify-center px-4">
@@ -93,6 +122,7 @@ const ServiceLocation = () => {
       </div>
     );
   }
+
   return (
     <div className="dark:bg-gray-900 min-h-screen py-4 sm:py-6 px-3 sm:px-4 lg:px-6">
       <div className="max-w-6xl mx-auto">
@@ -126,9 +156,6 @@ const ServiceLocation = () => {
 
         {/* Locations List */}
         <div className="w-full">
-          {/* Section Header */}
-
-          {/* Locations List Content */}
           <div className="p-4 sm:p-6">
             <div className="space-y-4">
               {serviceLocations.map((location, index) => (
@@ -208,9 +235,10 @@ const ServiceLocation = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteLocation(location._id, location.city || location._id)}
+                        onClick={() => handleDeleteLocation(location)}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-sm transition-colors"
                         title="Delete location"
+                        disabled={isDeleting}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -269,6 +297,60 @@ const ServiceLocation = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} className="relative z-50">
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+        />
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <DialogPanel
+              transition
+              className="relative transform overflow-hidden rounded-sm bg-white dark:bg-gray-800 text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95 border border-gray-300 dark:border-gray-600"
+            >
+              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 sm:mx-0 sm:size-10">
+                    <TriangleAlert aria-hidden="true" className="size-6 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <DialogTitle as="h3" className="font-semibold text-gray-900 dark:text-white text-[13px]">
+                      Delete Location
+                    </DialogTitle>
+                    <div className="mt-2">
+                      <p className="text-gray-500 dark:text-gray-400 text-[13px]">
+                        Are you sure you want to delete the location?
+                        This action cannot be undone and all location data will be permanently removed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button
+                  type="button"
+                  onClick={confirmDeleteLocation}
+                  disabled={isDeleting}
+                  className="inline-flex w-full justify-center rounded-sm bg-red-600 px-3 py-2 font-semibold text-white shadow-xs hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto text-[13px]"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Location'}
+                </button>
+                <button
+                  type="button"
+                  data-autofocus
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  disabled={isDeleting}
+                  className="mt-3 inline-flex w-full justify-center rounded-sm bg-white px-3 py-2 font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed sm:mt-0 sm:w-auto dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500 text-[13px]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

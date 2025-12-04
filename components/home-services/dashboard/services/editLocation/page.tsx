@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
     GoogleMap,
@@ -11,8 +11,8 @@ import {
 } from "@react-google-maps/api";
 import { Loader2 } from "lucide-react";
 import { getAccessToken } from "@/app/api/axios";
-import { useUpdateServiceLocation } from "@/hooks/useServices";
-import { useQueryClient } from "@tanstack/react-query";
+import { useGetServiceLocationById, useUpdateServiceLocation } from "@/hooks/useServices";
+import GlobalLoader from "@/components/ui/global-loader";
 
 const containerStyle = { width: "100%", height: "400px" };
 const TAB_OPTIONS = [
@@ -21,24 +21,6 @@ const TAB_OPTIONS = [
 const milesToMeters = (miles: number) => miles * 1609.34;
 const DEFAULT_CENTER = { lat: 0, lng: 0 };
 const DEFAULT_ZOOM = 2;
-
-interface LocationData {
-    _id?: string;
-    service_id?: string;
-    professional_id?: string;
-    lat: number;
-    lng: number;
-    city?: string;
-    state?: string;
-    zip?: string;
-    zipcode?: string[];
-    address_line?: string;
-    country?: string;
-    serviceRadiusMiles?: number;
-    coordinates?: {
-        coordinates: [number, number];
-    };
-}
 
 interface SelectedLocation {
     lat: number;
@@ -49,46 +31,158 @@ interface SelectedLocation {
     address_line?: string;
 }
 
+interface LocationData {
+    _id?: string;
+    location_id?: string;
+    id?: string;
+    coordinates?: {
+        coordinates: [number, number];
+    };
+    lat?: number;
+    lng?: number;
+    serviceRadiusMiles?: number;
+    radius_miles?: number;
+    radius?: number;
+    service_radius?: number;
+    zipcode?: string[];
+    zip?: string;
+    postal_code?: string;
+    zip_code?: string;
+    city?: string;
+    locality?: string;
+    town?: string;
+    state?: string;
+    province?: string;
+    region?: string;
+    address_line?: string;
+    address?: string;
+    street_address?: string;
+    formatted_address?: string;
+    location?: {
+        coordinates?: {
+            coordinates: [number, number];
+        };
+    };
+    location_lat?: number;
+    location_lng?: number;
+    // For nested structure
+    location_ids?: Array<{
+        _id?: string;
+        location_id?: string;
+        id?: string;
+        coordinates?: {
+            coordinates: [number, number];
+        };
+        serviceRadiusMiles?: number;
+        radius_miles?: number;
+        radius?: number;
+        service_radius?: number;
+        zipcode?: string[];
+        zip?: string;
+        postal_code?: string;
+        zip_code?: string;
+        city?: string;
+        locality?: string;
+        town?: string;
+        state?: string;
+        province?: string;
+        region?: string;
+        address_line?: string;
+        address?: string;
+        street_address?: string;
+        formatted_address?: string;
+    }>;
+}
+
 const EditLocation = () => {
     const router = useRouter();
-    const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
+    const location_id = searchParams.get("location_id") || "";
+    const serviceId = searchParams.get("service_id") || "";
+    const professionalId = searchParams.get("professional_id") || "";
+    const service_id = serviceId;
+    const professional_id = professionalId;
+    const token = getAccessToken() || "";
+    const hasRequiredParams = location_id && service_id && professional_id;
+    const shouldFetch = hasRequiredParams;
+    const {
+        data: locationDataResponse,
+        isLoading: isLocationLoading,
+        error: locationError,
+    } = useGetServiceLocationById(
+        hasRequiredParams ? service_id : "",
+        hasRequiredParams ? professional_id : "",
+        hasRequiredParams ? location_id : "",
+        hasRequiredParams ? token : ""
+    );
+    const locationDataArray = locationDataResponse?.data?.data;
+    const responseData = locationDataResponse?.data;
+    const findLocationById = useCallback((data: any): LocationData | null => {
+        if (!data) return null;
+        if (Array.isArray(data)) {
+            const foundLocation = data.find((location: any) => {
+                const match =
+                    location._id === location_id ||
+                    location.location_id === location_id ||
+                    location.id === location_id;
+                return match;
+            });
+            if (foundLocation) {
+                return foundLocation;
+            }
+            for (const location of data) {
+                if (location.location_ids && Array.isArray(location.location_ids)) {
+                    const foundNestedLocation = location.location_ids.find((nested: any) => {
+                        const match =
+                            nested._id === location_id ||
+                            nested.location_id === location_id ||
+                            nested.id === location_id;
+                        return match;
+                    });
 
-    const serviceData = queryClient.getQueryData(['currentService']) as
-        { service_id: string; professional_id: string } | undefined;
-
-    const [locationData, setLocationData] = useState<LocationData | null>(null);
-    const [isEditMode, setIsEditMode] = useState(false);
-
-    useEffect(() => {
-        const storedLocation = localStorage.getItem('currentLocation');
-        if (storedLocation) {
-            try {
-                const parsed = JSON.parse(storedLocation);
-                if (parsed?.location_data) {
-                    setLocationData(parsed.location_data);
-                    setIsEditMode(true);
+                    if (foundNestedLocation) {
+                        return foundNestedLocation;
+                    }
                 }
-            } catch {
-                toast.error('Error parsing location data:');
             }
         }
-    }, []);
+        // If data is a single object
+        else if (typeof data === 'object' && data !== null) {
+            if (data._id === location_id || data.location_id === location_id || data.id === location_id) {
+                return data;
+            }
+            if (data.location_ids && Array.isArray(data.location_ids)) {
+                const foundNestedLocation = data.location_ids.find((nested: any) => {
+                    const match =
+                        nested._id === location_id ||
+                        nested.location_id === location_id ||
+                        nested.id === location_id;
+                    return match;
+                });
 
-    const serviceId = serviceData?.service_id || locationData?.service_id;
-    const professional_id = serviceData?.professional_id || locationData?.professional_id;
-    const locationId = locationData?._id;
-
-    const token = getAccessToken() || "";
+                if (foundNestedLocation) {
+                    return foundNestedLocation;
+                }
+            }
+            if (data.data && typeof data.data === 'object') {
+                return findLocationById(data.data);
+            }
+            if (data.locations && Array.isArray(data.locations)) {
+                return findLocationById(data.locations);
+            }
+        }
+        return null;
+    }, [location_id]);
+    const locationData = findLocationById(locationDataArray || responseData);
     const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const mapRef = useRef<google.maps.Map | null>(null);
     const circleRef = useRef<google.maps.Circle | null>(null);
-
     const [activeTab, setActiveTab] = useState("distance");
     const [radiusMiles, setRadiusMiles] = useState(10);
     const [center, setCenter] = useState<{ lat: number; lng: number }>(DEFAULT_CENTER);
     const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
-    const [locationError, setLocationError] = useState("");
+    const [locationErrorMsg, setLocationErrorMsg] = useState("");
     const [isInitialized, setIsInitialized] = useState(false);
 
     const updateLocationMutation = useUpdateServiceLocation(token);
@@ -106,40 +200,86 @@ const EditLocation = () => {
     }, []);
 
     const initializeEditMode = useCallback(() => {
-        if (!isLoaded || !locationData || isInitialized) return;
-        const coords = locationData.coordinates?.coordinates ||
-            (locationData.lat && locationData.lng ? [locationData.lng, locationData.lat] : null);
-        if (coords) {
-            const [lng, lat] = coords;
+        if (!isLoaded || !locationData || isInitialized || isLocationLoading) return;
+
+        let lat = 0;
+        let lng = 0;
+
+        if (locationData.coordinates?.coordinates) {
+            const [lngCoord, latCoord] = locationData.coordinates.coordinates;
+            lat = latCoord;
+            lng = lngCoord;
+        }
+        else if (locationData.lat && locationData.lng) {
+            lat = locationData.lat;
+            lng = locationData.lng;
+        }
+        else if (locationData.location?.coordinates?.coordinates) {
+            const [lngCoord, latCoord] = locationData.location.coordinates.coordinates;
+            lat = latCoord;
+            lng = lngCoord;
+        }
+        else if (locationData.location_lat && locationData.location_lng) {
+            lat = locationData.location_lat;
+            lng = locationData.location_lng;
+        }
+
+        if (lat !== 0 && lng !== 0) {
             const location = { lat, lng };
-
             setCenter(location);
-            setRadiusMiles(locationData.serviceRadiusMiles || 10);
 
-            const firstZip = locationData.zipcode?.[0] || locationData.zip;
+            const radius = locationData.serviceRadiusMiles ||
+                locationData.radius_miles ||
+                (locationData as any).radius ||
+                (locationData as any).service_radius ||
+                10;
+            setRadiusMiles(radius);
+
+            const firstZip = Array.isArray(locationData.zipcode) ? locationData.zipcode[0] :
+                locationData.zip ||
+                (locationData as any).postal_code ||
+                (locationData as any).zip_code || "";
+
+            const addressLine = locationData.address_line ||
+                (locationData as any).address ||
+                (locationData as any).street_address ||
+                (locationData as any).formatted_address || "";
+
+            const city = locationData.city ||
+                (locationData as any).locality ||
+                (locationData as any).town || "";
+
+            const state = locationData.state ||
+                (locationData as any).province ||
+                (locationData as any).region || "";
 
             setSelectedLocation({
                 lat,
                 lng,
-                city: locationData.city,
-                state: locationData.state,
+                city,
+                state,
                 zip: firstZip,
-                address_line: locationData.address_line
+                address_line: addressLine
             });
 
-            if (inputRef.current) {
-                const addressParts = [];
-                if (locationData.address_line) addressParts.push(locationData.address_line);
-                if (locationData.city) addressParts.push(locationData.city);
-                if (locationData.state) addressParts.push(locationData.state);
-                if (firstZip) addressParts.push(firstZip);
+            // Set input value after a small delay to ensure ref is ready
+            setTimeout(() => {
+                if (inputRef.current) {
+                    const addressParts = [];
+                    if (addressLine) addressParts.push(addressLine);
+                    if (city) addressParts.push(city);
+                    if (state) addressParts.push(state);
+                    if (firstZip) addressParts.push(firstZip);
 
-                inputRef.current.value = addressParts.join(', ') || 'Location selected';
-            }
+                    inputRef.current.value = addressParts.join(', ') || 'Location selected';
+                }
+            }, 100);
 
             setIsInitialized(true);
+        } else {
+            console.warn("No coordinates found in location data:", locationData);
         }
-    }, [isLoaded, locationData, isInitialized]);
+    }, [isLoaded, locationData, isInitialized, isLocationLoading]);
 
     useEffect(() => {
         initializeEditMode();
@@ -160,6 +300,7 @@ const EditLocation = () => {
         }
     }, [radiusMiles, selectedLocation, isLoaded]);
 
+    // Update or create circle on map
     useEffect(() => {
         if (!mapRef.current || !selectedLocation || !isLoaded) return;
 
@@ -180,6 +321,7 @@ const EditLocation = () => {
         }
     }, [radiusMiles, selectedLocation, isLoaded]);
 
+    // Handle search box place selection
     const onPlacesChanged = () => {
         const places = searchBoxRef.current?.getPlaces();
         if (!places || places.length === 0) return;
@@ -209,36 +351,26 @@ const EditLocation = () => {
 
             setCenter({ lat, lng });
             setSelectedLocation({ lat, lng, city, state, zip, address_line });
-            setLocationError("");
+            setLocationErrorMsg("");
         }
     };
 
     const handleUpdateLocation = () => {
         if (!selectedLocation) {
-            setLocationError("Please enter your service location.");
+            setLocationErrorMsg("Please enter your service location.");
             inputRef.current?.focus();
             return;
         }
 
-        if (!professional_id) {
-            toast.error("Professional ID not found. Please complete previous steps.");
-            return;
-        }
-
-        if (!serviceId) {
-            toast.error("Service ID not found. Please complete previous steps.");
-            return;
-        }
-
-        if (!locationId) {
-            toast.error("Location ID not found. Cannot update location.");
+        if (!hasRequiredParams) {
+            toast.error("Missing required parameters. Please go back and try again.");
             return;
         }
 
         const locationPayload = {
             professional_id,
-            service_id: serviceId,
-            location_id: locationId, // Pass the location ID for updating
+            service_id,
+            location_id,
             lat: selectedLocation.lat,
             lng: selectedLocation.lng,
             city: selectedLocation.city || "",
@@ -251,55 +383,141 @@ const EditLocation = () => {
 
         updateLocationMutation.mutate(locationPayload, {
             onSuccess: () => {
+                const params = new URLSearchParams({
+                    service_id: service_id,
+                    professional_id: professional_id,
+                }).toString();
                 toast.success("Location updated successfully!");
-                localStorage.removeItem('currentLocation');
-                router.push("/home-services/dashboard/services/locations");
+                router.push(`/home-services/dashboard/services/locations?${params}`);
             },
-            onError: (error: Error) => {
-                toast.error(error.message || "Failed to update location");
+            onError: (error: any) => {
+                toast.error(error?.response?.data?.message || "Failed to update location");
             }
         });
     };
 
     const handleBack = () => {
-        localStorage.removeItem('currentLocation');
         router.back();
     };
 
     const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.value.trim() && locationError) setLocationError("");
+        if (e.target.value.trim() && locationErrorMsg) setLocationErrorMsg("");
     };
 
-    const canProceed = selectedLocation && professional_id && serviceId && locationId && !updateLocationMutation.isPending;
+    const canProceed = selectedLocation && professional_id && service_id && location_id && !updateLocationMutation.isPending;
 
-    if (loadError) return <div>Error loading Google Maps</div>;
-    if (!isLoaded) {
+    // Show missing parameters error
+    if (!hasRequiredParams && !isLocationLoading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <Loader2 className="animate-spin w-8 h-8 text-[#0077B6]" />
+            <div className="space-y-4">
+                <div className="bg-red-100 border border-red-200 rounded-sm p-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-red-600 text-md font-medium">
+                            Missing Parameters
+                        </span>
+                    </div>
+                    <p className="text-red-600 text-xs mt-1">
+                        Required parameters (location_id, service_id, professional_id) are missing from the URL.
+                    </p>
+                    <button
+                        onClick={handleBack}
+                        className="mt-4 bg-gray-300 text-gray-800 py-2 px-5 rounded-[4px] text-[13px]"
+                    >
+                        Go Back
+                    </button>
+                </div>
             </div>
         );
     }
 
+    if (loadError) return <div>Error loading Google Maps</div>;
+
+    if (!isLoaded || (shouldFetch && isLocationLoading)) {
+        return <GlobalLoader />;
+    }
+
+    // Show error if location couldn't be loaded
+    if (locationError) {
+        return (
+            <div className="space-y-4">
+                <div className="bg-red-100 border border-red-200 rounded-sm p-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-red-600 text-md font-medium">
+                            Error Loading Location
+                        </span>
+                    </div>
+                    <p className="text-red-600 text-xs mt-1">
+                        Could not load location data. Please check the URL parameters and try again.
+                    </p>
+                    <button
+                        onClick={handleBack}
+                        className="mt-4 bg-gray-300 text-gray-800 py-2 px-5 rounded-[4px] text-[13px]"
+                    >
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        );
+    }
+    if (shouldFetch && !locationData && !isLocationLoading) {
+        if (locationDataArray || responseData) {
+            return (
+                <div className="flex items-center justify-center">
+                    <div className="space-y-4 rounded-sm text-center">
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-[#0077B6] text-md font-medium">
+                                Location Not Found in Data
+                            </span>
+                        </div>
+                        <p className="text-xs mt-1">
+                            Location was not found in the service data.
+                        </p>
+                        <button
+                            onClick={handleBack}
+                            className="mt-4 bg-[#0077B6] text-white py-2 px-5 rounded-[4px] text-[13px]"
+                        >
+                            Go Back
+                        </button>
+                    </div>
+                </div>
+            );
+        } else {
+            // No data at all
+            return (
+                <div className="flex items-center justify-center">
+                    <div className="space-y-4 rounded-sm text-center">
+                        <div className="flex flex-col items-center gap-2">
+                            <span className="text-[#0077B6] text-md font-medium">
+                                No Location Data Available
+                            </span>
+                        </div>
+                        <p className="text-xs mt-1">
+                            Could not load location data from the server.
+                        </p>
+                        <button
+                            onClick={handleBack}
+                            className="mt-4 bg-[#0077B6] text-white py-2 px-5 rounded-[4px] text-[13px]"
+                        >
+                            Go Back
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+    }
+
     return (
         <div className="space-y-4">
-            {isEditMode && (
-                <div className="bg-[#0077B6]/10 border border-[#0077B6]/20 rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[#0077B6] dark:text-[#0077B6]/80 text-md font-medium">
-                            Editing Location
-                        </span>
-                        {locationData?.city && (
-                            <span className="text-[#0077B6] dark:text-[#0077B6]/70 text-sm">
-                                • {locationData.city}{locationData.state ? `, ${locationData.state}` : ''}
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-[#0077B6] dark:text-[#0077B6]/70 text-xs mt-1">
-                        Update your service area details.
-                    </p>
+            <div className="bg-[#0077B6]/10 border border-[#0077B6]/20 rounded-sm p-4">
+                <div className="flex items-center gap-2">
+                    <span className="dark:text-[#0077B6]/80 text-md font-medium">
+                        Editing Location
+                    </span>
                 </div>
-            )}
+                <p className="dark:text-[#0077B6]/70 text-xs mt-1">
+                    Update your service area details.
+                </p>
+            </div>
 
             <div className="border-b border-gray-200 dark:border-gray-700">
                 <ul className="flex flex-wrap -mb-px text-xs font-medium text-center" role="tablist">
@@ -320,7 +538,7 @@ const EditLocation = () => {
             </div>
 
             {activeTab === "distance" && (
-                <div className="rounded-lg bg-white dark:bg-gray-900 flex flex-col md:flex-row gap-4" style={{ minHeight: 400 }}>
+                <div className="rounded-sm bg-white dark:bg-gray-900 flex flex-col md:flex-row gap-4" style={{ minHeight: 400 }}>
                     <div className="flex flex-col gap-3 w-full md:w-1/3 px-4 py-6">
                         <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
                             Edit Location
@@ -342,13 +560,13 @@ const EditLocation = () => {
                                     type="text"
                                     placeholder="Search location..."
                                     onChange={handleSearchInputChange}
-                                    className={`mt-1 block w-full text-[12px] px-4 py-2 border rounded-[2px] focus:outline-none focus:ring-1 focus:border-transparent text-gray-800 dark:text-white dark:bg-gray-800 text-sm ${locationError
+                                    className={`mt-1 block w-full text-[12px] px-4 py-2 border rounded-[2px] focus:outline-none focus:ring-1 focus:border-transparent text-gray-800 dark:text-white dark:bg-gray-800 text-sm ${locationErrorMsg
                                         ? "border-red-500 focus:ring-red-500"
                                         : "border-gray-400 dark:border-gray-700 focus:ring-[#0096C7]"
                                         }`}
                                 />
                             </StandaloneSearchBox>
-                            {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
+                            {locationErrorMsg && <p className="mt-1 text-xs text-red-500">{locationErrorMsg}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -362,7 +580,7 @@ const EditLocation = () => {
                                 max={300}
                                 value={radiusMiles}
                                 onChange={(e) => setRadiusMiles(Number(e.target.value))}
-                                className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer dark:bg-gray-700"
+                                className="w-full h-1.5 bg-gray-200 rounded-sm cursor-pointer dark:bg-gray-700"
                                 style={{ accentColor: "#0077B6" }}
                             />
                         </div>

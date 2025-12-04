@@ -13,7 +13,6 @@ import { Loader2 } from "lucide-react";
 import { getAccessToken } from "@/app/api/axios";
 import { useServiceLocation } from "@/hooks/useServices";
 import { useQueryClient } from "@tanstack/react-query";
-
 const containerStyle = { width: "100%", height: "400px" };
 const TAB_OPTIONS = [
   { label: "Select by Distance", value: "distance" },
@@ -22,40 +21,16 @@ const TAB_OPTIONS = [
 const milesToMeters = (miles: number) => miles * 1609.34;
 const DEFAULT_CENTER = { lat: 0, lng: 0 };
 const DEFAULT_ZOOM = 2;
-interface LocationData {
-  service_id: string;
-  professional_id: string;
-  lat: number;
-  lng: number;
-  city: string;
-  state: string;
-  zip: string;
-  radiusMiles: number;
-  isLoading: boolean;
-}
 const Map = () => {
   const router = useRouter();
-  const [locationData, setLocationData] = useState<LocationData | null>(null);
-  useEffect(() => {
-    try {
-      const constData = localStorage.getItem("currentService");
-      if (constData) {
-        const parsedData = JSON.parse(constData);
-        setLocationData(parsedData);
-      }
-    } catch {
-      toast.error('Error loading service data');
-    }
-  }, []);
-
   const queryClient = useQueryClient();
   const serviceData = queryClient.getQueryData(['currentService']) as
     { service_id: string; professional_id: string } | undefined;
   const searchParams = useSearchParams();
   const serviceID = searchParams.get("service_id");
   const professionalId = searchParams.get("professional_id");
-  const serviceId = serviceID || serviceData?.service_id as string || locationData?.service_id as string;
-  const professional_id = professionalId || serviceData?.professional_id as string || locationData?.professional_id as string;
+  const serviceId = serviceID || serviceData?.service_id as string;
+  const professional_id = professionalId || serviceData?.professional_id as string
   const token = getAccessToken() || "";
   const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
