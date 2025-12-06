@@ -51,6 +51,10 @@ export function useRegister() {
   return { registerUser, isPending: mutation.isPending || isPending };
 }
 
+
+
+
+
 // Create Professional Account - Step 03
 export function useUpdateBusinessName(token: string) {
   const router = useRouter();
@@ -66,12 +70,6 @@ export function useUpdateBusinessName(token: string) {
 
       router.push(`/home-services/dashboard/services/step-4`);
     },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to update Business Name"
-      );
-    },
-    retry: false,
   });
 }
 // End of Create Professional Account - Step 03
@@ -90,12 +88,6 @@ export function useBusinessInfo(token: string) {
       });
       router.push("/home-services/dashboard/services/step-5");
     },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to save Business Info"
-      );
-    },
-    retry: false,
   });
 }
 

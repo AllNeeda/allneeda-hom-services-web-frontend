@@ -1,13 +1,13 @@
 export interface RegisterFormData {
-  username: string;
+  businessName: string;
   country: string;
   streetAddress: string;
   city: string;
   region: string;
   postalCode: string;
   website?: string;
-  firstName: string;
-  lastName: string;
+  username: string;
+  terms:boolean;
   email: string;
   phone: string;
   password: string;

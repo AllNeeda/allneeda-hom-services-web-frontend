@@ -11,16 +11,20 @@ export type ProfessionalFormData = z.infer<typeof professionalSchema>;
 
 export const ProfessionalStepOne = z
   .object({
-    username: z.string().min(3, "Business name must be at least 3 characters"),
+    businessName: z
+      .string()
+      .min(3, "Business name must be at least 3 characters"),
     businessType: z.string().nonempty("Please select a business type"),
     country: z.string().min(2, "Please select a country"),
     streetAddress: z.string().min(3, "Street address is required"),
     city: z.string().min(2, "City is required"),
     region: z.string().min(2, "State/Province is required"),
     postalCode: z.string().min(3, "Postal code is required"),
-    firstName: z.string().min(2, "First name is required"),
+    username: z.string().min(2, "Username is required"),
     website: z.string(),
-    lastName: z.string().min(2, "Last name is required"),
+    terms: z.boolean().refine((val) => val === true, {
+      message: "Please accept the Terms & Conditions",
+    }),
     email: z.string().min(2, "Email is required").email("Enter a valid email"),
     phone: z.string().min(10, "Phone number must be at least 10 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -41,3 +45,16 @@ export const ProfessionalStepOne = z
   });
 
 export type ProfessionalStepOneSchemaType = z.infer<typeof ProfessionalStepOne>;
+
+
+
+
+
+
+
+
+
+
+
+
+
