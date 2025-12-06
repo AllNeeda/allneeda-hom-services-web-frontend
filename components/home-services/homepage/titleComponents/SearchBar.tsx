@@ -4,19 +4,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, MapPin } from "lucide-react";
 
+interface ServiceWithId {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface SearchBarProps {
   serviceQuery: string;
   /* eslint-disable no-unused-vars */
   setServiceQuery: (value: string) => void;
   setZipCode: (value: string) => void;
-  handleSearch: (selectedService?: string) => void;
+  handleSearch: (selectedService?: ServiceWithId) => void;
   setShowSuggestions: (value: boolean) => void;
-  /* elslint-enable no-unused-vars */
+  onSuggestionClick: (service: ServiceWithId) => void;
+  /* eslint-enable no-unused-vars */
   zipCode: string;
   isLoading: boolean;
   isCompact?: boolean;
   showSuggestions: boolean;
-  filteredServices: string[];
+  filteredServices: ServiceWithId[];
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -30,9 +37,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
   showSuggestions,
   setShowSuggestions,
   filteredServices,
+  onSuggestionClick,
 }) => {
   const sizeClasses = isCompact ? "h-12" : "h-14";
   const iconSize = isCompact ? "h-4 w-4" : "h-5 w-5";
+  console.log("Filtered service: ", filteredServices);
 
   return (
     <div className="relative">
@@ -43,7 +52,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
             : ""
         }`}
       >
-        {/* Service Input */}
         <div className="relative flex-1 min-w-[200px]">
           <Input
             placeholder="What service do you need?"
@@ -53,6 +61,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
               setShowSuggestions(true);
             }}
             onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              setTimeout(() => setShowSuggestions(false), 200);
+            }}
             className={`w-full ${sizeClasses} pl-12 pr-4 ${
               isCompact
                 ? "bg-white dark:bg-gray-900"
@@ -64,7 +75,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
           />
         </div>
 
-        {/* Zip Code Input */}
         <div className="relative w-full sm:w-[160px]">
           <Input
             placeholder="Zip code"
@@ -78,7 +88,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
           />
         </div>
 
-        {/* Search Button */}
         <Button
           onClick={() => handleSearch()}
           disabled={isLoading}
@@ -88,20 +97,18 @@ const SearchBar: React.FC<SearchBarProps> = ({
         </Button>
       </div>
 
-      {/* Service Suggestions */}
       {showSuggestions && serviceQuery && filteredServices.length > 0 && (
         <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 max-h-60 overflow-auto">
           {filteredServices.map((service) => (
             <div
-              key={service}
+              key={service.id}
               className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex justify-between items-center"
               onClick={() => {
-                setServiceQuery(service);
-                setShowSuggestions(false);
-                handleSearch(service);
+                onSuggestionClick(service);
               }}
+              onMouseDown={(e) => e.preventDefault()}
             >
-              <span>{service}</span>
+              <span>{service.name}</span>
               <span className="text-xs text-gray-500">Click to search</span>
             </div>
           ))}
