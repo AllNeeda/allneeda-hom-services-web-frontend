@@ -41,21 +41,37 @@ function validateToken(token: string): {
 
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return { isValid: false, error: "Invalid format" };
+    if (parts.length !== 3) {
+      return { isValid: false, error: "Invalid token format" };
+    }
 
+    // Decode base64 payload
     const payload = JSON.parse(
       Buffer.from(parts[1], "base64").toString("utf-8")
     );
 
-    if (!payload.exp) return { isValid: false, error: "Missing exp" };
+    // Validate required fields
+    if (!payload.exp || !payload.iat) {
+      return { isValid: false, error: "Missing required token fields" };
+    }
 
+    // Check expiration
     const now = Date.now();
     const expiry = payload.exp * 1000;
 
-    if (now >= expiry) return { isValid: false, error: "Token expired" };
+    if (now >= expiry) {
+      return { isValid: false, error: "Token expired" };
+    }
+
+    // Check if issued at time is in the future (clock skew protection)
+    const issuedAt = payload.iat * 1000;
+    if (issuedAt > now + 60000) {
+      // Allow 1 minute clock skew
+      return { isValid: false, error: "Token issued in the future" };
+    }
 
     return { isValid: true, payload, timeUntilExpiry: expiry - now };
-  } catch {
+  } catch{
     return { isValid: false, error: "Token parse failed" };
   }
 }
@@ -177,20 +193,34 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get(SECURITY_CONFIG.AUTH_TOKEN_NAME)?.value;
     const tokenValidation = token
       ? validateToken(token)
-      : { isValid: false };
+      : { isValid: false, error: "No token" };
 
     if (!tokenValidation.isValid) {
-      // Prevent loop if already on auth routes
+      // Prevent redirect loop if already on auth routes
       if (isAuthRoute(pathname)) return NextResponse.next();
 
       const url = new URL("/auth/login", request.url);
       url.searchParams.set("redirect", pathname);
-      url.searchParams.set(
-        "reason",
-        token ? "invalid_token" : "no_token"
-      );
+      
+      // Set appropriate reason based on error
+      let reason = "authentication_required";
+      if (token) {
+        if (tokenValidation.error?.includes("expired")) {
+          reason = "session_expired";
+        } else {
+          reason = "invalid_token";
+        }
+      }
+      url.searchParams.set("reason", reason);
+      
       return NextResponse.redirect(url);
     }
+
+    // Add security headers for protected routes
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
     // Mark dashboard access
     if (isDashboardRoute(pathname)) {
@@ -198,7 +228,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // ---------- AUTH ROUTES ----------
+  // ---------- AUTH ROUTES (Redirect if already authenticated) ----------
   if (isAuthRoute(pathname)) {
     const token = request.cookies.get(SECURITY_CONFIG.AUTH_TOKEN_NAME)?.value;
     const tokenValidation = token
@@ -206,11 +236,18 @@ export function middleware(request: NextRequest) {
       : { isValid: false };
 
     if (tokenValidation.isValid) {
-      const redirectTo =
-        searchParams.get("redirect") || "/home-services/dashboard";
+      // Get redirect URL from query params or default
+      let redirectTo = searchParams.get("redirect") || "/home-services/dashboard";
+      
+      // Validate redirect URL to prevent open redirects
+      if (!redirectTo.startsWith("/")) {
+        redirectTo = "/home-services/dashboard";
+      }
 
       // Prevent redirect loop
-      if (redirectTo === pathname) return NextResponse.next();
+      if (redirectTo === pathname || redirectTo.startsWith("/auth/")) {
+        redirectTo = "/home-services/dashboard";
+      }
 
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }

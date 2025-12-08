@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { RegisterFormData } from "@/types/auth/register";
 import {
   AnswerPayload,
@@ -33,8 +33,8 @@ export function useRegister() {
     },
     onSuccess: async (response, variables) => {
       try {
-        await login(variables.email, variables.password);
-        router.push("/home-services/dashboard/services/step-2");
+        await login(variables.email, variables.password, "/home-services/dashboard/services/step-2");
+        redirect("/home-services/dashboard/services/step-2");
       } catch {
         router.push("/auth/login");
       }

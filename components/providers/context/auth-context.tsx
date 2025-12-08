@@ -7,6 +7,7 @@ import React, {
     useReducer,
     useEffect,
     useCallback,
+    useRef,
 } from "react";
 import { User, authAPI } from "@/app/api/auth/login";
 import { tokenManager } from "@/app/api/axios";
@@ -35,7 +36,7 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
     // eslint-disable-next-line no-unused-vars
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
     // eslint-enable-next-line no-unused-vars
     logout: () => Promise<void>;
     clearError: () => void;
@@ -99,7 +100,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const initialState: AuthState = {
     user: null,
     isAuthenticated: false,
-    isLoading: true,
+    isLoading: false, // Start as false, will be set by checkAuth if needed
     error: null,
     tokenExpiringSoon: false,
 };
@@ -112,27 +113,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const queryClient = useQueryClient();
     const router = useRouter();
     const pathname = usePathname();
+    const isCheckingAuthRef = useRef(false);
+    const isRefreshingRef = useRef(false);
+    const isLoggingInRef = useRef(false);
 
     /** ─────────────────────────────────────────────
-     * TOKEN EXPIRATION CHECKER
+     * UTILS
      * ───────────────────────────────────────────── */
-    useEffect(() => {
-        const checkTokenExpiration = () => {
-            const isExpiringSoon = authAPI.isTokenExpiringSoon();
-            dispatch({ type: "SET_TOKEN_EXPIRING", payload: isExpiringSoon });
-        };
+    const clearError = useCallback(() => {
+        dispatch({ type: "CLEAR_ERROR" });
+    }, []);
 
-        checkTokenExpiration();
-        const interval = setInterval(checkTokenExpiration, 60000);
-        return () => clearInterval(interval);
+    const getAccessToken = useCallback(() => {
+        return tokenManager.getAccessToken();
     }, []);
 
     /** ─────────────────────────────────────────────
-     * CHECK AUTH ON APP LOAD / ROUTE CHANGE
+     * REFRESH TOKENS
      * ───────────────────────────────────────────── */
-    const checkAuth = useCallback(async () => {
-        dispatch({ type: "SET_LOADING", payload: true });
+    const refreshTokens = useCallback(async () => {
+        // Prevent multiple simultaneous refresh attempts
+        if (isRefreshingRef.current) {
+            return;
+        }
 
+        isRefreshingRef.current = true;
+
+        try {
+            await authAPI.refreshTokens();
+            // Re-validate auth after refresh
+            if (authAPI.isAuthenticated()) {
+                const user = await authAPI.getCurrentUser();
+                dispatch({ type: "AUTH_SUCCESS", payload: user });
+            }
+        } catch {
+            dispatch({ type: "AUTH_LOGOUT" });
+            queryClient.clear();
+        } finally {
+            isRefreshingRef.current = false;
+        }
+    }, [queryClient]);
+
+    /** ─────────────────────────────────────────────
+     * TOKEN EXPIRATION CHECKER & PROACTIVE REFRESH
+     * ───────────────────────────────────────────── */
+    useEffect(() => {
+        if (!state.isAuthenticated) return;
+
+        const checkTokenExpiration = () => {
+            const isExpiringSoon = authAPI.isTokenExpiringSoon();
+            dispatch({ type: "SET_TOKEN_EXPIRING", payload: isExpiringSoon });
+            if (isExpiringSoon && state.isAuthenticated && !state.isLoading && !isRefreshingRef.current) {
+                refreshTokens().catch(() => {
+                });
+            }
+        };
+        checkTokenExpiration();
+        const interval = setInterval(checkTokenExpiration, 60000);
+        return () => clearInterval(interval);
+    }, [state.isAuthenticated, state.isLoading, refreshTokens]);
+    const checkAuth = useCallback(async () => {
+        if (isLoggingInRef.current) {
+            return;
+        }
+        if (isCheckingAuthRef.current) {
+            return;
+        }
+        isCheckingAuthRef.current = true;
+        if (!isLoggingInRef.current) {
+            dispatch({ type: "SET_LOADING", payload: true });
+        }
         try {
             if (!authAPI.isAuthenticated()) {
                 dispatch({ type: "AUTH_LOGOUT" });
@@ -141,89 +191,198 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const user = await authAPI.getCurrentUser();
-            dispatch({ type: "AUTH_SUCCESS", payload: user });
-        } catch {
+            if (user) {
+                dispatch({ type: "AUTH_SUCCESS", payload: user });
+            } else {
+                throw new Error("No user data returned");
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Authentication failed";
+            const isExpired = errorMessage.toLowerCase().includes("expired") ||
+                errorMessage.toLowerCase().includes("session");
+
             dispatch({ type: "AUTH_LOGOUT" });
             queryClient.clear();
 
+            // Only redirect if not already on auth page
             if (!pathname.startsWith("/auth/")) {
+                const reason = isExpired ? "session_expired" : "authentication_required";
+
                 router.push(
-                    `/auth/login?redirect=${encodeURIComponent(pathname)}&reason=session_expired`
+                    `/auth/login?redirect=${encodeURIComponent(pathname)}&reason=${reason}`
                 );
             }
         } finally {
-            dispatch({ type: "SET_LOADING", payload: false });
+            // Only reset loading if login is not in progress
+            if (!isLoggingInRef.current) {
+                dispatch({ type: "SET_LOADING", payload: false });
+            }
+            isCheckingAuthRef.current = false;
         }
     }, [pathname, queryClient, router]);
-
-    // Run on first mount
-    useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
-
-    /** ─────────────────────────────────────────────
-     * LOGIN
-     * ───────────────────────────────────────────── */
-    const login = async (email: string, password: string) => {
-        dispatch({ type: "AUTH_START" });
-
-        try {
-            const response = await authAPI.login({ email, password });
-            dispatch({ type: "AUTH_SUCCESS", payload: response.user });
-
-            queryClient.invalidateQueries();
-
-            const redirect =
-                new URLSearchParams(window.location.search).get("redirect") ||
-                "/home-services/dashboard";
-
-            router.push(redirect);
-        } catch (error: any) {
-            const msg =
-                error?.message ||
-                error?.response?.data?.message ||
-                "Login failed. Please try again.";
-
-            dispatch({ type: "AUTH_FAILURE", payload: msg });
-            throw error; // 🔥 allows UI to show errors too
-        }
-    };
 
     /** ─────────────────────────────────────────────
      * LOGOUT
      * ───────────────────────────────────────────── */
-    const logout = async () => {
+    const logout = useCallback(async () => {
         dispatch({ type: "SET_LOADING", payload: true });
 
         try {
             await authAPI.logout();
-        } catch {
-            console.warn("Logout failed, clearing local session anyway.");
+        } catch (error) {
+            console.warn("Logout API call failed, clearing local session anyway.", error);
         }
 
         dispatch({ type: "AUTH_LOGOUT" });
         queryClient.clear();
-        router.push("/auth/login?reason=logged_out");
-    };
 
-    /** ─────────────────────────────────────────────
-     * REFRESH TOKENS
-     * ───────────────────────────────────────────── */
-    const refreshTokens = async () => {
-        try {
-            await authAPI.refreshTokens();
-            await checkAuth();
-        } catch (error) {
-            console.error("Token refresh failed:", error);
-            await logout();
+        // Only redirect if not already on auth page
+        if (!pathname.startsWith("/auth/")) {
+            router.push("/auth/login?reason=logged_out");
         }
-    };
+    }, [pathname, queryClient, router]);
+
+    // Run on first mount only, but skip on auth pages
+    useEffect(() => {
+        // Don't check auth on login/register pages
+        if (pathname.startsWith("/auth/")) {
+            dispatch({ type: "SET_LOADING", payload: false });
+            return;
+        }
+        checkAuth();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run once on mount
 
     /** ─────────────────────────────────────────────
-     * UTILS
+     * LISTEN FOR LOGOUT EVENTS FROM AXIOS INTERCEPTOR
      * ───────────────────────────────────────────── */
-    const clearError = () => dispatch({ type: "CLEAR_ERROR" });
-    const getAccessToken = () => tokenManager.getAccessToken();
+    useEffect(() => {
+        const handleLogout = (event: Event) => {
+            const customEvent = event as CustomEvent<{ reason?: string }>;
+            const reason = customEvent.detail?.reason || "session_expired";
+
+            logout().then(() => {
+                if (!pathname.startsWith("/auth/")) {
+                    router.push(
+                        `/auth/login?redirect=${encodeURIComponent(pathname)}&reason=${reason}`
+                    );
+                }
+            }).catch(() => {
+            });
+        };
+
+        window.addEventListener("auth:logout", handleLogout);
+        return () => {
+            window.removeEventListener("auth:logout", handleLogout);
+        };
+    }, [pathname, router, logout]);
+
+    /** ─────────────────────────────────────────────
+     * LOGIN
+     * ───────────────────────────────────────────── */
+    const login = useCallback(async (email: string, password: string, customRedirect?: string | null) => {
+        // If login is already in progress, reset it first (safety measure)
+        if (isLoggingInRef.current) {
+            console.warn("Login already in progress - resetting");
+            isLoggingInRef.current = false;
+            dispatch({ type: "SET_LOADING", payload: false });
+        }
+
+        isLoggingInRef.current = true;
+        dispatch({ type: "AUTH_START" });
+
+        // Safety timeout to prevent infinite loading (20 seconds - slightly longer than axios timeout)
+        const timeoutId = setTimeout(() => {
+            if (isLoggingInRef.current) {
+                isLoggingInRef.current = false;
+                dispatch({ type: "SET_LOADING", payload: false });
+                dispatch({ type: "AUTH_FAILURE", payload: "Login request timed out. Please check your connection and try again." });
+            }
+        }, 20000);
+
+        try {
+            const response = await authAPI.login({ email, password });
+            clearTimeout(timeoutId);
+
+            if (!response?.user) {
+                throw new Error("Invalid response from server");
+            }
+
+            isLoggingInRef.current = false;
+            dispatch({ type: "AUTH_SUCCESS", payload: response.user });
+
+            // Invalidate queries (non-blocking, don't await)
+            queryClient.invalidateQueries().catch((err) => {
+                console.warn("Failed to invalidate queries:", err);
+            });
+
+            // Get redirect URL from query params or default
+            const redirect =
+                customRedirect ??
+                new URLSearchParams(window.location.search).get("redirect") ??
+                "/home-services/dashboard"; // 3️⃣ default
+
+            // Ensure redirect is safe (same origin, no external URLs)
+            const redirectUrl = redirect.startsWith("/") && !redirect.startsWith("//")
+                ? redirect
+                : "/home-services/dashboard";
+            setTimeout(() => {
+                try {
+                    router.push(redirectUrl);
+                } catch {
+                    if (typeof window !== "undefined") {
+                        router.push(redirectUrl)
+                    }
+                }
+            }, 100);
+        } catch (error: unknown) {
+            clearTimeout(timeoutId);
+            isLoggingInRef.current = false;
+            dispatch({ type: "SET_LOADING", payload: false });
+            let errorMessage = "Login failed. Please try again.";
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "object" && error !== null) {
+                if ("response" in error) {
+                    const axiosError = error as {
+                        response?: {
+                            status?: number;
+                            data?: {
+                                message?: string;
+                                error?: string;
+                                detail?: string;
+                                errors?: Array<string | { message?: string }>;
+                            }
+                        }
+                    };
+
+                    const responseData = axiosError.response?.data;
+                    if (responseData) {
+                        // Try multiple error message fields
+                        if (responseData.message) {
+                            errorMessage = responseData.message;
+                        } else if (responseData.error) {
+                            errorMessage = responseData.error;
+                        } else if (responseData.detail) {
+                            errorMessage = responseData.detail;
+                        } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+                            errorMessage = responseData.errors
+                                .map((err: any) => err.message || err.msg || err.error || String(err))
+                                .join(", ");
+                        }
+                    }
+                } else if ("message" in error) {
+                    errorMessage = String((error as { message: unknown }).message);
+                }
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            }
+
+            dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
+            throw error; // Allows UI to show errors
+        }
+    }, [queryClient, router]);
+
 
     return (
         <AuthContext.Provider

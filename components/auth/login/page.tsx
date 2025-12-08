@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/context/auth-context";
@@ -12,24 +12,68 @@ import { AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/schemas/auth/login";
-
-
-
-
 interface LoginFormProps extends React.ComponentProps<"div"> {
   className?: string;
 }
-
 export default function LoginForm({ className, ...props }: LoginFormProps) {
+  const { login, isLoading, error, clearError } = useAuth();
 
-  const { login, isLoading, error } = useAuth();
-
-  const { register, handleSubmit, formState: { errors }, } = useForm<LoginFormData>({
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+  const emailValue = watch("email");
+  const passwordValue = watch("password");
+  const errorShownTimeRef = useRef<number>(0);
+  const prevValuesRef = useRef<{ email: string; password: string }>({ email: "", password: "" });
+  useEffect(() => {
+    if (error) {
+      errorShownTimeRef.current = Date.now();
+      // Store current values when error appears
+      prevValuesRef.current = {
+        email: emailValue || "",
+        password: passwordValue || "",
+      };
+    }
+  }, [error, emailValue, passwordValue]); 
+  useEffect(() => {
+    if (!error) {
+      // No error, update refs to current values
+      prevValuesRef.current = {
+        email: emailValue || "",
+        password: passwordValue || "",
+      };
+      return;
+    }
+    const timeSinceError = Date.now() - errorShownTimeRef.current;
+    if (timeSinceError < 3000) {
+      return;
+    }
+    const emailChanged = (emailValue || "") !== prevValuesRef.current.email;
+    const passwordChanged = (passwordValue || "") !== prevValuesRef.current.password;
+    
+    if (emailChanged || passwordChanged) {
+      clearError();
+    }
+  }, [emailValue, passwordValue, error, clearError]);
 
   const onSubmit = async (data: LoginFormData) => {
-    await login(data.email, data.password);
+    try {
+      clearError();
+      await login(data.email, data.password);
+    } catch {
+      reset({ 
+        email: data.email, 
+        password: "" 
+      }, { 
+        keepErrors: false 
+      });
+    }
   };
 
 

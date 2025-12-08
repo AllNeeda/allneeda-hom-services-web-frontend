@@ -34,12 +34,27 @@ class AuthService {
     try {
       const response = await api.post("/auth/login", credentials);
       const tokens = response.data.tokens;
+      
       if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
-        throw new Error("Invalid email or password"); // safe fallback
+        throw new Error("Invalid email or password");
       }
+      
       const { user } = response.data;
 
-      await tokenManager.setTokens(tokens.accessToken, tokens.refreshToken);
+      // Tokens should be set as HttpOnly cookies by the backend
+      // If backend doesn't set cookies, we need to set them client-side as fallback
+      // Note: For maximum security, backend should set HttpOnly cookies
+      if (typeof window !== "undefined") {
+        const isProduction = process.env.NODE_ENV === "production";
+        const secureFlag = isProduction ? "secure" : "";
+        const sameSite = "SameSite=Strict";
+        
+        // Set access token (30 minutes)
+        document.cookie = `auth-token=${tokens.accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
+        // Set refresh token (30 days)
+        document.cookie = `refresh-token=${tokens.refreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
+      }
+
       return {
         user,
         tokens: {
@@ -50,33 +65,61 @@ class AuthService {
     } catch (error: any) {
       if (error.response) {
         const status = error.response.status;
-        if (status === 422 && error.response.data?.errors) {
+        const responseData = error.response.data;
+        
+        if (status === 422 && responseData?.errors) {
           throw {
             message: "Validation failed",
-            fieldErrors: error.response.data.errors,
+            fieldErrors: responseData.errors,
           };
         }
-        let message = error.response.data?.message || "Login failed";
-        switch (status) {
-          case 400:
-            message = "Invalid request format";
-            break;
-          case 401:
-            message = "Invalid email or password";
-            break;
-          case 403:
-            message = "Account suspended or access restricted";
-            break;
-          case 404:
-            message = "Account not found";
-            break;
-          case 429:
-            message = "Too many login attempts. Please try again later";
-            break;
-          case 500:
-            message = "Server error. Please try again later";
-            break;
+        
+        // Extract backend error message from various possible formats
+        let message = "Login failed";
+        if (responseData) {
+          // Try different error message fields
+          if (responseData.message) {
+            message = responseData.message;
+          } else if (responseData.error) {
+            message = responseData.error;
+          } else if (responseData.detail) {
+            message = responseData.detail;
+          } else if (responseData.title) {
+            message = responseData.title;
+          } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+            // Handle array of errors
+            message = responseData.errors
+              .map((err: any) => err.message || err.msg || err.error || String(err))
+              .join(", ");
+          } else if (typeof responseData === "string") {
+            message = responseData;
+          }
         }
+        
+        // Override with status-specific messages only if no backend message was found
+        if (message === "Login failed") {
+          switch (status) {
+            case 400:
+              message = "Invalid request format";
+              break;
+            case 401:
+              message = "Invalid email or password";
+              break;
+            case 403:
+              message = "Account suspended or access restricted";
+              break;
+            case 404:
+              message = "Account not found";
+              break;
+            case 429:
+              message = "Too many login attempts. Please try again later";
+              break;
+            case 500:
+              message = "Server error. Please try again later";
+              break;
+          }
+        }
+        
         throw new Error(message);
       } else if (error.request) {
         throw new Error(
@@ -91,7 +134,16 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    tokenManager.clearTokens();
+    try {
+      await tokenManager.clearTokens();
+    } catch {
+      // Even if logout API fails, clear local tokens
+      console.warn("Logout API call failed, clearing local tokens");
+      if (typeof window !== "undefined") {
+        document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+        document.cookie = "refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
+      }
+    }
   }
   async getCurrentUser(): Promise<User> {
     try {
@@ -131,13 +183,22 @@ class AuthService {
 
       const response = await api.post("/auth/refresh", { refreshToken });
       const { accessToken, refreshToken: newRefreshToken } =
-        response.data.tokens;
+        response.data.tokens || {};
 
       if (!accessToken || !newRefreshToken) {
         throw new Error("Invalid token response from server");
       }
 
-      await tokenManager.setTokens(accessToken, newRefreshToken);
+      // Update cookies if backend doesn't set them automatically
+      if (typeof window !== "undefined") {
+        const isProduction = process.env.NODE_ENV === "production";
+        const secureFlag = isProduction ? "secure" : "";
+        const sameSite = "SameSite=Strict";
+        
+        document.cookie = `auth-token=${accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
+        document.cookie = `refresh-token=${newRefreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
+      }
+
       return { accessToken, refreshToken: newRefreshToken };
     } catch {
       await this.logout();
@@ -149,14 +210,7 @@ class AuthService {
   isTokenExpiringSoon(minutes: number = 5): boolean {
     const token = tokenManager.getAccessToken();
     if (!token) return true;
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const timeUntilExpiry = payload.exp * 1000 - Date.now();
-      return timeUntilExpiry < minutes * 60 * 1000;
-    } catch {
-      return true;
-    }
+    return tokenManager.isTokenExpiringSoon(token, minutes);
   }
 }
 
