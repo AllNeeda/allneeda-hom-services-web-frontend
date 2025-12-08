@@ -86,3 +86,8 @@ export const getServices = async () => {
   }
 }
 
+export const searchServiceByQuery = async (query:string) => {
+  const response = await api.get(`/search/service?q=${query}`);
+  return response.data;
+}
+
