@@ -41,7 +41,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const sizeClasses = isCompact ? "h-12" : "h-14";
   const iconSize = isCompact ? "h-4 w-4" : "h-5 w-5";
-  console.log("Filtered service: ", filteredServices);
 
   return (
     <div className="relative">

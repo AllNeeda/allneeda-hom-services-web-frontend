@@ -183,7 +183,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
 
     const searchTerm = selectedService?.name || serviceQuery;
     const serviceId = selectedService?.id || "";
-    console.log("submitted data: ", selectedServiceId, zipCode);
+    // console.log("submitted data: ", selectedServiceId, zipCode);
 
     // Validate inputs
     if (!searchTerm.trim()) {
@@ -332,7 +332,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
   };
 
   const handleSuggestionClick = (service: ServiceWithId) => {
-    console.log("SELECTED SERVICE: ", service);
+    // console.log("SELECTED SERVICE: ", service);
     setServiceQuery(service.name);
     setSelectedServiceId(service.id);
     setServiceSlug(service.slug);
@@ -419,72 +419,199 @@ const TitlePage = ({ location }: TitlePageProps) => {
         )}
       </AnimatePresence>
 
+      {/* Hero Section */}
       <div
         className="w-full relative min-h-[15vh] md:min-h-[40vh] flex items-center justify-center 
                 pt-4 pb-5 md:pt-8 md:pb-16"
       >
-        <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-4 lg:px-8 h-full flex items-center">
-          <div className="flex flex-col items-center text-center gap-4 sm:gap-6 w-full py-6">
-            <motion.div
-              variants={titleVariants}
-              initial="hidden"
-              animate="show"
-              className="text-gray-800 dark:text-gray-100 w-full"
-            >
-              <motion.h1
-                className="text-2xl sm:text-xl md:text-4xl lg:text-4xl font-bold leading-tight px-2"
-                whileHover={{
-                  x: 5,
-                  transition: { type: "spring", stiffness: 300 },
+        {/* Animated Background */}
+        <div className="absolute inset-0 overflow-hidden">
+          {/* Moving gradient background - different for light/dark */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-br from-blue-50 via-teal-50 to-indigo-50 
+                dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+            animate={{
+              backgroundPosition: ["0% 0%", "100% 100%"],
+            }}
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              repeatType: "reverse",
+              ease: "linear",
+            }}
+            style={{
+              backgroundSize: "200% 200%",
+            }}
+          />
+
+          {/* Animated floating service icons - different opacity for light/dark */}
+          {["🔧", "🚿", "🔨", "🧹", "💡", "🔌", "🚪", "🛠️"].map(
+            (icon, index) => (
+              <motion.div
+                key={index}
+                className="absolute text-5xl opacity-60 dark:opacity-60 dark:text-gray-500"
+                initial={{
+                  x: Math.random() * 100,
+                  y: Math.random() * 100,
+                  rotate: Math.random() * 360,
+                }}
+                animate={{
+                  x: [null, Math.random() * 100],
+                  y: [null, Math.random() * 100],
+                  rotate: [null, Math.random() * 360],
+                }}
+                transition={{
+                  duration: 20 + Math.random() * 20,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "linear",
+                }}
+                style={{
+                  left: `${10 + Math.random() * 80}%`,
+                  top: `${10 + Math.random() * 80}%`,
                 }}
               >
-                <div className="flex flex-col">
-                  <span>Find the Best Home Service in</span>
-                  <button
-                    onClick={() => setIsLocationDialogOpen(true)}
-                    className="cursor-pointer focus-visible:outline-none border-b-2 border-dashed border-gray-800 dark:border-gray-300 self-center mt-2 sm:mt-3"
-                  >
-                    {userLocation ? (
-                      <span>{userLocation} </span>
-                    ) : (
-                      <span className="flex flex-row gap-2 justify-center items-center">
-                        <span>{userDefaultLocation}</span>
-                        <SquareMousePointer className="w-5 h-5 sm:w-6 sm:h-6" />
-                      </span>
-                    )}
-                    <MapPinHouse
-                      className="inline p-1 rounded bg-sky-200 dark:bg-sky-900 text-sky-600 dark:text-sky-500 hover:bg-sky-500 hover:text-white dark:hover:bg-sky-900 dark:hover:text-white duration-500 transition"
-                      size={32}
-                    />
-                  </button>
-                </div>
-              </motion.h1>
-            </motion.div>
+                {icon}
+              </motion.div>
+            )
+          )}
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="w-full max-w-3xl px-4"
-            >
-              <SearchBar
-                serviceQuery={serviceQuery}
-                setServiceQuery={setServiceQuery}
-                zipCode={zipCode}
-                setZipCode={handleZipCodeChange}
-                handleSearch={() => handleSearch()}
-                isLoading={isLoading}
-                showSuggestions={showSuggestions}
-                setShowSuggestions={setShowSuggestions}
-                filteredServices={filteredServices}
-                onSuggestionClick={handleSuggestionClick}
-              />
-              {error && (
-                <p className="text-sm text-red-500 dark:text-red-400 mt-2">
-                  {error}
-                </p>
-              )}
-            </motion.div>
+          {/* Subtle grid pattern - different color for light/dark */}
+          <div
+            className="absolute inset-0 
+                  bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] 
+                  dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] 
+                  bg-[size:24px_24px]"
+          />
+
+          {/* Pulsing circles - different colors for light/dark */}
+          <motion.div
+            className="absolute rounded-full bg-blue-100 dark:bg-blue-900/20"
+            animate={{
+              scale: [1, 1.5, 1],
+              opacity: [0.1, 0.3, 0.1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            style={{
+              width: "300px",
+              height: "300px",
+              top: "20%",
+              left: "10%",
+            }}
+          />
+          <motion.div
+            className="absolute rounded-full bg-teal-100 dark:bg-teal-900/20"
+            animate={{
+              scale: [1, 1.8, 1],
+              opacity: [0.1, 0.2, 0.1],
+            }}
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2,
+            }}
+            style={{
+              width: "400px",
+              height: "400px",
+              bottom: "10%",
+              right: "15%",
+            }}
+          />
+
+          {/* Additional dark mode elements */}
+          <motion.div
+            className="absolute rounded-full bg-indigo-100 dark:bg-indigo-900/15"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.05, 0.15, 0.05],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1,
+            }}
+            style={{
+              width: "250px",
+              height: "250px",
+              top: "60%",
+              left: "70%",
+            }}
+          />
+        </div>
+
+        <div
+          className="w-full relative min-h-[15vh] md:min-h-[40vh] flex items-center justify-center 
+                pt-4 pb-5 md:pt-8 md:pb-16"
+        >
+          <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-4 lg:px-8 h-full flex items-center">
+            <div className="flex flex-col items-center text-center gap-4 sm:gap-6 w-full py-6">
+              <motion.div
+                variants={titleVariants}
+                initial="hidden"
+                animate="show"
+                className="text-gray-800 dark:text-gray-100 w-full"
+              >
+                <motion.h1
+                  className="text-2xl sm:text-xl md:text-4xl lg:text-4xl font-bold leading-tight px-2"
+                  whileHover={{
+                    x: 5,
+                    transition: { type: "spring", stiffness: 300 },
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span>Find the Best Home Service in</span>
+                    <button
+                      onClick={() => setIsLocationDialogOpen(true)}
+                      className="cursor-pointer focus-visible:outline-none border-b-2 border-dashed border-gray-800 dark:border-gray-300 self-center mt-2 sm:mt-3"
+                    >
+                      {userLocation ? (
+                        <span>{userLocation} </span>
+                      ) : (
+                        <span className="flex flex-row gap-2 justify-center items-center">
+                          <span>{userDefaultLocation}</span>
+                          <SquareMousePointer className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </span>
+                      )}
+                      <MapPinHouse
+                        className="inline p-1 rounded bg-sky-200 dark:bg-sky-900 text-sky-600 dark:text-sky-500 hover:bg-sky-500 hover:text-white dark:hover:bg-sky-900 dark:hover:text-white duration-500 transition"
+                        size={32}
+                      />
+                    </button>
+                  </div>
+                </motion.h1>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="w-full max-w-3xl px-4"
+              >
+                <SearchBar
+                  serviceQuery={serviceQuery}
+                  setServiceQuery={setServiceQuery}
+                  zipCode={zipCode}
+                  setZipCode={handleZipCodeChange}
+                  handleSearch={() => handleSearch()}
+                  isLoading={isLoading}
+                  showSuggestions={showSuggestions}
+                  setShowSuggestions={setShowSuggestions}
+                  filteredServices={filteredServices}
+                  onSuggestionClick={handleSuggestionClick}
+                />
+                {error && (
+                  <p className="text-sm text-red-500 dark:text-red-400 mt-2">
+                    {error}
+                  </p>
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>
