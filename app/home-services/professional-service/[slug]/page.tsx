@@ -1,5 +1,5 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Dialog } from "@headlessui/react";
 import ProfessionalList from "@/components/home-services/homepage/professional/ProfessionalList";
@@ -9,7 +9,6 @@ import { useSearchParams } from "next/navigation";
 import { useTopProfessionals } from "@/hooks/useHomeServices";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
 
-// Interface matching your API response structure
 interface Professional {
   _id: string;
   service_name: string;
@@ -28,6 +27,28 @@ interface Professional {
     rating_avg: number;
     profile_image: string;
   };
+}
+interface GoogleProfessional {
+  place_id: string;
+  name: string;
+  formatted_address: string;
+  formatted_phone_number: string;
+  rating: number | string;
+  user_ratings_total: number;
+  business_status: string;
+  opening_hours?: {
+    open_now: boolean;
+  };
+  photos?: any[];
+  geometry?: any;
+  types: string[];
+  website?: string;
+  url?: string;
+  reviews?: any[];
+  price_level?: number;
+  icon?: string;
+  icon_background_color?: string;
+  icon_mask_base_uri?: string;
 }
 
 function ProfessionalTypeFilter({
@@ -75,7 +96,6 @@ function ProfessionalTypeFilter({
   );
 }
 
-// Transform API data to match your ProfessionalList component expected format
 const transformProfessionalData = (apiData: Professional[]) => {
   return apiData.map((item, index) => ({
     id: item._id || `professional-${index}`,
@@ -84,20 +104,20 @@ const transformProfessionalData = (apiData: Professional[]) => {
       item.professional.business_type === "company" ? "Company" : "Handyman",
     service: item.service_name,
     rating: item.professional.rating_avg || 0,
-    services: [item.service_name], // You might want to expand this based on your actual data
-    zipCodes: [], // This would need to come from your API
-    distance: 0, // This would need to come from your API
-    guarantee: true, // Default value
-    employee_count: item.professional.business_type === "company" ? 10 : 1, // Default values
+    services: [item.service_name],
+    zipCodes: [],
+    distance: 0,
+    guarantee: true,
+    employee_count: item.professional.business_type === "company" ? 10 : 1,
     total_hires: item.professional.total_hire,
-    founded: 2020, // Default value
-    background_check: true, // Default value
+    founded: 2020,
+    background_check: true,
     status: "Available",
     description: item.description || item.professional.introduction,
     imageUrl:
       item.professional.profile_image ||
       "/assets/home-service/default-service.jpg",
-    // Additional fields from API
+
     apiData: {
       maximum_price: item.maximum_price,
       minimum_price: item.minimum_price,
@@ -120,18 +140,16 @@ export default function ProfessionalPage({
 
   const [selectedType, setSelectedType] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [professionals, setProfessionals] = useState<GoogleProfessional[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Format the slug for display
   const formatted = slug
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
-
-  // Use the service_id from URL params or fallback to slug
-
   const service = service_id || "68e7ce11b0735d6e372e4380";
   const zip = zipcode || "95814";
-  console.log("Requesting professionals for service:", service, "in zip:", zip);
+  // console.log("Requesting professionals for service:", service, "in zip:", zip);
 
   const {
     data: topProfessionals,
@@ -139,12 +157,31 @@ export default function ProfessionalPage({
     isError,
   } = useTopProfessionals(service, zip);
 
-  // Transform API data for the ProfessionalList component
+  const searchProfessionals = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/google?serviceName=${formatted}&zipcode=${zip}`
+      );
+      const json = await res.json();
+      console.log("Fetched professionals from googlePlace API:", json);
+      setProfessionals(json.data ?? []);
+    } catch (err) {
+      console.error("Error fetching professionals:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  console.log("The google professionals:", professionals);
+
   const professionalData = topProfessionals?.data
     ? transformProfessionalData(topProfessionals.data)
     : [];
 
-  // Filter professionals based on selected type
+  useEffect(() => {
+    searchProfessionals();
+  }, []);
+
   const filteredProfessionals = professionalData.filter((professional) => {
     if (selectedType === "All") return true;
     if (selectedType === "company") return professional.type === "Company";
@@ -169,7 +206,7 @@ export default function ProfessionalPage({
     );
   }
 
-  if (isError) {
+  if (isError && professionals.length === 0) {
     return (
       <ErrorDisplay
         errorType="loading"
@@ -238,11 +275,12 @@ export default function ProfessionalPage({
                 />
               </div>
             </div>
-
             <ProfessionalList
               professionals={filteredProfessionals}
+              googleProfessionals={professionals} // Pass the Google professionals here
               selectedType={selectedType}
               serviceId={service}
+              loading={loading || isLoading}
             />
 
             {filteredProfessionals.length === 0 && (
