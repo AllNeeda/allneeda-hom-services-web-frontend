@@ -42,6 +42,24 @@ const nextConfig: NextConfig = {
         port: '3000',
         pathname: '**',
       },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '4000',
+        pathname: '**',
+      },
+      // Render backend for production
+      {
+        protocol: 'https',
+        hostname: 'allneeda-hom-services-web-backend.onrender.com',
+        pathname: '**',
+      },
+      // Allow any *.onrender.com subdomain for backend
+      {
+        protocol: 'https',
+        hostname: '*.onrender.com',
+        pathname: '**',
+      },
     ],
     domains: ['images.unsplash.com', 'images.pexels.com', 'cdn-icons-png.flaticon.com', 'cdn.pixabay.com',
       'commondatastorage.googleapis.com', 'sample-videos.com', 'randomuser.me', 'source.unsplash.com',
