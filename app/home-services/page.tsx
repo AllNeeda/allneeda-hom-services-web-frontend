@@ -10,7 +10,6 @@ import {
   usePopularServices,
   useSubcategoryServices,
   useFeaturedServices,
-  useServices,
 } from "@/hooks/useHomeServices";
 import LocationPermissionModal from "@/components/home-services/LocationPermissionModal";
 import { getLocationInfo } from "@/lib/getLocationInfo";
@@ -172,8 +171,6 @@ const HomeServicesPage = () => {
   const popularServices = popularServicesData?.data || [];
   const subcategoryServices = subcategoryServicesData || [];
   const featuredServices = featuredServicesData?.data || [];
-
-  
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border border-white dark:border-gray-900">

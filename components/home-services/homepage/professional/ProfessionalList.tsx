@@ -352,7 +352,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
                     {/* <span className="truncate">
                       {googleData.formatted_address}
                     </span> */}
-                    \<span className="truncate">************************</span>
+                    <span className="truncate">************************</span>
                   </div>
                   {googleData.formatted_phone_number && (
                     <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
