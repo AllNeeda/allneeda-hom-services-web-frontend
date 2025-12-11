@@ -3,11 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
 
   images: {
-<<<<<<< HEAD
-    domains: ['images.unsplash.com', 'images.pexels.com', 'cdn-icons-png.flaticon.com', 'cdn.pixabay.com',
-      'commondatastorage.googleapis.com', 'sample-videos.com', 'randomuser.me', 'source.unsplash.com',
-      'storyset.com', 'img.freepik.com', 'example.com', 'localhost', 'allneeda-hom-services-web-backend.onrender.com'], // allow Storyset/Freepik assets
-=======
     remotePatterns: [
       {
         protocol: 'https',
@@ -48,10 +43,9 @@ const nextConfig: NextConfig = {
         pathname: '**',
       },
     ],
-    domains: ['images.unsplash.com','images.pexels.com', 'cdn-icons-png.flaticon.com','cdn.pixabay.com',
-       'commondatastorage.googleapis.com', 'sample-videos.com', 'randomuser.me','source.unsplash.com',
-       'storyset.com', 'img.freepik.com', 'example.com', 'localhost', 'allneeda-hom-services-web-backend.onrender.com'], // allow Storyset/Freepik assets
->>>>>>> debug
+    domains: ['images.unsplash.com', 'images.pexels.com', 'cdn-icons-png.flaticon.com', 'cdn.pixabay.com',
+      'commondatastorage.googleapis.com', 'sample-videos.com', 'randomuser.me', 'source.unsplash.com',
+      'storyset.com', 'img.freepik.com', 'example.com', 'localhost', 'allneeda-hom-services-web-backend.onrender.com'], // allow Storyset/Freepik assets
   },
   // i18n is removed if using App Router
   eslint: {
