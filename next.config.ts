@@ -66,9 +66,7 @@ const nextConfig: NextConfig = {
       'storyset.com', 'img.freepik.com', 'example.com', 'localhost', 'allneeda-hom-services-web-backend.onrender.com'], // allow Storyset/Freepik assets
   },
   // i18n is removed if using App Router
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
 
 };
 
