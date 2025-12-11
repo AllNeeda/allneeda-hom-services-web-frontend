@@ -11,7 +11,7 @@ import {
   getLocationFromZip,
 } from "@/lib/locationService";
 import {
-  getServices,
+  // getServices,
   searchServiceByQuery,
 } from "@/app/api/homepage/postServices";
 
@@ -74,6 +74,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
     state?: string;
     postcode?: string;
   }>({});
+  console.log("LOCATION DATA: ", locationData);
   const [zipCode, setZipCode] = useState("");
   const [serviceQuery, setServiceQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);

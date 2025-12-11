@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import {
   Star,
   BadgeCheck,
@@ -10,7 +11,6 @@ import {
   Globe,
   MapPin,
   Phone,
-  ExternalLink,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -88,7 +88,7 @@ const transformGoogleProfessional = (
 export default function ProfessionalList({
   professionals,
   googleProfessionals = [],
-  selectedType,
+  // selectedType,
   serviceId,
   loading = false,
 }: ProfessionalListProps) {
@@ -96,24 +96,25 @@ export default function ProfessionalList({
   const [showGoogleProfessionals, setShowGoogleProfessionals] = useState(true);
 
   // Format price range display
-  const formatPriceRange = (min: number, max: number, pricingType: string) => {
-    if (min === 0 && max === 0) return "Contact for pricing";
-    if (pricingType === "fixed") {
-      return `$${min}`;
-    }
-    return `$${min} - $${max}`;
-  };
+  // const formatPriceRange = (min: number, max: number, pricingType: string) => {
+  //   if (min === 0 && max === 0) return "Contact for pricing";
+  //   if (pricingType === "fixed") {
+  //     return `$${min}`;
+  //   }
+  //   return `$${min} - $${max}`;
+  // };
 
   // Calculate years in business (simplified)
-  const calculateYearsInBusiness = (founded: number) => {
-    const currentYear = new Date().getFullYear();
-    return currentYear - founded;
-  };
+  // const calculateYearsInBusiness = (founded: number) => {
+  //   const currentYear = new Date().getFullYear();
+  //   return currentYear - founded;
+  // };
 
   const selectedProfessionals: string[] = professionals.map((item) => item.id);
 
   useEffect(() => {
     setBaseDir(getPorfessionalsStaticURL());
+    setShowGoogleProfessionals(true);
   }, []);
 
   // Transform Google professionals
@@ -348,14 +349,16 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
                 <div className="space-y-1 mb-2">
                   <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
                     <MapPin className="w-3 h-3 mr-1" />
-                    <span className="truncate">
+                    {/* <span className="truncate">
                       {googleData.formatted_address}
-                    </span>
+                    </span> */}
+                    \<span className="truncate">************************</span>
                   </div>
                   {googleData.formatted_phone_number && (
                     <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
                       <Phone className="w-3 h-3 mr-1" />
-                      <span>{googleData.formatted_phone_number}</span>
+                      {/* <span>{googleData.formatted_phone_number}</span> */}
+                      <span className="text-gray-500">*** ************</span>
                     </div>
                   )}
                 </div>
