@@ -53,7 +53,7 @@ export default function ReviewRequest() {
   const businessName = professional.business_name || 'Your Business';
   const userId = professional._id || '';
   const imageUrl = professional.profile_image || '';
-  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
   const username = professional.business_name || 'Your Business';
   const reviewLink = userId ? `${window.location.origin}/home-services/customerReview/${userId}` : '';
   const handleEmailChange = (index: number, value: string) => {
