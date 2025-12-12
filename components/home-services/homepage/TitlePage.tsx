@@ -10,8 +10,11 @@ import {
   getLocationFromCoords,
   getLocationFromZip,
 } from "@/lib/locationService";
+import {
+  getServices,
+  searchServiceByQuery,
+} from "@/app/api/homepage/postServices";
 
-// Function to calculate similarity between two strings
 const calculateSimilarity = (a: string, b: string): number => {
   const str1 = a.toLowerCase();
   const str2 = b.toLowerCase();
@@ -25,175 +28,20 @@ const calculateSimilarity = (a: string, b: string): number => {
   const union = new Set([...set1, ...set2]);
   return intersection.size / union.size;
 };
-const MOCK_PROFESSIONALS = [
-  {
-    id: "1",
-    company: "John's Plumbing",
-    service: "Plumbing",
-    rating: 4.8,
-    services: ["Pipe Repair", "Leak Fixing", "Faucet Installation"],
-    zipCodes: ["90001", "90002", "90003"],
-    distance: 1.2,
-    guarantee: true,
-    employee_count: 24,
-    total_hires: 15,
-    founded: 2012,
-    background_check: true,
-    status: "Available",
-    description:
-      "Licensed plumbing services with 10 years of experience in residential and commercial properties.",
-    imageUrl: "/assets/home-service/service (1).jpg",
-  },
-  {
-    id: "2",
-    company: "Electric Solutions",
-    service: "Electrical",
-    rating: 4.5,
-    services: ["Wiring", "Outlet Installation", "Circuit Breaker"],
-    zipCodes: ["90001", "90005"],
-    distance: 0.8,
-    guarantee: true,
-    employee_count: 18,
-    total_hires: 22,
-    founded: 2015,
-    background_check: true,
-    status: "Available",
-    description:
-      "Certified electricians providing safe and efficient electrical solutions.",
-    imageUrl: "/assets/home-service/service (2).jpg",
-  },
-  {
-    id: "3",
-    company: "Clean Home Services",
-    service: "Cleaning",
-    rating: 4.9,
-    services: ["Deep Cleaning", "Carpet Cleaning", "Window Washing"],
-    zipCodes: ["90002", "90004"],
-    distance: 2.5,
-    guarantee: true,
-    employee_count: 42,
-    total_hires: 35,
-    founded: 2016,
-    background_check: true,
-    status: "Available",
-    description:
-      "Premium cleaning services using eco-friendly products and techniques.",
-    imageUrl: "/assets/home-service/service (3).jpg",
-  },
-  {
-    id: "4",
-    company: "Quick Fix Handyman",
-    service: "Handyman",
-    rating: 4.3,
-    services: ["Furniture Assembly", "Shelving", "Minor Repairs"],
-    zipCodes: ["90001", "90003", "90005"],
-    distance: 1.7,
-    guarantee: false,
-    employee_count: 8,
-    total_hires: 12,
-    founded: 2019,
-    background_check: true,
-    status: "Available",
-    description:
-      "Reliable handyman services for all your home maintenance needs.",
-    imageUrl: "/assets/home-service/service (4).jpg",
-  },
-  {
-    id: "5",
-    company: "Green Thumb Landscaping",
-    service: "Landscaping",
-    rating: 4.7,
-    services: ["Lawn Care", "Tree Trimming", "Garden Design"],
-    zipCodes: ["90002", "90004", "90006"],
-    distance: 3.1,
-    guarantee: true,
-    employee_count: 15,
-    total_hires: 28,
-    founded: 2014,
-    background_check: true,
-    status: "Available",
-    description:
-      "Professional landscaping services creating beautiful outdoor spaces.",
-    imageUrl: "/assets/home-service/service (5).jpg",
-  },
-  {
-    id: "6",
-    company: "Green World",
-    service: "Landscaping",
-    rating: 4.7,
-    services: ["Lawn Care", "Tree Trimming", "Garden Design"],
-    zipCodes: ["90002", "90004", "90006"],
-    distance: 3.1,
-    guarantee: false,
-    employee_count: 12,
-    total_hires: 18,
-    founded: 2017,
-    background_check: true,
-    status: "Available",
-    description:
-      "Sustainable landscaping solutions with native plants and eco-friendly practices.",
-    imageUrl: "/assets/home-service/service (1).jpg",
-  },
-  {
-    id: "7",
-    company: "Green and Clean Globe",
-    service: "Landscaping",
-    rating: 4.7,
-    services: ["Lawn Care", "Tree Trimming", "Garden Design"],
-    zipCodes: ["90002", "90004", "90006"],
-    distance: 3.1,
-    guarantee: true,
-    employee_count: 20,
-    total_hires: 32,
-    founded: 2013,
-    background_check: true,
-    status: "Available",
-    description:
-      "Full-service landscaping and garden maintenance with a focus on sustainability.",
-    imageUrl: "/assets/home-service/service (2).jpg",
-  },
-  {
-    id: "8",
-    company: "Clark Construction",
-    service: "Roofing",
-    rating: 4.7,
-    services: ["Roof installation", "Roof Repairing", "Roof Maintenance"],
-    zipCodes: ["90002", "90004", "90006"],
-    distance: 3.1,
-    guarantee: true,
-    employee_count: 20,
-    total_hires: 32,
-    founded: 2013,
-    background_check: true,
-    status: "Available",
-    description:
-      "Full-service landscaping and garden maintenance with a focus on sustainability.",
-    imageUrl: "/assets/home-service/service (5).jpg",
-  },
-  {
-    id: "9",
-    company: "Brand Construction",
-    service: "Roofing",
-    rating: 4.7,
-    services: ["Roof installation", "Roof Repairing", "Roof Maintenance"],
-    zipCodes: ["90002", "90004", "90006"],
-    distance: 3.1,
-    guarantee: true,
-    employee_count: 20,
-    total_hires: 32,
-    founded: 2013,
-    background_check: true,
-    status: "Available",
-    description:
-      "Full-service landscaping and garden maintenance with a focus on sustainability.",
-    imageUrl: "/assets/home-service/service (3).jpg",
-  },
-];
 
-// Extract all unique services for suggestions
-const ALL_SERVICES = Array.from(
-  new Set(MOCK_PROFESSIONALS.flatMap((pro) => pro.services))
-);
+interface ServiceData {
+  _id: string;
+  name: string;
+  slug: string;
+  subcategory_id: string;
+  description: string;
+}
+
+interface ServiceWithId {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 const titleVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -208,6 +56,7 @@ const titleVariants: Variants = {
     },
   },
 };
+
 interface TitlePageProps {
   location?: {
     country?: string;
@@ -220,13 +69,11 @@ interface TitlePageProps {
 const TitlePage = ({ location }: TitlePageProps) => {
   const router = useRouter();
   const [userLocation, setUserLocation] = useState<string | null>(null);
-  /* eslint-disable no-unused-vars */
   const [locationData, setLocationData] = useState<{
     city?: string;
     state?: string;
     postcode?: string;
   }>({});
-  /* eslint-enable no-unused-vars */
   const [zipCode, setZipCode] = useState("");
   const [serviceQuery, setServiceQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -234,22 +81,21 @@ const TitlePage = ({ location }: TitlePageProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showNoMatchDialog, setShowNoMatchDialog] = useState(false);
-  const [suggestedServices, setSuggestedServices] = useState<string[]>([]);
+  const [suggestedServices, setSuggestedServices] = useState<ServiceWithId[]>(
+    []
+  );
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [noServiceInZipCode, setNoServiceInZipCode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-
-  // Filter services based on input
-  const filteredServices = ALL_SERVICES.filter((service) =>
-    service.toLowerCase().includes(serviceQuery.toLowerCase())
-  ).slice(0, 5);
+  const [results, setResults] = useState<ServiceData[]>([]);
+  const [filteredServices, setFilteredServices] = useState<ServiceWithId[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [serviceSlug, setServiceSlug] = useState("");
 
   useEffect(() => {
     setIsMounted(true);
 
-    // Priority: 1. Props location, 2. Local storage, 3. Default
     if (location?.city && location?.state) {
-      // Use location from props
       setLocationData({
         city: location.city,
         state: location.state,
@@ -260,7 +106,6 @@ const TitlePage = ({ location }: TitlePageProps) => {
         setZipCode(location.postcode);
       }
     } else {
-      // Fallback to localStorage
       const storedLocation = localStorage.getItem("user_location");
       if (storedLocation) {
         const { city, state, postcode } = JSON.parse(storedLocation);
@@ -275,7 +120,45 @@ const TitlePage = ({ location }: TitlePageProps) => {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [location]); // Add location to dependencies
+  }, [location]);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      const fetchData = async () => {
+        if (serviceQuery.trim().length > 0) {
+          try {
+            const response = await searchServiceByQuery(serviceQuery);
+            const services = response?.data || [];
+            setResults(services);
+
+            const filtered = services
+              .filter((service: ServiceData) =>
+                service.name.toLowerCase().includes(serviceQuery.toLowerCase())
+              )
+              .slice(0, 5)
+              .map((service: ServiceData) => ({
+                id: service._id,
+                name: service.name,
+                slug: service.slug,
+              }));
+
+            setFilteredServices(filtered);
+          } catch (error) {
+            console.error("Search error:", error);
+            setResults([]);
+            setFilteredServices([]);
+          }
+        } else {
+          setResults([]);
+          setFilteredServices([]);
+        }
+      };
+
+      fetchData();
+    }, 400);
+
+    return () => clearTimeout(delayDebounce);
+  }, [serviceQuery]);
 
   const updateLocation = (newLocation: {
     city: string;
@@ -288,18 +171,19 @@ const TitlePage = ({ location }: TitlePageProps) => {
       setZipCode(newLocation.postcode);
     }
 
-    // Also update localStorage for persistence
     localStorage.setItem("user_location", JSON.stringify(newLocation));
   };
 
-  const handleSearch = (selectedService?: string) => {
+  const handleSearch = async (selectedService?: ServiceWithId) => {
     setIsLoading(true);
     setError("");
     setShowSuggestions(false);
     setNoServiceInZipCode(false);
     setSuggestedServices([]);
 
-    const searchTerm = selectedService || serviceQuery;
+    const searchTerm = selectedService?.name || serviceQuery;
+    const serviceId = selectedService?.id || "";
+    // console.log("submitted data: ", selectedServiceId, zipCode);
 
     // Validate inputs
     if (!searchTerm.trim()) {
@@ -314,58 +198,55 @@ const TitlePage = ({ location }: TitlePageProps) => {
       return;
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      // 1. First check zip code validity
-      const validZipCode = MOCK_PROFESSIONALS.some((pro) =>
-        pro.zipCodes.includes(zipCode)
-      );
-
-      if (!validZipCode) {
-        setNoServiceInZipCode(true);
-        setShowNoMatchDialog(true);
-        setIsLoading(false);
-        return;
-      }
-
-      // 2. Check for exact service matches in this zip code
-      const exactMatches = MOCK_PROFESSIONALS.filter(
-        (pro) =>
-          pro.zipCodes.includes(zipCode) &&
-          pro.services.some((s) => s.toLowerCase() === searchTerm.toLowerCase())
+    try {
+      const exactMatches = results.filter(
+        (service) => service.name.toLowerCase() === searchTerm.toLowerCase()
       );
 
       if (exactMatches.length > 0) {
-        // Found exact matches - proceed to results
+        const exactServiceId = exactMatches[0]?._id || serviceId;
+
         sessionStorage.setItem(
           "searchResults",
           JSON.stringify({
             query: searchTerm,
+            serviceId: exactServiceId,
             zipCode,
-            professionals: exactMatches.slice(0, 5),
+            services: exactMatches.slice(0, 5),
           })
         );
         router.push(
-          `/home-services/search?query=${encodeURIComponent(
-            searchTerm
-          )}&zip=${encodeURIComponent(zipCode)}`
+          `/home-services/professional-service/${serviceSlug}?id=${selectedServiceId}&zipcode=${zipCode}`
         );
+
         setIsLoading(false);
         return;
       }
 
-      // 3. No exact matches - find similar services
-      const similarServices = ALL_SERVICES.map((service) => ({
-        service,
-        similarity: calculateSimilarity(searchTerm, service),
-      }))
+      const allServiceNames = results.map((service) => service.name);
+      const similarServices = allServiceNames
+        .map((service) => ({
+          service,
+          similarity: calculateSimilarity(searchTerm, service),
+        }))
         .filter((item) => item.similarity > 0.3)
         .sort((a, b) => b.similarity - a.similarity)
-        .map((item) => item.service)
+        .map((item) => {
+          const matchingService = results.find((s) => s.name === item.service);
+          return {
+            id: matchingService?._id || "",
+            name: item.service,
+          };
+        })
+        .filter((service) => service.id)
         .slice(0, 5);
 
       if (similarServices.length > 0) {
-        setSuggestedServices(similarServices);
+        const similarWithSlug = similarServices.map((s) => {
+          const match = results.find((r) => r.name === s.name);
+          return { id: s.id, name: s.name, slug: match?.slug || "" };
+        });
+        setSuggestedServices(similarWithSlug);
         setNoServiceInZipCode(false);
         setShowNoMatchDialog(true);
       } else {
@@ -373,7 +254,11 @@ const TitlePage = ({ location }: TitlePageProps) => {
       }
 
       setIsLoading(false);
-    }, 1000);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setError("Failed to search. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const handleZipCodeChange = (zip: string) => {
@@ -440,34 +325,37 @@ const TitlePage = ({ location }: TitlePageProps) => {
     }
   };
 
-  const handleServiceSuggestion = (service: string) => {
-    setServiceQuery(service);
+  const handleServiceSuggestion = (service: ServiceWithId) => {
+    setServiceQuery(service.name);
     setShowNoMatchDialog(false);
     handleSearch(service);
   };
-  //default location fallback
+
+  const handleSuggestionClick = (service: ServiceWithId) => {
+    // console.log("SELECTED SERVICE: ", service);
+    setServiceQuery(service.name);
+    setSelectedServiceId(service.id);
+    setServiceSlug(service.slug);
+    setShowSuggestions(false);
+  };
+
   const defaultLocation = {
     city: "New York",
     state: "NY",
     zipcode: "10001",
   };
-  // store it in local storage for access (avoid overwriting if already set)
-  if (!localStorage.getItem("defaultLocation")) {
-    localStorage.setItem("defaultLocation", JSON.stringify(defaultLocation));
-  }
-  // get default location from localStorage
-  // const storedDefaultLocationRaw = localStorage.getItem("defaultLocation");
-  // const storedLocation = storedDefaultLocationRaw
-  //   ? JSON.parse(storedDefaultLocationRaw)
-  //   : null;
 
-  // Use prop location as fallback for default display
+  useEffect(() => {
+    if (!localStorage.getItem("defaultLocation")) {
+      localStorage.setItem("defaultLocation", JSON.stringify(defaultLocation));
+    }
+  }, []);
+
   const userDefaultLocation =
     location?.city && location?.state
       ? `${location.city}, ${location.state}`
       : `${defaultLocation.city}, ${defaultLocation.state}`;
 
-  // Prevent hydration mismatch by not rendering until mounted
   if (!isMounted) {
     return (
       <div className="w-full relative min-h-[15vh] md:min-h-[40vh] flex items-center justify-center pt-4 pb-5 md:pt-8 md:pb-16">
@@ -503,7 +391,6 @@ const TitlePage = ({ location }: TitlePageProps) => {
         error={error}
       />
 
-      {/* Persistent Search Bar */}
       <AnimatePresence>
         {isScrolled && (
           <motion.div
@@ -519,12 +406,13 @@ const TitlePage = ({ location }: TitlePageProps) => {
                 setServiceQuery={setServiceQuery}
                 zipCode={zipCode}
                 setZipCode={setZipCode}
-                handleSearch={handleSearch}
+                handleSearch={() => handleSearch()}
                 isLoading={isLoading}
                 isCompact={true}
                 showSuggestions={showSuggestions}
                 setShowSuggestions={setShowSuggestions}
                 filteredServices={filteredServices}
+                onSuggestionClick={handleSuggestionClick}
               />
             </div>
           </motion.div>
@@ -657,70 +545,73 @@ const TitlePage = ({ location }: TitlePageProps) => {
           />
         </div>
 
-        {/* Content */}
-        <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-4 lg:px-8 h-full flex items-center">
-          <div className="flex flex-col items-center text-center gap-4 sm:gap-6 w-full py-6">
-            {/* Title - Reduced gap and padding */}
-            <motion.div
-              variants={titleVariants}
-              initial="hidden"
-              animate="show"
-              className="text-gray-800 dark:text-gray-100 w-full"
-            >
-              <motion.h1
-                className="text-2xl sm:text-xl md:text-4xl lg:text-4xl font-bold leading-tight px-2"
-                whileHover={{
-                  x: 5,
-                  transition: { type: "spring", stiffness: 300 },
-                }}
+        <div
+          className="w-full relative min-h-[15vh] md:min-h-[40vh] flex items-center justify-center 
+                pt-4 pb-5 md:pt-8 md:pb-16"
+        >
+          <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-4 lg:px-8 h-full flex items-center">
+            <div className="flex flex-col items-center text-center gap-4 sm:gap-6 w-full py-6">
+              <motion.div
+                variants={titleVariants}
+                initial="hidden"
+                animate="show"
+                className="text-gray-800 dark:text-gray-100 w-full"
               >
-                <div className="flex flex-col">
-                  <span>Find the Best Home Service in</span>
-                  <button
-                    onClick={() => setIsLocationDialogOpen(true)}
-                    className="cursor-pointer focus-visible:outline-none border-b-2 border-dashed border-gray-800 dark:border-gray-300 self-center mt-2 sm:mt-3"
-                  >
-                    {userLocation ? (
-                      <span>{userLocation} </span>
-                    ) : (
-                      <span className="flex flex-row gap-2 justify-center items-center">
-                        <span>{userDefaultLocation}</span>
-                        <SquareMousePointer className="w-5 h-5 sm:w-6 sm:h-6" />
-                      </span>
-                    )}
-                    <MapPinHouse
-                      className="inline p-1 rounded bg-sky-200 dark:bg-sky-900 text-sky-600 dark:text-sky-500 hover:bg-sky-500 hover:text-white dark:hover:bg-sky-900 dark:hover:text-white duration-500 transition"
-                      size={32}
-                    />
-                  </button>
-                </div>
-              </motion.h1>
-            </motion.div>
+                <motion.h1
+                  className="text-2xl sm:text-xl md:text-4xl lg:text-4xl font-bold leading-tight px-2"
+                  whileHover={{
+                    x: 5,
+                    transition: { type: "spring", stiffness: 300 },
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span>Find the Best Home Service in</span>
+                    <button
+                      onClick={() => setIsLocationDialogOpen(true)}
+                      className="cursor-pointer focus-visible:outline-none border-b-2 border-dashed border-gray-800 dark:border-gray-300 self-center mt-2 sm:mt-3"
+                    >
+                      {userLocation ? (
+                        <span>{userLocation} </span>
+                      ) : (
+                        <span className="flex flex-row gap-2 justify-center items-center">
+                          <span>{userDefaultLocation}</span>
+                          <SquareMousePointer className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </span>
+                      )}
+                      <MapPinHouse
+                        className="inline p-1 rounded bg-sky-200 dark:bg-sky-900 text-sky-600 dark:text-sky-500 hover:bg-sky-500 hover:text-white dark:hover:bg-sky-900 dark:hover:text-white duration-500 transition"
+                        size={32}
+                      />
+                    </button>
+                  </div>
+                </motion.h1>
+              </motion.div>
 
-            {/* Search Box - Hero Version */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="w-full max-w-3xl px-4"
-            >
-              <SearchBar
-                serviceQuery={serviceQuery}
-                setServiceQuery={setServiceQuery}
-                zipCode={zipCode}
-                setZipCode={handleZipCodeChange}
-                handleSearch={handleSearch}
-                isLoading={isLoading}
-                showSuggestions={showSuggestions}
-                setShowSuggestions={setShowSuggestions}
-                filteredServices={filteredServices}
-              />
-              {error && (
-                <p className="text-sm text-red-500 dark:text-red-400 mt-2">
-                  {error}
-                </p>
-              )}
-            </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="w-full max-w-3xl px-4"
+              >
+                <SearchBar
+                  serviceQuery={serviceQuery}
+                  setServiceQuery={setServiceQuery}
+                  zipCode={zipCode}
+                  setZipCode={handleZipCodeChange}
+                  handleSearch={() => handleSearch()}
+                  isLoading={isLoading}
+                  showSuggestions={showSuggestions}
+                  setShowSuggestions={setShowSuggestions}
+                  filteredServices={filteredServices}
+                  onSuggestionClick={handleSuggestionClick}
+                />
+                {error && (
+                  <p className="text-sm text-red-500 dark:text-red-400 mt-2">
+                    {error}
+                  </p>
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>

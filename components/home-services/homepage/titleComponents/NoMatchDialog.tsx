@@ -3,20 +3,25 @@ import React from "react";
 import {
   Dialog,
   DialogContent,
-  // DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+interface ServiceWithId {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface NoMatchDialogProps {
   open: boolean;
   /* eslint-disable no-unused-vars */
   onOpenChange: (open: boolean) => void;
-  onServiceSelect: (service: string) => void;
-  /* elslint-enable no-unused-vars */
-  suggestedServices?: string[];
+  onServiceSelect: (service: ServiceWithId) => void;
+  /* eslint-enable no-unused-vars */
+  suggestedServices?: ServiceWithId[];
   noServiceInZipCode: boolean;
   zipCode: string;
 }
@@ -53,12 +58,12 @@ const NoMatchDialog = ({
                 <div className="space-y-2">
                   {suggestedServices.map((service) => (
                     <Button
-                      key={service}
+                      key={service.id}
                       variant="outline"
                       className="w-full text-left"
                       onClick={() => onServiceSelect(service)}
                     >
-                      {service}
+                      {service.name}
                     </Button>
                   ))}
                 </div>
