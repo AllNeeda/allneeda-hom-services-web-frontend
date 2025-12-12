@@ -8,7 +8,6 @@ import {
   MousePointerClick,
   OctagonAlert,
   Check,
-  Globe,
   MapPin,
   Phone,
 } from "lucide-react";

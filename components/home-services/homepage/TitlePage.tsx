@@ -74,6 +74,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
     state?: string;
     postcode?: string;
   }>({});
+
   const [zipCode, setZipCode] = useState("");
   const [serviceQuery, setServiceQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -91,7 +92,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
   const [filteredServices, setFilteredServices] = useState<ServiceWithId[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceSlug, setServiceSlug] = useState("");
-
+  console.log("LOCATION DATA: ", locationData);
   useEffect(() => {
     setIsMounted(true);
 

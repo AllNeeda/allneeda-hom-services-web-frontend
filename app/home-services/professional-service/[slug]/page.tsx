@@ -90,7 +90,9 @@ function ProfessionalTypeFilter({
   onTypeChange,
 }: {
   selectedType: string;
+  /* eslint-disable no-unused-vars */
   onTypeChange: (type: string) => void;
+  /* eslint-enable no-unused-vars */
 }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
