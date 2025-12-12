@@ -38,9 +38,9 @@ jobs:
       - name: Build project
         run: npm run build
         continue-on-error: false
-        env:
-          # Add your build-time environment variables here if needed
-          # NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        # Add build-time environment variables here if needed:
+        # env:
+        #   NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Deploy to Vercel (Production)
         if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
