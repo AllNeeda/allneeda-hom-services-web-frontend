@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      secrets: read
     
     steps:
       - name: Checkout code
