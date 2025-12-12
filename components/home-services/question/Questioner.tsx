@@ -233,7 +233,6 @@ const Questioner = ({
     console.error("Failed to parse user_location from localStorage:", e);
     userLocation = null;
   }
-  console.log("INSIDE QUESTIONER: ", professionalIds);
 
   const handleSubmit = async () => {
     const payload = {

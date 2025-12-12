@@ -9,7 +9,8 @@ import { useSearchParams } from "next/navigation";
 import { useTopProfessionals } from "@/hooks/useHomeServices";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
 
-interface Professional {
+// Define interfaces for your API data
+interface ApiProfessional {
   _id: string;
   service_name: string;
   maximum_price: number;
@@ -28,6 +29,7 @@ interface Professional {
     profile_image: string;
   };
 }
+
 interface GoogleProfessional {
   place_id: string;
   name: string;
@@ -51,14 +53,44 @@ interface GoogleProfessional {
   icon_mask_base_uri?: string;
 }
 
+// Transform function for API data
+const transformProfessionalData = (apiData: ApiProfessional[]) => {
+  return apiData.map((item, index) => ({
+    id: item._id || `professional-${index}`,
+    company: item.professional.business_name,
+    type:
+      item.professional.business_type === "company" ? "Company" : "Handyman",
+    service: item.service_name,
+    rating: item.professional.rating_avg || 0,
+    services: [item.service_name],
+    zipCodes: [],
+    distance: 0,
+    guarantee: true,
+    employee_count: item.professional.business_type === "company" ? 10 : 1,
+    total_hires: item.professional.total_hire,
+    founded: 2020,
+    background_check: true,
+    status: "Available",
+    description: item.description || item.professional.introduction,
+    imageUrl:
+      item.professional.profile_image ||
+      "/assets/home-service/default-service.jpg",
+    apiData: {
+      maximum_price: item.maximum_price,
+      minimum_price: item.minimum_price,
+      pricing_type: item.pricing_type,
+      completed_tasks: item.completed_tasks,
+      professional_id: item.professional._id,
+    },
+  }));
+};
+
 function ProfessionalTypeFilter({
   selectedType,
   onTypeChange,
 }: {
   selectedType: string;
-  /* eslint-disable no-unused-vars */
   onTypeChange: (type: string) => void;
-  /* eslint-enable no-unused-vars */
 }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
@@ -96,38 +128,6 @@ function ProfessionalTypeFilter({
   );
 }
 
-const transformProfessionalData = (apiData: Professional[]) => {
-  return apiData.map((item, index) => ({
-    id: item._id || `professional-${index}`,
-    company: item.professional.business_name,
-    type:
-      item.professional.business_type === "company" ? "Company" : "Handyman",
-    service: item.service_name,
-    rating: item.professional.rating_avg || 0,
-    services: [item.service_name],
-    zipCodes: [],
-    distance: 0,
-    guarantee: true,
-    employee_count: item.professional.business_type === "company" ? 10 : 1,
-    total_hires: item.professional.total_hire,
-    founded: 2020,
-    background_check: true,
-    status: "Available",
-    description: item.description || item.professional.introduction,
-    imageUrl:
-      item.professional.profile_image ||
-      "/assets/home-service/default-service.jpg",
-
-    apiData: {
-      maximum_price: item.maximum_price,
-      minimum_price: item.minimum_price,
-      pricing_type: item.pricing_type,
-      completed_tasks: item.completed_tasks,
-      professional_id: item.professional._id,
-    },
-  }));
-};
-
 export default function ProfessionalPage({
   params,
 }: {
@@ -140,7 +140,9 @@ export default function ProfessionalPage({
 
   const [selectedType, setSelectedType] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [professionals, setProfessionals] = useState<GoogleProfessional[]>([]);
+  const [googleProfessionals, setGoogleProfessionals] = useState<
+    GoogleProfessional[]
+  >([]);
   const [loading, setLoading] = useState(false);
 
   const formatted = slug
@@ -149,7 +151,6 @@ export default function ProfessionalPage({
     .join(" ");
   const service = service_id || "68e7ce11b0735d6e372e4380";
   const zip = zipcode || "95814";
-  // console.log("Requesting professionals for service:", service, "in zip:", zip);
 
   const {
     data: topProfessionals,
@@ -164,36 +165,54 @@ export default function ProfessionalPage({
         `/api/google?serviceName=${formatted}&zipcode=${zip}`
       );
       const json = await res.json();
-      console.log("Fetched professionals from googlePlace API:", json);
-      setProfessionals(json.data ?? []);
+      setGoogleProfessionals(json.data ?? []);
     } catch (err) {
       console.error("Error fetching professionals:", err);
     } finally {
       setLoading(false);
     }
   };
-  console.log("The google professionals:", professionals);
 
-  const professionalData = topProfessionals?.data
+  const platformProfessionals = topProfessionals?.data
     ? transformProfessionalData(topProfessionals.data)
     : [];
 
-  useEffect(() => {
-    searchProfessionals();
-  }, []);
-
-  const filteredProfessionals = professionalData.filter((professional) => {
+  // Filter platform professionals based on selected type
+  const filteredProfessionals = platformProfessionals.filter((professional) => {
     if (selectedType === "All") return true;
     if (selectedType === "company") return professional.type === "Company";
     if (selectedType === "individual") return professional.type === "Handyman";
     return true;
   });
 
+  // Filter Google professionals based on selected type (if needed)
+  const filteredGoogleProfessionals = googleProfessionals.filter((pro) => {
+    if (selectedType === "All") return true;
+    if (selectedType === "company") {
+      return pro.types?.includes("general_contractor") || false;
+    }
+    if (selectedType === "individual") {
+      return (
+        pro.types?.some(
+          (type) =>
+            type.includes("plumber") ||
+            type.includes("electrician") ||
+            type.includes("handyman")
+        ) || false
+      );
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    searchProfessionals();
+  }, []); // Consider adding dependencies if needed
+
   const displayService = slug
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  if (isLoading) {
+  if (isLoading && platformProfessionals.length === 0) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -206,7 +225,11 @@ export default function ProfessionalPage({
     );
   }
 
-  if (isError && professionals.length === 0) {
+  if (
+    isError &&
+    platformProfessionals.length === 0 &&
+    googleProfessionals.length === 0
+  ) {
     return (
       <ErrorDisplay
         errorType="loading"
@@ -215,6 +238,7 @@ export default function ProfessionalPage({
       />
     );
   }
+
   const userLocationRaw = localStorage.getItem("user_location");
   let userLocation: any = null;
   try {
@@ -262,7 +286,7 @@ export default function ProfessionalPage({
             <div className="flex flex-row flex-wrap justify-between items-center my-2">
               <div className="space-y-2">
                 <h1 className="text-md md:text-md font-bold">
-                  Top {professionalData.length} {formatted} Professionals
+                  Top {filteredProfessionals.length} {formatted} Professionals
                   in&nbsp;
                   <u className="text-sky-600 dark:text-sky-400">
                     {userLocation?.city}, {userLocation?.state}
@@ -275,21 +299,22 @@ export default function ProfessionalPage({
                 />
               </div>
             </div>
+
             <ProfessionalList
               professionals={filteredProfessionals}
-              googleProfessionals={professionals} // Pass the Google professionals here
-              selectedType={selectedType}
+              googleProfessionals={filteredGoogleProfessionals}
               serviceId={service}
               loading={loading || isLoading}
             />
 
-            {filteredProfessionals.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400">
-                  No professionals found for the selected filters.
-                </p>
-              </div>
-            )}
+            {filteredProfessionals.length === 0 &&
+              filteredGoogleProfessionals.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No professionals found for the selected filters.
+                  </p>
+                </div>
+              )}
           </div>
         </div>
       </div>

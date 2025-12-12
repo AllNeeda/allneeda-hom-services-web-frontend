@@ -95,6 +95,9 @@ export default function ProfessionalList({
   const [BASEDIR, setBaseDir] = useState("");
   const [showGoogleProfessionals, setShowGoogleProfessionals] = useState(true);
 
+  console.log("The professionals: ", professionals);
+  console.log("The google professionals: ", googleProfessionals);
+
   // Format price range display
   // const formatPriceRange = (min: number, max: number, pricingType: string) => {
   //   if (min === 0 && max === 0) return "Contact for pricing";
@@ -458,7 +461,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
         <div className="flex justify-end gap-2 items-center">
           {isGoogleProfessional ? (
             <>
-              {googleData?.website && (
+              {/* {googleData?.website && (
                 <Button
                   type="button"
                   className="bg-green-600 dark:bg-green-500 dark:hover:bg-green-600 hover:bg-green-500 rounded-xs text-white font-semibold text-sm px-4 py-2 flex items-center gap-1"
@@ -483,7 +486,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
               >
                 <MapPin className="w-4 h-4" />
                 View on Maps
-              </Button>
+              </Button> */}
               <Questioner
                 className="bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 hover:bg-sky-500 px-4 py-2 rounded-xs text-white font-semibold text-sm flex items-center gap-1"
                 serviceId={serviceId}

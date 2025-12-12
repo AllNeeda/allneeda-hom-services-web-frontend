@@ -74,7 +74,6 @@ const TitlePage = ({ location }: TitlePageProps) => {
     state?: string;
     postcode?: string;
   }>({});
-  console.log("LOCATION DATA: ", locationData);
   const [zipCode, setZipCode] = useState("");
   const [serviceQuery, setServiceQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
