@@ -1,179 +1,136 @@
-// src/components/marketing-hub/ReviewMarketingSection.tsx
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import ReviewCarousel from "./ReviewCarousel";
-import { Button } from "@/components/ui/button";
-import { ShareIcon, DownloadIcon } from "lucide-react";
+// app/dashboard/reviews/MarketingReviewsCard.tsx
+"use client";
+import React, { useState } from "react";
+import {  ArrowUpDown, Star } from "lucide-react";
+import { getAccessToken } from "@/app/api/axios";
+import { useProfessionalLeads } from "@/hooks/useProfessionalLeads";
+import GlobalLoader from "@/components/ui/global-loader";
+import { toast } from "react-hot-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getMarketingScore, Review } from "@/lib/review-helpers";
+import MarketingInsights from "./reviews/marketingInsights";
+import ReviewItem from "./reviews/reviewItem";
 
-// Define types for our reviews
-export interface Review {
-  id: string;
-  type: 'video' | 'text';
-  profile: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    photo?: string;
-  };
-  content: string;
-  tags: string[];
-  media?: {
-    type: 'image' | 'video';
-    url: string;
-    thumbnail?: string;
-  };
-  timestamp: Date;
+
+interface ProfessionalData {
+  reviews?: Review[];
 }
 
-// Sample reviews data
-const sampleReviews: Review[] = [
-  {
-    id: "1",
-    type: 'text',
-    profile: {
-      firstName: "John",
-      lastName: "Doe",
-      email: "john.doe@example.com",
-      photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
-    },
-    content: "Amazing service! The team was professional and completed the work faster than expected. Highly recommended!",
-    tags: ["Homeservices", "Satisfied", "Professional"],
-    timestamp: new Date("2023-10-15")
-  },
-  {
-    id: "2",
-    type: 'video',
-    profile: {
-      firstName: "Sarah",
-      lastName: "Smith",
-      email: "sarah.smith@example.com"
-    },
-    content: "I've never been happier with a home service. They went above and beyond!",
-    tags: ["quality", "excellent", "recommend"],
-    media: {
-      type: 'video',
-      url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      thumbnail: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=300&h=200&fit=crop"
-    },
-    timestamp: new Date("2023-10-10")
-  },
-  {
-    id: "3",
-    type: 'text',
-    profile: {
-      firstName: "Mike",
-      lastName: "Johnson",
-      email: "mike.johnson@example.com",
-      photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
-    },
-    content: "Fair pricing and excellent workmanship. Will definitely use again for future projects.",
-    tags: ["fairpricing", "qualitywork", "reliable"],
-    media: {
-      type: 'image',
-      url: "https://images.unsplash.com/photo-1585123388860-be6b28cb9c43?w=300&h=200&fit=crop"
-    },
-    timestamp: new Date("2023-10-05")
-  }
-];
+type SortOrder = 'newest' | 'oldest' | 'highest' | 'lowest' | 'marketing';
 
-const ReviewMarketingSection: React.FC = () => {
-  const [caption, setCaption] = useState("Show your happy customers. Boost trust. #localpros #trustedreviews");
-  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
+export default function MarketingReviewsCard() {
+  const token = getAccessToken();
+  const { data, isLoading } = useProfessionalLeads(token!) as {
+    data: ProfessionalData | undefined;
+    isLoading: boolean;
+    error: any;
+  };
 
-  // Simulate loading reviews from an API
-  useEffect(() => {
-    setTimeout(() => {
-      setReviews(sampleReviews);
-      if (sampleReviews.length > 0) {
-        setSelectedReview(sampleReviews[0]);
-      }
-    }, 500);
-  }, []);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [selectedForEmail, setSelectedForEmail] = useState<Review[]>([]);
+  const [highlights, setHighlights] = useState<Review[]>([]);
 
-  const handleShareToShootak = async (review: Review) => {
-    try {
-      if (review.type === 'video' && review.media) {
-        console.log("Sharing video to Shootak:", review.media.url);
-      } else {
-        console.log("Sharing text review to Shootak");
-      }
-      alert(`Review shared successfully to Shootak!`);
-    } catch (error) {
-      console.error("Failed to share to Shootak:", error);
-      alert("Failed to share review. Please try again.");
+  if (isLoading) return <GlobalLoader />;
+  const approvedReviews = data?.reviews?.filter(
+    review => review.review_type === "approved"
+  ) || [];
+
+  // Sort reviews based on selected order
+  const sortedReviews = [...approvedReviews].sort((a, b) => {
+    switch (sortOrder) {
+      case 'newest':
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case 'oldest':
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      case 'highest':
+        return b.rating - a.rating;
+      case 'lowest':
+        return a.rating - b.rating;
+      case 'marketing':
+        /* eslint-disable*/
+        const aScore = getMarketingScore(a);
+        const bScore = getMarketingScore(b);
+        /* eslint-enable*/
+        return bScore - aScore;
+      default:
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+  });
+
+
+  const handleAddToHighlights = (review: Review) => {
+    if (!highlights.some(h => h._id === review._id)) {
+      setHighlights(prev => [...prev, review]);
+      toast.success('Added to highlights!');
     }
   };
 
-  const handleDownload = (review: Review) => {
-    if (review.type === 'video' && review.media) {
-      const link = document.createElement('a');
-      link.href = review.media.url;
-      link.download = `review-${review.id}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      const element = document.createElement("a");
-      const file = new Blob([review.content], { type: 'text/plain' });
-      element.href = URL.createObjectURL(file);
-      element.download = `review-${review.id}.txt`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+  const handleAddToTemplate = (review: Review) => {
+    if (!selectedForEmail.some(r => r._id === review._id)) {
+      setSelectedForEmail(prev => [...prev, review]);
+      toast.success('Added to email template!');
     }
   };
 
   return (
     <div className="space-y-6">
-      <Card className="w-full border-0 bg-gray-50 dark:bg-gray-900 shadow-none">
-        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle className="text-xl md:text-2xl text-center md:text-left">
-            Review–Driven Marketing for Professionals
-          </CardTitle>
-          {selectedReview && (
-            <div className="flex justify-center md:justify-end space-x-2 w-full md:w-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center"
-                onClick={() => handleDownload(selectedReview)}
-              >
-                <DownloadIcon className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Download</span>
-              </Button>
-              <Button
-                size="sm"
-                className="flex items-center"
-                onClick={() => handleShareToShootak(selectedReview)}
-              >
-                <ShareIcon className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Share to Shootak</span>
-              </Button>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground text-center md:text-left">
-            Turn your satisfied customers into your best sales tool. Share reviews as ready-made posts on Instagram/TikTok or directly to Shootak, and increase your visibility in search results.
-          </p>
+      {/* Order Filter */}
+      <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-sm border border-gray-200 dark:border-gray-800 p-3">
 
-          {reviews.length > 0 ? (
-            <ReviewCarousel
-              reviews={reviews}
-              caption={caption}
-              onCaptionChange={setCaption}
-              onSelectReview={setSelectedReview}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-40">
-              <p className="text-muted-foreground">Loading reviews...</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="w-4 h-4 text-gray-500" />
+          <Select value={sortOrder} onValueChange={(value: SortOrder) => setSortOrder(value)}>
+            <SelectTrigger className="w-[160px] h-8 text-[13px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="highest">Highest Rated</SelectItem>
+              <SelectItem value="lowest">Lowest Rated</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Marketing Insights Dashboard */}
+      <MarketingInsights reviews={approvedReviews} />
+
+      {/* Reviews List - One Column */}
+      <div className="space-y-4">
+        {sortedReviews.map((review) => (
+          <ReviewItem
+            key={review._id} 
+            review={review}
+            onAddToHighlights={handleAddToHighlights}
+            onAddToTemplate={handleAddToTemplate}
+          />
+        ))}
+      </div>
+
+
+
+      {/* Empty State */}
+      {sortedReviews.length === 0 && (
+        <div className="bg-white dark:bg-gray-900 rounded-sm border border-gray-200 dark:border-gray-800 p-8 text-center">
+          <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Star className="w-8 h-8 text-[#0077B6] dark:text-blue-400" />
+          </div>
+          <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white mb-2">
+            No Approved Reviews Yet
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 text-[13px] mb-4">
+            Approved reviews will appear here once they are available on allneeda
+          </p>
+        </div>
+      )}
+
     </div>
   );
-};
-
-export default ReviewMarketingSection;
+}

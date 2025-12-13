@@ -7,7 +7,6 @@ import CreditsCard from "./_CreditsCard";
 import ReviewsCard from "./_ReviewsCard";
 import MonthlyLeadsChart from "./_MonthlyLeads";
 import MonthlyTarget from "./_MonthlyTarget";
-import LeadsMonthly from "./CreditsMonthly";
 import { useProfessionalLeads } from "@/hooks/useProfessionalLeads";
 import { getAccessToken } from "@/app/api/axios";
 import GlobalLoader from "@/components/ui/global-loader";
@@ -253,9 +252,6 @@ export default function Dashboard() {
         >
           <motion.div variants={fadeUp}>
             <ReviewsCard />
-          </motion.div>
-          <motion.div variants={fadeUp}>
-            <LeadsMonthly />
           </motion.div>
         </motion.div>
       </div>

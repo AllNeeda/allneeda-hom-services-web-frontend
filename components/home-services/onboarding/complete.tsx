@@ -67,7 +67,7 @@ const LoadingSpinner = () => (
 
 const ProfessionalProfile = () => {
   const router = useRouter();
-  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
   const token = useMemo(() => getAccessToken() || "", []);
   const { data } = useProfessionalReview(token);
   const [activeTab, setActiveTab] = useState('overview');

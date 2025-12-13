@@ -34,7 +34,14 @@ const HomeServicesMarketingHub: React.FC = () => {
           variant={activeSection === "reviews" ? "default" : "outline"}
           onClick={() => setActiveSection("reviews")}
         >
-           Review‑Based Marketing
+          Review‑Based Marketing
+        </Button>
+        <Button
+          className="w-full sm:w-auto"
+          variant={activeSection === "guarantee" ? "default" : "outline"}
+          onClick={() => setActiveSection("guarantee")}
+        >
+          Guarantee
         </Button>
         <Button
           className="w-full sm:w-auto"
@@ -57,22 +64,16 @@ const HomeServicesMarketingHub: React.FC = () => {
         >
           Customer Retention
         </Button>
-        <Button
-          className="w-full sm:w-auto"
-          variant={activeSection === "guarantee" ? "default" : "outline"}
-          onClick={() => setActiveSection("guarantee")}
-        >
-          Guarantee
-        </Button>
+
       </div>
 
       {/* Active Section */}
       <div className="w-full">
         {activeSection === "reviews" && <ReviewMarketingSection />}
+        {activeSection === "guarantee" && <Guarantee />}
         {activeSection === "leads" && <GetMoreLeads />}
         {activeSection === "visibility" && <ProfileVisibility />}
         {activeSection === "retention" && <CustomerRetention />}
-        {activeSection === "guarantee" && <Guarantee />}
       </div>
     </div>
   );
