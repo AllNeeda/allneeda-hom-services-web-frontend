@@ -19,7 +19,6 @@ import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 import { useAllServices } from "@/hooks/useHomeServices";
 import { postFeaturedService } from "@/app/api/services/professional";
 import { toast } from "sonner";
-import { Toaster } from "@/components/ui/sonner";
 import { useRouter } from "next/navigation";
 
 const AddProject = () => {
@@ -115,6 +114,9 @@ const AddProject = () => {
       const res = await postFeaturedService(token, formData);
       console.log("Uploaded Featured Project:", res);
       toast.success("Featured project saved successfully");
+      toast.success("Success !", {
+        description: " Your featured project has been saved successfully.",
+      });
     } finally {
       setIsSubmitting(false);
       handleCancel();
@@ -155,7 +157,6 @@ const AddProject = () => {
         <h1 className="font-bold text-2xl mb-6">New Project</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex flex-col gap-6 md:flex-row">
-            <Toaster className="border border-green-500 text-green-500" />
             <div className="w-full">
               <label
                 htmlFor="service"

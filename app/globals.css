@@ -130,17 +130,7 @@ body {
   font-family: var(--font-poppins), sans-serif;
 }
 
-/* Override all Sonner toast text colors to black */
-.toaster,
-.toaster * {
-  color: black !important;
-}
 
-/* Also explicitly target title and description */
-.toaster .sonner-toast-title,
-.toaster .sonner-toast-description {
-  color: black !important;
-}
 
 .menu-item {
   @apply flex items-center text-sm font-medium px-3 py-2 rounded-md transition-all;
