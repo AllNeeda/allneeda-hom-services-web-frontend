@@ -16,7 +16,7 @@ const HomeServicesMarketingHub: React.FC = () => {
   >("reviews");
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className=" lg:px-4 py-10">
       {/* Header */}
       <header className="mb-6 flex items-center justify-between flex-wrap gap-2">
         <Badge
