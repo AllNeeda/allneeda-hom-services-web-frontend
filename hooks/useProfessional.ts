@@ -72,15 +72,15 @@ export const useUpdateProfessionalbyUserId = (
     showAdvancedError = true,
     enableOptimisticUpdate = true,
   } = options;
-  
+
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const mutation = useMutation<
-    Professional, 
-    Error, 
+    Professional,
+    Error,
     Omit<UpdateProfessionalPayload, 'token'>,
-    MutationContext // ✅ Add context type here
+    MutationContext | undefined // ✅ Add context type here, allow undefined
   >({
     mutationFn: async (payload) => {
       if (!token) {
@@ -89,7 +89,9 @@ export const useUpdateProfessionalbyUserId = (
       return await updateProfessional(payload.id, payload.data, token);
     },
     onMutate: async (payload) => {
-      if (!enableOptimisticUpdate) return;
+      if (!enableOptimisticUpdate || !token) {
+        return undefined;
+      }
 
       // ✅ Cancel any ongoing queries for this professional
       await queryClient.cancelQueries({
@@ -104,7 +106,7 @@ export const useUpdateProfessionalbyUserId = (
       // ✅ Optimistically update to the new value
       if (previousProfessional) {
         queryClient.setQueryData<Professional>(
-          ["professional", "current", token], 
+          ["professional", "current", token],
           {
             ...previousProfessional,
             ...payload.data,
@@ -116,13 +118,13 @@ export const useUpdateProfessionalbyUserId = (
       return { previousProfessional };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ["professional", "current", token] 
+      queryClient.invalidateQueries({
+        queryKey: ["professional", "current", token]
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ["professional"] 
+      queryClient.invalidateQueries({
+        queryKey: ["professional"]
       });
-      
+
       toast.success("Professional updated successfully!", {
         duration: 3000,
         position: "top-center",
@@ -136,7 +138,7 @@ export const useUpdateProfessionalbyUserId = (
     },
     onError: (error: Error, variables, context) => {
       // ✅ TypeScript now knows context has previousProfessional
-      if (context?.previousProfessional) {
+      if (context?.previousProfessional && token) {
         queryClient.setQueryData(
           ["professional", "current", token],
           context.previousProfessional
@@ -191,17 +193,17 @@ export const useUpdateProfessional = (token: string | null) => {
 
   return useMutation({
     mutationKey: ["updateProfessional", "introduction", token],
-    mutationFn: async ({ 
-      id, 
-      data 
-    }: { 
-      id: string; 
-      data: FormData | Record<string, any> 
+    mutationFn: async ({
+      id,
+      data
+    }: {
+      id: string;
+      data: FormData | Record<string, any>
     }) => {
       if (!token) {
         throw new Error("Authentication token is required");
       }
-      
+
       if (!id) {
         throw new Error("Missing professional ID");
       }
@@ -209,8 +211,8 @@ export const useUpdateProfessional = (token: string | null) => {
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
-          ...(data instanceof FormData 
-            ? {} 
+          ...(data instanceof FormData
+            ? {}
             : { "Content-Type": "application/json" }
           )
         }
@@ -218,8 +220,8 @@ export const useUpdateProfessional = (token: string | null) => {
 
       try {
         const response = await api.put(
-          `/professionals/${id}/introduction`, 
-          data, 
+          `/professionals/${id}/introduction`,
+          data,
           config
         );
         return response.data;
@@ -232,17 +234,17 @@ export const useUpdateProfessional = (token: string | null) => {
         ["professional", "current", token],
         (old) => old ? { ...old, ...data } : data
       );
-      
-      queryClient.invalidateQueries({ 
-        queryKey: ["professional", "current", token] 
+
+      queryClient.invalidateQueries({
+        queryKey: ["professional", "current", token]
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ["professional"] 
+      queryClient.invalidateQueries({
+        queryKey: ["professional"]
       });
-      queryClient.invalidateQueries({ 
-        queryKey: ["location"] 
+      queryClient.invalidateQueries({
+        queryKey: ["location"]
       });
-      
+
       toast.success("Professional details updated successfully!");
     },
     onError: (error: Error) => {
@@ -278,16 +280,16 @@ export const useProfessionalErrorHandler = () => {
 // 🎯 IMPROVED: Professional Cache Utilities
 export const useProfessionalCache = () => {
   const queryClient = useQueryClient();
-  
+
   const updateProfessionalCache = (
     professionalId: string,
     updates: Partial<Professional>,
     token?: string | null
   ) => {
-    const queryKey = token 
-      ? ["professional", "current", token] 
+    const queryKey = token
+      ? ["professional", "current", token]
       : ["professional", professionalId];
-    
+
     queryClient.setQueryData<Professional>(queryKey, (old) => {
       if (!old) return undefined;
       return { ...old, ...updates };
@@ -298,18 +300,18 @@ export const useProfessionalCache = () => {
     professionalId?: string,
     token?: string | null
   ): Professional | undefined => {
-    const queryKey = token 
-      ? ["professional", "current", token] 
+    const queryKey = token
+      ? ["professional", "current", token]
       : ["professional", professionalId];
-    
+
     return queryClient.getQueryData<Professional>(queryKey);
   };
 
   const prefetchProfessional = async (professionalId?: string, token?: string | null) => {
-    const queryKey = token 
-      ? ["professional", "current", token] 
+    const queryKey = token
+      ? ["professional", "current", token]
       : ["professional", professionalId];
-    
+
     await queryClient.prefetchQuery({
       queryKey,
       queryFn: () => queryClient.getQueryData(queryKey) || Promise.reject("No cache available"),
@@ -318,10 +320,10 @@ export const useProfessionalCache = () => {
 
   const invalidateProfessional = (professionalId?: string, token?: string | null) => {
     if (professionalId || token) {
-      const queryKey = token 
-        ? ["professional", "current", token] 
+      const queryKey = token
+        ? ["professional", "current", token]
         : ["professional", professionalId];
-      
+
       queryClient.invalidateQueries({ queryKey });
     }
     queryClient.invalidateQueries({ queryKey: ["professional"] });
@@ -344,24 +346,24 @@ export const useProfessional = (token: string | null) => {
   return {
     // Query state
     ...professionalQuery,
-    
+
     // Cache utilities
     ...professionalCache,
-    
+
     // Error handling
     ...errorHandler,
-    
+
     // Convenience properties
     professional: professionalQuery.data,
     isEmpty: !professionalQuery.data?.id,
-    
+
     // Combined actions
     refetchProfessional: professionalQuery.refetch,
     updateProfessionalCache: (updates: Partial<Professional>) => {
       if (professionalQuery.data?.id) {
         professionalCache.updateProfessionalCache(
-          professionalQuery.data.id, 
-          updates, 
+          professionalQuery.data.id,
+          updates,
           token
         );
       }

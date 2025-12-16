@@ -300,37 +300,102 @@ export const getAccessToken = () => tokenManager.getAccessToken();
 export { api };
 
 /**
+ * Helper to get the base API URL (without /api/v1)
+ * Works for both localhost development and production
+ */
+const getBaseAPIUrl = () => {
+  // Get API base URL from environment variable or use localhost default
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1/";
+
+  // Remove trailing slash and /api/v1 if present
+  let baseUrl = apiBaseUrl.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '');
+
+  // If no protocol specified, determine based on environment
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    // Check if it's localhost (always use http:// for localhost)
+    if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      baseUrl = `http://${baseUrl}`;
+    } else {
+      // For non-localhost, check if we're in production or if env var suggests HTTPS
+      // Default to https:// for production domains
+      const isProduction = process.env.NODE_ENV === 'production';
+      baseUrl = `${isProduction ? 'https://' : 'http://'}${baseUrl}`;
+    }
+  }
+
+  // Ensure we always return a valid URL (fallback to localhost)
+  return baseUrl || "http://localhost:4000";
+};
+
+/**
+ * Helper to construct full image URL
+ * Handles cases where imageUrl might be just filename or full path
+ */
+export const constructImageUrl = (imageUrl: string, basePath: string = '/uploads/service') => {
+  if (!imageUrl) return '';
+
+  // If imageUrl already starts with http/https, return as-is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+
+  // If imageUrl starts with /uploads, construct full URL from base
+  if (imageUrl.startsWith('/uploads/')) {
+    const baseUrl = getBaseAPIUrl();
+    return `${baseUrl}${imageUrl}`;
+  }
+
+  // Otherwise, treat as filename and append to basePath
+  const baseUrl = getBaseAPIUrl();
+  // Remove leading slash from imageUrl if present
+  const cleanImageUrl = imageUrl.replace(/^\//, '');
+  // Remove trailing slash from basePath if present
+  const cleanBasePath = basePath.replace(/\/$/, '');
+
+  return `${baseUrl}${cleanBasePath}/${cleanImageUrl}`;
+};
+
+/**
  * Static URL helpers for media assets
- * TODO: Move these to environment variables for better configuration
+ * These construct full URLs using the API base URL
  */
 export const getStaticURL = () => {
-  return (
-    process.env.NEXT_PUBLIC_STATIC_URL ||
-    "http://localhost:4000/uploads/service"
-  );
+  // Check for custom static URL first (for CDN scenarios)
+  if (process.env.NEXT_PUBLIC_STATIC_URL) {
+    return process.env.NEXT_PUBLIC_STATIC_URL;
+  }
+
+  const baseUrl = getBaseAPIUrl();
+  return `${baseUrl}/uploads/service`;
 };
 
 export const getSubcategoryStaticURL = () => {
-  return (
-    process.env.NEXT_PUBLIC_STATIC_URL ||
-    "http://localhost:4000/uploads/SubCategory"
-  );
+  if (process.env.NEXT_PUBLIC_STATIC_URL) {
+    return process.env.NEXT_PUBLIC_STATIC_URL;
+  }
+
+  const baseUrl = getBaseAPIUrl();
+  return `${baseUrl}/uploads/SubCategory`;
 };
 
 export const getCategoryStaticURL = () => {
-  return (
-    process.env.NEXT_PUBLIC_STATIC_URL ||
-    "http://localhost:4000/uploads/category"
-  );
+  if (process.env.NEXT_PUBLIC_STATIC_URL) {
+    return process.env.NEXT_PUBLIC_STATIC_URL;
+  }
+
+  const baseUrl = getBaseAPIUrl();
+  return `${baseUrl}/uploads/category`;
 };
 
 export const getMediacUrl = () => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+  return getBaseAPIUrl();
 };
 
 export const getPorfessionalsStaticURL = () => {
-  return (
-    process.env.NEXT_PUBLIC_STATIC_URL ||
-    "http://localhost:4000/uploads/professionals"
-  );
+  if (process.env.NEXT_PUBLIC_STATIC_URL) {
+    return process.env.NEXT_PUBLIC_STATIC_URL;
+  }
+
+  const baseUrl = getBaseAPIUrl();
+  return `${baseUrl}/uploads/professionals`;
 };

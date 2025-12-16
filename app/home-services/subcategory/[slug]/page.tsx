@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import ProfessionalFilters from "@/components/home-services/homepage/professional/ProfessionalFilters";
-import SubCategoryServices from "@/components/home-services/sub-categories/SubCategegoryServices";
+// import SubCategoryServices from "@/components/home-services/sub-categories/SubCategegoryServices";
 import AllCategories from "@/components/home-services/homepage/AllCategories";
 import { getSubcategoryStaticURL } from "@/app/api/axios";
 import {
@@ -10,6 +10,7 @@ import {
   useSubcategoryServicesBySlug,
   useUserLocationStorage,
 } from "@/hooks/useHomeServices";
+import { ServiceCard } from "@/components/home-services/homepage/ServiceCard";
 
 interface ServiceType {
   _id: string;
@@ -71,6 +72,15 @@ export default function SubCategoryServicesPage({
     };
     extractSlug();
   }, [params]);
+
+  const transformedServices = subcategoryData?.services.map((service) => ({
+    id: service._id,
+    title: service.name,
+    slug: service.slug,
+    text: service.description,
+    season: "all", // You can modify this based on your data
+    imageUrl: service.image_url,
+  }));
 
   // Loading state
   if (isLoading || isFetching) {
@@ -243,18 +253,12 @@ export default function SubCategoryServicesPage({
                 {/* Services grid */}
                 <div className="flex-1 md:flex-3">
                   {subcategoryData.services.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                      {subcategoryData.services.map((service) => (
-                        <SubCategoryServices
-                          key={service._id}
-                          service={{
-                            id: service._id,
-                            title: service.name,
-                            slug: service.slug,
-                            text: service.description,
-                            season: "all",
-                            imageUrl: service.image_url,
-                          }}
+                    <div className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory gap-6 pb-4 -mx-4 px-4">
+                      {transformedServices?.map((service) => (
+                        <ServiceCard
+                          key={service.id}
+                          {...service}
+                          className="w-[280px] sm:w-[calc(34%-18px)] lg:w-[calc(34%-18px)] flex-shrink-0 snap-center"
                         />
                       ))}
                     </div>
@@ -277,4 +281,17 @@ export default function SubCategoryServicesPage({
       </div>
     </>
   );
+}
+{
+  /* <SubCategoryServices
+                          key={service._id}
+                          service={{
+                            id: service._id,
+                            title: service.name,
+                            slug: service.slug,
+                            text: service.description,
+                            season: "all",
+                            imageUrl: service.image_url,
+                          }}
+                        /> */
 }

@@ -2,12 +2,16 @@
 
 import { useSidebar } from "@/components/providers/context/SidebarContext";
 import AppHeader from "@/components/navigation/ProfessionalLayout/AppHeader";
-const AppSidebar = dynamic(() => import("@/components/navigation/ProfessionalLayout/AppSidebar"), { ssr: false });
+const AppSidebar = dynamic(
+  () => import("@/components/navigation/ProfessionalLayout/AppSidebar"),
+  { ssr: false }
+);
 import Header from "@/components/navigation/header";
 import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Footer from "@/components/navigation/Footer";
 import dynamic from "next/dynamic";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function ConditionalLayout({
   children,
@@ -20,8 +24,8 @@ export default function ConditionalLayout({
   const mainContentMargin = isMobileOpen
     ? "ml-0"
     : isExpanded
-      ? "lg:ml-[290px]"
-      : "lg:ml-[90px]";
+    ? "lg:ml-[290px]"
+    : "lg:ml-[90px]";
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("theme-light", "theme-dark");
@@ -37,6 +41,7 @@ export default function ConditionalLayout({
           <div className="p-4 mx-auto max-w-[var(--breakpoint-2xl)] md:p-6">
             <div className=" transition-all duration-300">
               {children}
+              <Toaster />
             </div>
           </div>
         </div>
@@ -47,6 +52,7 @@ export default function ConditionalLayout({
     <>
       <Header />
       {children}
+      <Toaster />
       <Footer />
     </>
   );
