@@ -10,6 +10,9 @@ interface BackendError {
   errors?: Array<string | { message?: string; field?: string }>;
 }
 
+
+
+
 interface ApiError {
   response?: {
     status: number;
