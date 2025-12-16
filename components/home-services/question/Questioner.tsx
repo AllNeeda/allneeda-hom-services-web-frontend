@@ -12,9 +12,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { useServiceQuestions } from "@/hooks/useHomeServices";
 import { generateLead } from "@/app/api/homepage/generateLead";
+import { toast } from "sonner";
 
 // Define TypeScript interfaces based on API response
 interface Question {
@@ -256,12 +263,19 @@ const Questioner = ({
       console.log("Submitting:", payload);
       setIsSubmitting(true);
       await generateLead(payload);
+      toast.success("Quotation Sent Successfully", {
+        description: "Your quotation has been sent successfully.",
+        icon: <Sparkles />,
+      });
 
-      alert("Quotation request submitted successfully!");
       setIsOpen(false);
     } catch (error) {
       console.error("Error submitting lead:", error);
-      alert("Failed to submit lead.");
+
+      toast.error("Submission Failed", {
+        description:
+          "There was an error submitting your request. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -379,12 +393,8 @@ const Questioner = ({
                 <h3 className="text-md font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
                   {service.questions[currentStep].question_name}
                 </h3>
-
                 <RadioGroup
-                  value={
-                    responses[service.questions[currentStep].question_name] ||
-                    ""
-                  }
+                  value={responses[service.questions[currentStep]._id] || ""}
                   onValueChange={(value) =>
                     handleResponse(service.questions[currentStep]._id, value)
                   }
@@ -410,7 +420,11 @@ const Questioner = ({
                           <RadioGroupItem
                             value={option}
                             id={optionId}
-                            className="text-sky-600 border-gray-300 dark:border-gray-600"
+                            className={`text-sky-600 ${
+                              isSelected
+                                ? "border-sky-600 bg-sky-600"
+                                : "border-gray-300 dark:border-gray-600"
+                            }`}
                           />
                           <span className="text-sm font-normal text-gray-700 dark:text-gray-300 flex-1">
                             {option}
@@ -420,7 +434,6 @@ const Questioner = ({
                     }
                   )}
                 </RadioGroup>
-
                 <div className="flex justify-between mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <Button
                     onClick={handleBack}

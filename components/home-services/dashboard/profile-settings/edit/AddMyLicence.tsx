@@ -21,7 +21,6 @@ import {
 } from "@/hooks/profileSettings/useProfileSettings";
 import { postProfessionalLicense } from "@/app/api/dashboard/professionalLicense";
 import { LicensePayload } from "@/types/professionalLicenseTypes";
-import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 const AddMyLicence = () => {
@@ -82,7 +81,12 @@ const AddMyLicence = () => {
     try {
       const response = await postProfessionalLicense(licenseData, token);
       console.log("License submission response:", response);
-      toast.success("License submitted successfully!");
+
+      toast.success("Success !", {
+        description:
+          " Your license has been submitted and is pending verification.",
+        icon: <InfoIcon size={16} />,
+      });
 
       return response;
     } catch (error) {
@@ -280,7 +284,6 @@ const AddMyLicence = () => {
           </div>
         </div>
       </div>
-      <Toaster className="border border-green-500 dark:bg-green-400 bg-green-100 text-green-500 dark:text-white" />
       {/* Help Text */}
       <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         <div className="flex items-start gap-2">
