@@ -1,5 +1,9 @@
 // src/hooks/useGuarantee.ts
-import { ActivateGuaranteeAPI } from "@/app/api/guarantee";
+import {
+  ActivateGuaranteeAPI,
+  ActiveGuaranteeStatusAPI,
+  DeleteActivateGuarantee,
+} from "@/app/api/guarantee";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
@@ -18,7 +22,13 @@ interface GuaranteeFormData {
 export function useActivateGuarantee() {
   return useMutation({
     mutationKey: ["activateGuarantee"],
-    mutationFn: async ({ data, token }: { data: GuaranteeFormData; token: string }) => {
+    mutationFn: async ({
+      data,
+      token,
+    }: {
+      data: GuaranteeFormData;
+      token: string;
+    }) => {
       return ActivateGuaranteeAPI(data, token);
     },
     onSuccess: (response) => {
@@ -26,3 +36,27 @@ export function useActivateGuarantee() {
     },
   });
 }
+
+export function useGuaranteeStatus() {
+  return useMutation({
+    mutationKey: ["update-status"],
+    mutationFn: (data: {
+      guarantee_id: string;
+      status: string;
+      token: string;
+    }) => ActiveGuaranteeStatusAPI(data),
+  });
+}
+
+export const useDeleteActivateGuarantee = () => {
+  return useMutation({
+    mutationKey: ["deleteGuarantee"],
+    mutationFn: ({
+      guarantee_id,
+      token,
+    }: {
+      guarantee_id: string;
+      token: string;
+    }) => DeleteActivateGuarantee(guarantee_id, token),
+  });
+};

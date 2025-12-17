@@ -153,7 +153,7 @@ export default function BackgroundCheckSelection() {
                                         onChange={handleChange}
                                         required
                                         type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     />
                                 </div>
                                 <div>
@@ -166,7 +166,7 @@ export default function BackgroundCheckSelection() {
                                         onChange={handleChange}
                                         required
                                         type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     />
                                 </div>
                             </div>
@@ -182,7 +182,7 @@ export default function BackgroundCheckSelection() {
                                     onChange={handleChange}
                                     disabled={formData.noMiddleName}
                                     type="text"
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
                                 />
                                 <label className="flex items-center mt-1 text-sm text-gray-700 dark:text-gray-400 select-none">
                                     <input
@@ -207,7 +207,7 @@ export default function BackgroundCheckSelection() {
                                     onChange={handleChange}
                                     required
                                     type="date"
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 />
                             </div>
 
@@ -222,7 +222,7 @@ export default function BackgroundCheckSelection() {
                                     onChange={handleChange}
                                     required
                                     type="text"
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 />
                             </div>
 
@@ -237,7 +237,7 @@ export default function BackgroundCheckSelection() {
                                         value={formData.suite}
                                         onChange={handleChange}
                                         type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     />
                                 </div>
                                 <div>
@@ -250,7 +250,7 @@ export default function BackgroundCheckSelection() {
                                         onChange={handleChange}
                                         required
                                         type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     />
                                 </div>
                                 <div>
@@ -262,7 +262,7 @@ export default function BackgroundCheckSelection() {
                                         value={formData.state}
                                         onChange={handleChange}
                                         required
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     >
                                         <option value="">Select</option>
                                         {['VA', 'CA', 'NY', 'TX', 'FL', 'IL', 'WA', 'AZ', 'MI'].map((state) => (
@@ -285,7 +285,7 @@ export default function BackgroundCheckSelection() {
                                     type="text"
                                     pattern="\d{5}"
                                     title="5-digit ZIP code"
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                 />
                             </div>
 
@@ -304,7 +304,7 @@ export default function BackgroundCheckSelection() {
                                         pattern="\d{3}-\d{2}-\d{4}"
                                         title="Format: 123-45-6789"
                                         placeholder="123-45-6789"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                     />
                                 </div>
                             )}
@@ -334,7 +334,7 @@ export default function BackgroundCheckSelection() {
                                 <button
                                     type="button"
                                     onClick={handleBack}
-                                    className="bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white text-[13px] py-2 px-5 rounded-[4px]"
+                                    className="bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white text-[13px] py-2 px-5"
                                 >
                                     Back
                                 </button>
@@ -342,7 +342,7 @@ export default function BackgroundCheckSelection() {
                                     type="submit"
                                     disabled={isLoading}
                                     className={`
-                                        text-white text-[13px] py-2 px-6 rounded-[4px]
+                                        text-white text-[13px] py-2 px-6
                                         transition duration-300 flex items-center justify-center gap-2
                                         ${isLoading ? 'bg-[#0077B6]/70 cursor-not-allowed' : 'bg-[#0077B6] hover:bg-[#005f8e]'}
                                     `}
@@ -418,7 +418,7 @@ export default function BackgroundCheckSelection() {
                         <button
                             onClick={handleBack}
                             type="button"
-                            className="bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white py-2 px-5 rounded-[4px]"
+                            className="bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white py-2 px-5"
                         >
                             Back
                         </button>
@@ -427,7 +427,7 @@ export default function BackgroundCheckSelection() {
                             disabled={isLoading || !selectedOption}
                             onClick={handleNext}
                             className={`
-                                text-white py-2 px-6 rounded-[4px]
+                                text-white py-2 px-6
                                 transition duration-300 flex items-center justify-center gap-2
                                 ${isLoading
                                     ? 'bg-[#0077B6]/70 cursor-not-allowed'

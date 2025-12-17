@@ -21,18 +21,14 @@ import {
 } from "@/components/ui/badge";
 import {
     Shield,
-    Percent,
     Clock,
-    Edit,
     AlertCircle,
     ChevronLeft,
     ChevronRight,
     Trash,
     PowerOff,
     MoreVertical,
-    Eye,
     Filter,
-    DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from 'framer-motion';
@@ -56,13 +52,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { useDeleteActivateGuarantee, useGuaranteeStatus } from '@/hooks/useGuarantee';
+import toast from 'react-hot-toast';
 
 const GuarantyList = () => {
     const token = getAccessToken() || '';
     const { data, error, isLoading, refetch } = useGetServices(token)
+    const { mutate: deleteGuarantee } = useDeleteActivateGuarantee()
+    const { mutate: updateStatus } = useGuaranteeStatus()
     const guarantees = data?.services?.guarantee || null
     const guaranteeArray = Array.isArray(guarantees) ? guarantees : guarantees ? [guarantees] : []
+
 
     // State management
     const [sortField] = useState('start_date')
@@ -139,35 +139,56 @@ const GuarantyList = () => {
 
         setActionLoading(true)
         try {
-            // Add your delete API call here
-            // await deleteGuarantee(selectedGuarantee.id)
-            refetch() // Refresh the data
-            setDeleteDialogOpen(false)
-            toast.success("Guarantee deleted successfully")
+            deleteGuarantee({
+                guarantee_id: selectedGuarantee._id,
+                token
+            }, {
+                onSuccess: () => {
+                    refetch() // Refresh the data
+                    setDeleteDialogOpen(false)
+                    toast.success("Guarantee deleted successfully")
+                    setActionLoading(false)
+                    setSelectedGuarantee(null)
+                },
+                onError: () => {
+                    toast.error("Failed to delete guarantee")
+                    setActionLoading(false)
+                }
+            })
         } catch {
             toast.error("Failed to delete guarantee")
-        } finally {
             setActionLoading(false)
-            setSelectedGuarantee(null)
         }
     }
 
+    // Handle deactivate/activate guarantee
     const handleDeactivateGuarantee = async () => {
         if (!selectedGuarantee) return
 
         setActionLoading(true)
         try {
-            // Add your deactivate/activate API call here
-            // await toggleGuaranteeStatus(selectedGuarantee.id)
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            refetch() // Refresh the data
-            setDeactivateDialogOpen(false)
-            toast.success(`Guarantee ${selectedGuarantee.status === 'active' ? 'deactivated' : 'activated'} successfully`)
+            const newStatus = selectedGuarantee.status === 'active' ? 'inactive' : 'active';
+
+            updateStatus({
+                guarantee_id: selectedGuarantee._id,
+                status: newStatus,
+                token
+            }, {
+                onSuccess: () => {
+                    refetch() // Refresh the data
+                    setDeactivateDialogOpen(false)
+                    toast.success(`Guarantee ${newStatus === 'inactive' ? 'deactivated' : 'activated'} successfully`)
+                    setActionLoading(false)
+                    setSelectedGuarantee(null)
+                },
+                onError: () => {
+                    toast.error(`Failed to ${selectedGuarantee.status === 'active' ? 'deactivate' : 'activate'} guarantee`)
+                    setActionLoading(false)
+                }
+            })
         } catch {
             toast.error(`Failed to ${selectedGuarantee.status === 'active' ? 'deactivate' : 'activate'} guarantee`)
-        } finally {
             setActionLoading(false)
-            setSelectedGuarantee(null)
         }
     }
 
@@ -207,21 +228,21 @@ const GuarantyList = () => {
 
     if (error) {
         return (
-            <div className=" dark:from-gray-900 dark:to-gray-800 px-3 sm:px-4 py-6 sm:py-8 flex items-center justify-center">
+            <div className=" dark:from-gray-900 dark:to-gray-900  py-6 sm:py-8 flex items-center justify-center">
                 <Card className="w-full max-w-md border border-gray-200 dark:border-gray-700 mx-3">
-                    <CardContent className="p-6 sm:p-8 text-center">
+                    <CardContent className="p-4 sm:p-4 text-center">
                         <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-100 dark:bg-red-900/20 rounded-sm flex items-center justify-center mx-auto mb-4">
                             <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-red-600 dark:text-red-400" />
                         </div>
-                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-200 mb-2">
                             Error Loading Data
                         </h3>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-6 px-2">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 px-2">
                             {error.message || 'Failed to load guarantee data'}
                         </p>
                         <Button
                             onClick={() => window.location.reload()}
-                            className="bg-gradient-to-r from-[#0077B6] to-[#40A4FF] text-white hover:from-[#0066A0] hover:to-[#3594EA] w-full sm:w-auto"
+                            className=" from-[#0077B6] to-[#40A4FF] text-white hover:from-[#0066A0] hover:to-[#3594EA] w-full sm:w-auto"
                         >
                             Retry
                         </Button>
@@ -232,32 +253,25 @@ const GuarantyList = () => {
     }
 
     return (
-        <div className=" dark:from-gray-900 dark:to-gray-800">
-            <div className="max-w-7xl mx-auto">
+        <div className=" dark:from-gray-900 dark:to-gray-900">
+            <div className=" mx-auto">
                 {/* Header */}
                 <div className="mb-4 sm:mb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                         <div>
-                            <h1 className="text-xl sm:text-2xl md:text-xl font-bold text-gray-900 dark:text-gray-100">
+                            <h1 className="text-xl sm:text-xl md:text-xl font-bold text-gray-900 dark:text-gray-100">
                                 Service Guarantees
                             </h1>
                             <p className="text-gray-600 dark:text-gray-400 mt-1 text-xs sm:text-sm">
                                 Manage and monitor all your service guarantees
                             </p>
                         </div>
-                        <div className="flex gap-2">
-                            <Button
-                                size="sm"
-                                className="text-xs sm:text-sm bg-gradient-to-r from-[#0077B6] to-[#40A4FF] text-white hover:from-[#0066A0] hover:to-[#3594EA] h-9 sm:h-10 px-3 sm:px-4"
-                            >
-                                + New Guarantee
-                            </Button>
-                        </div>
+
                     </div>
                 </div>
                 {/* Controls */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 sm:mb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="hidden sm:flex items-center">
                             <span className="text-sm text-gray-600 dark:text-gray-400">
                                 Filter:
@@ -269,13 +283,13 @@ const GuarantyList = () => {
                                 value={filterStatus}
                                 onValueChange={setFilterStatus}
                             >
-                                <SelectTrigger className="w-full h-9 sm:h-10 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs sm:text-sm">
+                                <SelectTrigger className="w-full h-9 sm:h-10 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs sm:text-sm">
                                     <div className="flex items-center gap-2">
                                         <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         <SelectValue placeholder="All Status" />
                                     </div>
                                 </SelectTrigger>
-                                <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                                <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
                                     <SelectItem value="all" className="text-sm">All Status</SelectItem>
                                     <SelectItem value="active" className="text-sm">Active</SelectItem>
                                     <SelectItem value="inactive" className="text-sm">Inactive</SelectItem>
@@ -293,49 +307,36 @@ const GuarantyList = () => {
                             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-50 dark:bg-blue-900/20 rounded-sm flex items-center justify-center mx-auto mb-4">
                                 <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400 dark:text-gray-500" />
                             </div>
-                            <h3 className="text-lg sm:text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                No guarantees found
-                            </h3>
-                            <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm sm:text-base max-w-md mx-auto px-4">
+                            <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm max-w-md mx-auto px-4">
                                 {filterStatus !== 'all'
                                     ? `No ${filterStatus} guarantees available. Try changing your filters.`
                                     : 'No guarantees available. Create your first guarantee to get started.'}
                             </p>
-                            {filterStatus !== 'all' ? (
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => setFilterStatus('all')}
-                                    className="text-[#0077B6] hover:text-[#0066A0] dark:text-blue-400 text-sm"
-                                >
-                                    View all guarantees →
-                                </Button>
-                            ) : (
-                                <Button className="bg-gradient-to-r from-[#0077B6] to-[#40A4FF] text-white hover:from-[#0066A0] hover:to-[#3594EA] text-sm h-10">
-                                    Create New Guarantee
-                                </Button>
-                            )}
                         </CardContent>
                     </Card>
                 ) : (
                     <>
                         {/* Desktop Table - Hidden on mobile */}
-                        <div className="hidden lg:block overflow-x-auto rounded-sm border border-gray-200 dark:border-gray-700 mb-6">
-                            <div className="min-w-full">
-                                <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                                    <div className="col-span-3">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Guarantee Details</span>
+                        <div className="hidden lg:block overflow-x-auto  rounded-sm border border-gray-200 dark:border-gray-700 mb-6">
+                            <div className="min-w-full ">
+                                <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="col-span-3 ">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Guarantee Details</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Period</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Service Name</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Costs</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Expire</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Status</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Costs</span>
                                     </div>
-                                    <div className="col-span-3 text-right">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Actions</span>
+                                    <div className="col-span-2">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Status</span>
+                                    </div>
+                                    <div className="col-span-1 text-right">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300 text-[13px]">Actions</span>
                                     </div>
                                 </div>
 
@@ -352,36 +353,43 @@ const GuarantyList = () => {
                                                 key={guarantee._id || index}
                                                 layout
                                                 className={`group transition-all duration-300 ${isExpired
-                                                    ? 'bg-gray-50 dark:bg-gray-800/50'
-                                                    : 'bg-white dark:bg-gray-800'
+                                                    ? 'bg-gray-50 dark:bg-gray-900/50'
+                                                    : 'bg-white dark:bg-gray-900'
                                                     } hover:bg-gray-50 dark:hover:bg-gray-750`}
                                             >
-                                                <div className="grid grid-cols-12 gap-4 p-4 items-center">
+                                                <div className="grid grid-cols-12 gap-4 p-2 items-center">
                                                     {/* Guarantee Details */}
                                                     <div className="col-span-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-10 h-10 bg-gradient-to-r from-[#0077B6] to-[#40A4FF] rounded-sm flex items-center justify-center flex-shrink-0">
-                                                                <Shield className="w-5 h-5 text-white" />
+                                                            <div className="w-10 h-10  from-[#0077B6] to-[#40A4FF] rounded-sm flex items-center justify-center">
+                                                                <Shield className="w-8 h-8  text-[#0077B6]" />
                                                             </div>
                                                             <div className="min-w-0">
-                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] ">
                                                                     {guarantee.guarantee_name || 'Unnamed Guarantee'}
                                                                 </h3>
-                                                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 truncate">
+                                                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 ">
                                                                     {guarantee.guarantee_type || 'Standard Guarantee'}
                                                                 </p>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Period */}
+
+                                                    <div className="col-span-2">
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="flex items-center gap-2 text-gray-900 dark:text-white text-[13px]">
+                                                                <span>{guarantee.service_id.service_name || 0}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+
+                                                    {/* Expire */}
                                                     <div className="col-span-2">
                                                         <div className="space-y-1">
-                                                            <div className="flex items-center gap-1 text-gray-900 dark:text-white text-sm">
-                                                                <span>{formatDate(guarantee.start_date)}</span>
-                                                            </div>
-                                                            <div className="text-gray-500 dark:text-gray-400 text-xs pl-5">
-                                                                to {formatDate(guarantee.end_date)}
+                                                            <div className="text-gray-500 dark:text-gray-400 text-xs">
+                                                                {formatDate(guarantee.end_date)}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -389,15 +397,9 @@ const GuarantyList = () => {
                                                     {/* Costs */}
                                                     <div className="col-span-2">
                                                         <div className="flex flex-col gap-2">
-                                                            <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
+                                                            <div className="flex items-center gap-2 text-gray-900 dark:text-white text-[13px]">
                                                                 <span>{guarantee.credits || 0} credits</span>
                                                             </div>
-                                                            {guarantee.billing_discount > 0 && (
-                                                                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs">
-                                                                    <Percent className="w-3 h-3" />
-                                                                    <span>{guarantee.billing_discount}% discount</span>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </div>
 
@@ -407,15 +409,15 @@ const GuarantyList = () => {
                                                             <Badge
                                                                 variant={statusConfig.variant}
                                                                 className={cn(
-                                                                    "flex items-center gap-1.5 text-xs w-fit",
+                                                                    "flex items-center rounded-sm text-[12px]",
                                                                     statusConfig.className
                                                                 )}
                                                             >
                                                                 {statusConfig.icon}
-                                                                {guarantee.status?.toUpperCase() || 'N/A'}
+                                                                {guarantee.status}
                                                             </Badge>
                                                             {isExpiringSoon && !isExpired && (
-                                                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 w-fit">
+                                                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 w-fit">
                                                                     <Clock className="w-3 h-3" />
                                                                     Expiring in {daysRemaining} days
                                                                 </div>
@@ -424,32 +426,8 @@ const GuarantyList = () => {
                                                     </div>
 
                                                     {/* Actions */}
-                                                    <div className="col-span-3">
+                                                    <div className="col-span-1">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                                onClick={() => {
-                                                                    // View details
-                                                                    console.log('View/Edit', guarantee)
-                                                                }}
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </Button>
-
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                                onClick={() => {
-                                                                    // Edit action
-                                                                    console.log('Edit', guarantee)
-                                                                }}
-                                                            >
-                                                                <Edit className="w-4 h-4" />
-                                                            </Button>
-
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
                                                                     <Button
@@ -460,9 +438,9 @@ const GuarantyList = () => {
                                                                         <MoreVertical className="w-4 h-4" />
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                                                                <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
                                                                     <DropdownMenuItem
-                                                                        className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                        className="text-[13px] cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                                                                         onClick={() => {
                                                                             setSelectedGuarantee(guarantee)
                                                                             setDeactivateDialogOpen(true)
@@ -473,7 +451,7 @@ const GuarantyList = () => {
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
                                                                     <DropdownMenuItem
-                                                                        className="text-red-600 dark:text-red-400 text-sm cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                        className="text-red-600 dark:text-red-400 text-[13px] cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                         onClick={() => {
                                                                             setSelectedGuarantee(guarantee)
                                                                             setDeleteDialogOpen(true)
@@ -494,8 +472,8 @@ const GuarantyList = () => {
                             </div>
                         </div>
 
-                        {/* Mobile & Tablet Cards - Hidden on desktop */}
-                        <div className="lg:hidden space-y-3 mb-6">
+                        {/* Mobile & Tablet Cards */}
+                        <div className="lg:hidden space-y-4 mb-6">
                             {paginatedGuarantees.map((guarantee: any, index: number) => {
                                 const statusConfig = getStatusConfig(guarantee.status)
                                 const daysRemaining = getDaysRemaining(guarantee.end_date)
@@ -503,165 +481,128 @@ const GuarantyList = () => {
                                 const isExpired = daysRemaining <= 0
 
                                 return (
-                                    <Card key={guarantee._id || index} className="border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                        <CardContent className="p-4">
-                                            {/* Card Header */}
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="flex items-start gap-3 flex-1 min-w-0">
-                                                    <div className="w-12 h-12 bg-gradient-to-r from-[#0077B6] to-[#40A4FF] rounded-sm flex items-center justify-center flex-shrink-0">
-                                                        <Shield className="w-6 h-6 text-white" />
+                                    <Card
+                                        key={guarantee._id || index}
+                                        className="border border-gray-200 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-900 shadow-sm hover:shadow-md transition-shadow"
+                                    >
+                                        <CardContent className="p-4 space-y-4">
+                                            {/* Header */}
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-11 h-11 rounded-sm flex items-center justify-center shrink-0">
+                                                        <Shield className="w-5 h-5  text-[#0077B6]" />
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h3 className="font-semibold text-gray-900 dark:text-white text-base truncate">
-                                                            {guarantee.guarantee_name || 'Unnamed Guarantee'}
+
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                                                            {guarantee.guarantee_name || "Unnamed Guarantee"}
                                                         </h3>
-                                                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5 truncate">
-                                                            {guarantee.guarantee_type || 'Standard Guarantee'}
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                            {guarantee.guarantee_type || "Standard Guarantee"}
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                {/* Mobile Actions Dropdown */}
+                                                {/* Actions */}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
                                                             variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 ml-2"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
                                                         >
                                                             <MoreVertical className="w-5 h-5" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+
+                                                    <DropdownMenuContent
+                                                        align="end"
+                                                        className="w-52 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"
+                                                    >
                                                         <DropdownMenuItem
-                                                            className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                            onClick={() => {
-                                                                // View details
-                                                                console.log('View', guarantee)
-                                                            }}
-                                                        >
-                                                            <Eye className="w-4 h-4 mr-2" />
-                                                            View Details
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                            onClick={() => {
-                                                                // Edit action
-                                                                console.log('Edit', guarantee)
-                                                            }}
-                                                        >
-                                                            <Edit className="w-4 h-4 mr-2" />
-                                                            Edit Guarantee
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                                                             onClick={() => {
                                                                 setSelectedGuarantee(guarantee)
                                                                 setDeactivateDialogOpen(true)
                                                             }}
+                                                            className="cursor-pointer text-sm"
                                                         >
                                                             <PowerOff className="w-4 h-4 mr-2" />
-                                                            {guarantee.status === 'active' ? 'Deactivate' : 'Activate'}
+                                                            {guarantee.status === "active"
+                                                                ? "Deactivate"
+                                                                : "Activate"}
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuSeparator className="bg-gray-200 dark:bg-gray-700" />
+
+                                                        <DropdownMenuSeparator />
+
                                                         <DropdownMenuItem
-                                                            className="text-red-600 dark:text-red-400 text-sm cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
                                                             onClick={() => {
                                                                 setSelectedGuarantee(guarantee)
                                                                 setDeleteDialogOpen(true)
                                                             }}
+                                                            className="cursor-pointer text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                         >
                                                             <Trash className="w-4 h-4 mr-2" />
-                                                            Delete Guarantee
+                                                            Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
 
-                                            {/* Details Grid */}
-                                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                                <div>
-                                                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs mb-1">
-                                                        <span>Period</span>
-                                                    </div>
-                                                    <p className="text-gray-900 dark:text-white text-sm">
-                                                        {formatDate(guarantee.start_date)}
+                                            {/* Info Grid */}
+                                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                                <div className="space-y-1">
+                                                    <p className="text-gray-500 dark:text-gray-400">
+                                                        Service
                                                     </p>
-                                                    <p className="text-gray-500 dark:text-gray-400 text-xs">
-                                                        to {formatDate(guarantee.end_date)}
+                                                    <p className="text-gray-900 dark:text-white font-medium truncate">
+                                                        {guarantee.service_id?.service_name || "N/A"}
                                                     </p>
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs mb-1">
-                                                        <DollarSign className="w-3.5 h-3.5" />
-                                                        <span>Credits</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
-                                                        <span>{guarantee.credits || 0}</span>
-                                                    </div>
-                                                    {guarantee.billing_discount > 0 && (
-                                                        <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs mt-1">
-                                                            <Percent className="w-3 h-3" />
-                                                            <span>{guarantee.billing_discount}% discount</span>
-                                                        </div>
-                                                    )}
+
+                                                <div className="space-y-1">
+                                                    <p className="text-gray-500 dark:text-gray-400">
+                                                        Expiry Date
+                                                    </p>
+                                                    <p className="text-gray-900 dark:text-white font-medium">
+                                                        {formatDate(guarantee.end_date)}
+                                                    </p>
                                                 </div>
                                             </div>
 
-                                            {/* Status Section */}
-                                            <div className="mb-4">
-                                                <div className="flex items-center gap-2">
+                                            {/* Status Row */}
+                                            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                                <div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        Credits:    {guarantee.credits || 0}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <Badge
                                                         variant={statusConfig.variant}
                                                         className={cn(
-                                                            "flex items-center gap-1.5 text-xs px-3 py-1",
+                                                            "flex items-center gap-1.5 text-xs px-3 py-1 rounded-sm",
                                                             statusConfig.className
                                                         )}
                                                     >
                                                         {statusConfig.icon}
-                                                        {guarantee.status?.toUpperCase() || 'N/A'}
+                                                        {guarantee.status || "N/A"}
                                                     </Badge>
+
                                                     {isExpiringSoon && !isExpired && (
-                                                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 animate-pulse">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 animate-pulse">
                                                             <Clock className="w-3 h-3" />
-                                                            {daysRemaining}d left
-                                                        </div>
+                                                            {daysRemaining} days left
+                                                        </span>
                                                     )}
                                                 </div>
-                                            </div>
-
-                                            {/* Quick Actions */}
-                                            <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1 h-9 text-sm"
-                                                    onClick={() => {
-                                                        // View details
-                                                        console.log('View', guarantee)
-                                                    }}
-                                                >
-                                                    <Eye className="w-4 h-4 mr-2" />
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="flex-1 h-9 text-sm"
-                                                    onClick={() => {
-                                                        // Edit action
-                                                        console.log('Edit', guarantee)
-                                                    }}
-                                                >
-                                                    <Edit className="w-4 h-4 mr-2" />
-                                                    Edit
-                                                </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
                                 )
                             })}
                         </div>
+
 
                         {/* Pagination */}
                         {totalPages > 1 && (
@@ -687,10 +628,10 @@ const GuarantyList = () => {
                                                         setCurrentPage(1)
                                                     }}
                                                 >
-                                                    <SelectTrigger className="w-full sm:w-[140px] h-10 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                                                    <SelectTrigger className="w-full sm:w-[140px] h-10 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm">
                                                         <SelectValue placeholder="Items per page" />
                                                     </SelectTrigger>
-                                                    <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                                                    <SelectContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
                                                         <SelectItem value="5" className="text-sm">5 per page</SelectItem>
                                                         <SelectItem value="10" className="text-sm">10 per page</SelectItem>
                                                         <SelectItem value="25" className="text-sm">25 per page</SelectItem>
@@ -730,7 +671,7 @@ const GuarantyList = () => {
                                                                 size="sm"
                                                                 onClick={() => setCurrentPage(pageNum)}
                                                                 className={cn(
-                                                                    "h-10 min-w-[40px] text-sm",
+                                                                    "h-10 min-w-40px text-sm",
                                                                     currentPage !== pageNum && "border-gray-300 dark:border-gray-600"
                                                                 )}
                                                             >
@@ -746,7 +687,7 @@ const GuarantyList = () => {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 onClick={() => setCurrentPage(totalPages)}
-                                                                className="h-10 min-w-[40px] text-sm border-gray-300 dark:border-gray-600"
+                                                                className="h-10 min-w-40px text-sm border-gray-300 dark:border-gray-600"
                                                             >
                                                                 {totalPages}
                                                             </Button>
@@ -775,12 +716,12 @@ const GuarantyList = () => {
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 max-w-[95vw] sm:max-w-md mx-auto">
+                <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-[95vw] sm:max-w-md mx-auto">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="text-lg sm:text-xl text-gray-900 dark:text-gray-100">
                             Delete Guarantee
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 text-[13px]">
                             Are you sure you want to delete {selectedGuarantee?.guarantee_name || 'this guarantee'}? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -814,12 +755,12 @@ const GuarantyList = () => {
 
             {/* Deactivate/Activate Confirmation Dialog */}
             <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
-                <AlertDialogContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 max-w-[95vw] sm:max-w-md mx-auto">
+                <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-[95vw] sm:max-w-md mx-auto">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="text-lg sm:text-xl text-gray-900 dark:text-gray-100">
                             {selectedGuarantee?.status === 'active' ? 'Deactivate' : 'Activate'} Guarantee
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 text-[13px]">
                             Are you sure you want to {selectedGuarantee?.status === 'active' ? 'deactivate' : 'activate'} {selectedGuarantee?.guarantee_name || 'this guarantee'}?
                             {selectedGuarantee?.status === 'active' && " The guarantee will no longer be available for use."}
                         </AlertDialogDescription>

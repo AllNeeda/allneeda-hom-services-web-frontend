@@ -16,9 +16,11 @@ interface GuaranteeFormData {
 }
 
 // Activate Guarantee API
-export const ActivateGuaranteeAPI = async (data: GuaranteeFormData, token: string) => {
+export const ActivateGuaranteeAPI = async (
+  data: GuaranteeFormData,
+  token: string
+) => {
   try {
-    console.log("ActivateGuaranteeAPI called with data:", data); // Debug log
     const response = await api.post("/marketing/guarantees", data, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -31,4 +33,49 @@ export const ActivateGuaranteeAPI = async (data: GuaranteeFormData, token: strin
   }
 };
 
+export const ActiveGuaranteeStatusAPI = async (data: {
+  guarantee_id: string;
+  status: string;
+  token: string;
+}) => {
+  const { guarantee_id, status, token } = data;
 
+  try {
+    const response = await api.put(
+      `/marketing/guarantee_status`,
+      {
+        guarantee_id: guarantee_id,
+        status: status,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const DeleteActivateGuarantee = async (
+  guarantee_id: string,
+  token: string
+) => {
+  try {
+    const response = await api.delete("/marketing/delete_guarantee", {
+      data: {
+        guarantee_id,
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
