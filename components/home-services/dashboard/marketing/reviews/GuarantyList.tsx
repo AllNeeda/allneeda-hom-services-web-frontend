@@ -417,10 +417,10 @@ const GuarantyList = () => {
                                                                 {guarantee.status}
                                                             </Badge>
                                                             {isExpiringSoon && !isExpired && (
-                                                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-yellow-500/10 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 w-fit">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-sm bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 text-xs border border-yellow-200 dark:border-yellow-800 animate-pulse">
                                                                     <Clock className="w-3 h-3" />
-                                                                    Expiring in {daysRemaining} days
-                                                                </div>
+                                                                    {daysRemaining} days left
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
