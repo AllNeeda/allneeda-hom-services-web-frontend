@@ -10,7 +10,7 @@ export default function Footer() {
           
           {/* Company Column */}
           <div className="flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Servicyee </h2>
+            <h2 className="text-xl font-bold mb-4">Allneeda </h2>
             <p className="text-gray-600 dark:text-gray-300 text-sm mb-6 leading-relaxed ">
               The leading B2B SaaS marketplace connecting enterprises with premium digital solutions. Trusted by 15,000+ businesses worldwide.
             </p>
@@ -20,7 +20,7 @@ export default function Footer() {
             </div>
             <div className="flex items-center text-gray-700 dark:text-gray-400 text-sm">
               <Mail className="w-4 h-4 mr-2 text-[#0077B6] dark:text-[#0077B6]" />
-              <span>corporate@Servicyee.com</span>
+              <span>technical@allneeda.com</span>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function Footer() {
             </div>
             
             <div className="flex items-center space-x-6">
-              <span className="text-gray-500 dark:text-gray-400 text-sm">© 2025 Servicyee Corporation</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">© 2025 Allneeda Corporation</span>
               <div className="flex space-x-4">
                 <a href="#" className="text-[#0077B6] dark:text-[#0077B6] hover:text-blue-[#48CAE4] dark:hover:text-[#0049b6] transition-colors">
                   <Facebook className="w-4 h-4" />

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "@/components/providers/context/SidebarContext";
 import { serviceProviderNavItems } from "@/components/navigation/ProfessionalLayout/navItems";
+import Image from "next/image";
 
 type SubItem = {
   name: string;
@@ -76,8 +77,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
                   }}
                   className={`
                     menu-item group
-                    ${hasSubmenuOpen ? 
-                      "bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#005f8e]/20 dark:text-[#0077B6]" : 
+                    ${hasSubmenuOpen ?
+                      "bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#005f8e]/20 dark:text-[#0077B6]" :
                       "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }
                     ${!isExpanded ? "lg:justify-center" : "lg:justify-start"}
@@ -86,8 +87,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
                   {nav.icon && (
                     <span className={`
                       mr-3 
-                      ${hasSubmenuOpen ? 
-                        "text-[#0077B6] dark:text-[#0077B6]" : 
+                      ${hasSubmenuOpen ?
+                        "text-[#0077B6] dark:text-[#0077B6]" :
                         "text-gray-500 dark:text-gray-400"
                       }
                     `}>
@@ -97,9 +98,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
                   {(isExpanded || isMobileOpen) && <span>{nav.name}</span>}
                   {(isExpanded || isMobileOpen) && (
                     <span
-                      className={`ml-auto transition-transform duration-200 ${
-                        hasSubmenuOpen ? "rotate-180" : ""
-                      }`}
+                      className={`ml-auto transition-transform duration-200 ${hasSubmenuOpen ? "rotate-180" : ""
+                        }`}
                     >
                       ▼
                     </span>
@@ -114,8 +114,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
                     }}
                     className={`
                       menu-item group
-                      ${active ? 
-                        "bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#005f8e]/20 dark:text-[#0077B6]" : 
+                      ${active ?
+                        "bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#005f8e]/20 dark:text-[#0077B6]" :
                         "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       }
                       ${!isExpanded ? "lg:justify-center" : "lg:justify-start"}
@@ -124,8 +124,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
                     {nav.icon && (
                       <span className={`
                         mr-3 
-                        ${active ? 
-                          "text-[#0077B6] dark:text-[#0077B6]" : 
+                        ${active ?
+                          "text-[#0077B6] dark:text-[#0077B6]" :
                           "text-gray-500 dark:text-gray-400"
                         }
                       `}>
@@ -225,11 +225,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ isServiceProvider }) => {
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
         `}
       >
-        <div className={`py-8 flex ${!isExpanded ? "lg:justify-center" : "justify-start"}`}>
+        <div className={`py-4 flex ${!isExpanded ? "lg:justify-center" : "justify-start"}`}>
           <Link href="/home-services/dashboard" className="flex items-center justify-center w-full">
-            <div className="relative w-36 h-10 mx-auto font-bold text-gray-800 dark:text-white">
-              Servicyee
-            </div>
+            <Image src="/allneeda.png" alt="Allneeda Logo" width={100} height={100} />
           </Link>
         </div>
 

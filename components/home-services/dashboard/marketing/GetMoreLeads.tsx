@@ -1,11 +1,10 @@
 // src/components/marketing-hub/GetMoreLeads.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -15,370 +14,731 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  TargetIcon,
+  Search,
+  AlertCircle,
+  CheckCircle,
+  Zap,
+  BadgeCheck,
+  Phone,
+  Mail,
+  Shield,
+  Star,
   MapPin,
-  Award,
-  Eye,
+  CreditCard,
+  ShoppingCart,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useGetServices } from "@/hooks/useServices";
+import { getAccessToken } from "@/app/api/axios";
+import GlobalLoader from "@/components/ui/global-loader";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useGetCreditPackage } from "@/hooks/useCredits";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
+// Interface for credit package
+interface CreditPackage {
+  _id: string;
+  name: string;
+  credits: number;
+  price: number;
+  currency: string;
+  billingType: "monthly" | "annual" | "one_time" | "yearly";
+  category: string;
+  description?: string;
+  discountPrice?: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Interface for service location
+interface ServiceLocation {
+  _id: string;
+  type: string;
+  professional_id: string;
+  service_id: string;
+  country: string;
+  state: string;
+  city: string;
+  address_line?: string;
+  coordinates: {
+    type: string;
+    coordinates: [number, number];
+  };
+  serviceRadiusMiles: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Service {
+  _id: string;
+  service_name: string;
+  location_ids: ServiceLocation[];
+  completed_tasks?: number;
+  description?: string;
+  createdAt: string;
+}
+
+// Interface for user credits
+interface UserCredits {
+  credits: number;
+  credit_balance?: number;
+}
 
 const GetMoreLeads: React.FC = () => {
-  const [service, setService] = useState("Home Cleaning");
-  const [location, setLocation] = useState("New York");
-  const [showSubscriptionModal, setShowSubscriptionModal] =
-    useState(false);
-  const [selectedPlan, setSelectedPlan] = useState("pro");
+  const [service, setService] = useState<string>("");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const token = getAccessToken() || "";
+  const { data: servicesData, isLoading, error } = useGetServices(token);
+  const { data: creditsPackage } = useGetCreditPackage(token);
+  const router = useRouter();
 
-  const serviceOptions = [
-    "All Services",
-    "Home Cleaning",
-    "Electrician",
-    "HVAC",
-    "Cleaning",
-    "Landscaping",
-    "Painting",
-    "Handyman",
-    "Carpenter",
-    "Appliance Repair",
-  ];
+  const [availableServices, setAvailableServices] = useState<Service[]>([{
+    _id: "",
+    service_name: "All Services",
+    location_ids: [],
+    completed_tasks: 0,
+    createdAt: ""
+  }]);
+  const [location, setLocation] = useState<string>("");
+  const [locations, setLocations] = useState<ServiceLocation[]>([]);
+  const [selectedDuration, setSelectedDuration] = useState<"monthly" | "annual">("monthly");
+  const [noServicesAvailable, setNoServicesAvailable] = useState(false);
+  const [activeTab, setActiveTab] = useState("boost");
+  const [rankingPackages, setRankingPackages] = useState<CreditPackage[]>([]);
+  const [userCredits, setUserCredits] = useState<UserCredits>({ credits: 0 });
+  const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
 
-  const subscriptionPlans = [
+  // Extract user credits from services data
+  useEffect(() => {
+    if (servicesData?.services?.professional) {
+      const professional = servicesData.services.professional;
+      setUserCredits({
+        credits: professional.credit_balance || 0,
+        credit_balance: professional.credit_balance
+      });
+    }
+  }, [servicesData]);
+
+  // Filter ranking packages from credits data
+  useEffect(() => {
+    if (creditsPackage?.success && creditsPackage?.data?.data) {
+      const packages = creditsPackage.data.data as CreditPackage[];
+      const rankingPkgs = packages.filter(
+        (pkg) => pkg.category === "ranking" && pkg.isActive
+      );
+      setRankingPackages(rankingPkgs);
+
+      // Set default selected package
+      if (rankingPkgs.length > 0) {
+        const defaultPkg = rankingPkgs.find(pkg =>
+          selectedDuration === "monthly"
+            ? (pkg.billingType === "monthly" || pkg.name.toLowerCase().includes("monthly"))
+            : (pkg.billingType === "annual" || pkg.billingType === "yearly" || pkg.name.toLowerCase().includes("annual") || pkg.name.toLowerCase().includes("yearly"))
+        ) || rankingPkgs[0];
+        setSelectedPackage(defaultPkg);
+      }
+    }
+  }, [creditsPackage, selectedDuration]);
+
+  // Load services
+  useEffect(() => {
+    if (servicesData?.success && servicesData?.services?.services && servicesData.services.services.length > 0) {
+      const services: Service[] = servicesData.services.services;
+      setAvailableServices([
+        {
+          _id: "",
+          service_name: "All Services",
+          location_ids: [],
+          completed_tasks: 0,
+          createdAt: ""
+        },
+        ...services
+      ]);
+      setNoServicesAvailable(false);
+
+      if (!service && services.length > 0) {
+        const firstService = services[0];
+        setService(firstService.service_name);
+        setSelectedServiceId(firstService._id);
+      }
+    } else if (servicesData?.success && (!servicesData?.services?.services || servicesData.services.services.length === 0)) {
+      setAvailableServices([{
+        _id: "",
+        service_name: "All Services",
+        location_ids: [],
+        completed_tasks: 0,
+        createdAt: ""
+      }]);
+      setNoServicesAvailable(true);
+      setService("");
+      setSelectedServiceId("");
+    }
+  }, [servicesData, service]);
+
+  // Load locations when service changes
+  useEffect(() => {
+    if (selectedServiceId && servicesData?.success && servicesData?.services?.services) {
+      const selectedService = servicesData.services.services.find(
+        (s: Service) => s._id === selectedServiceId
+      );
+
+      if (selectedService?.location_ids?.length > 0) {
+        setLocations(selectedService.location_ids);
+
+        if (!location && selectedService.location_ids.length > 0) {
+          const firstLocation = selectedService.location_ids[0];
+          setLocation(`${firstLocation.city}  ${firstLocation.state}  ${firstLocation.country}`);
+        }
+      } else {
+        setLocations([]);
+        setLocation("No locations specified");
+      }
+    } else {
+      setLocations([]);
+      setLocation("Select Location");
+    }
+  }, [selectedServiceId, servicesData, location]);
+
+  const handleServiceChange = (serviceName: string) => {
+    setService(serviceName);
+
+    if (serviceName === "All Services") {
+      setSelectedServiceId("");
+      setLocations([]);
+      setLocation("All Locations");
+    } else {
+      const selectedService = availableServices.find(s => s.service_name === serviceName);
+      if (selectedService) {
+        setSelectedServiceId(selectedService._id);
+      }
+    }
+  };
+
+  // Filter ranking packages by billing type (monthly/annual)
+  const filteredPackages = useMemo(() => {
+    return rankingPackages.filter(pkg => {
+      if (selectedDuration === "monthly") {
+        return pkg.billingType === "monthly" || pkg.name.toLowerCase().includes("monthly");
+      } else {
+        return pkg.billingType === "annual" ||
+          pkg.billingType === "yearly" ||
+          pkg.name.toLowerCase().includes("annual") ||
+          pkg.name.toLowerCase().includes("yearly");
+      }
+    });
+  }, [rankingPackages, selectedDuration]);
+
+  // Check if user has enough credits for selected package
+  const hasEnoughCredits = useMemo(() => {
+    if (!selectedPackage) return false;
+    return userCredits.credits >= selectedPackage.credits;
+  }, [selectedPackage, userCredits.credits]);
+
+  // Calculate missing credits
+  const missingCredits = useMemo(() => {
+    if (!selectedPackage) return 0;
+    return Math.max(0, selectedPackage.credits - userCredits.credits);
+  }, [selectedPackage, userCredits.credits]);
+
+  const durationOptions = useMemo(() => [
     {
-      id: "Weekly",
-      name: "Weekly",
-      price: "9 Credits",
-      placement: "Standard",
-      features: [
-        "Standard placement in search",
-        "Basic lead notifications",
-        "Email support",
-      ],
+      id: "monthly",
+      name: "Monthly Plans 2924",
+      description: "Flexible monthly boosting options",
     },
     {
-      id: "Monthly",
-      name: "Monthly",
-      price: "14 Credits",
-      placement: "Priority",
-      recommended: true,
-      features: [
-        "TOP Search Placement",
-        "SMS notifications",
-        "Performance analytics",
-      ],
+      id: "annual",
+      name: "Annual Plans",
+      description: "Cost-effective yearly packages with better value",
+    },
+  ], []);
+
+  const qualifiedLeadBenefits = useMemo(() => [
+    {
+      title: "Phone-Verified Leads",
+      description: "Receive 2x higher ranking for customers with verified phone numbers",
+      icon: <Phone className="w-4 h-4" />,
+      color: "bg-green-100 dark:bg-green-900/30 text-[#0077B6] dark:text-[#0077B6]",
     },
     {
-      id: "Annual",
-      name: "Annual",
-      price: "29 Credits",
-      features: [
-        "Maximum Visibility",
-        "SMS notifications",
-        "Advanced analytics",
-      ],
+      title: "Email-Verified Leads",
+      description: "Get priority placement for customers with confirmed email addresses",
+      icon: <Mail className="w-4 h-4" />,
+      color: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
     },
-  ];
+    {
+      title: "Double-Verified Priority",
+      description: "Highest ranking boost for customers with both phone and email verified",
+      icon: <BadgeCheck className="w-4 h-4" />,
+      color: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
+    },
+    {
+      title: "Reduced Spam Leads",
+      description: "Filter out unverified leads, focusing on high-intent customers",
+      icon: <Shield className="w-4 h-4" />,
+      color: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400",
+    },
+  ], []);
 
-  const estimatedLeads = 85;
-  const estimatedCostPerLead = 23;
+  const handleBoostRanking = () => {
+    if (!selectedPackage) {
+      toast.error("Please select a package first");
+      return;
+    }
 
-  return (
-    <>
-      <div className="shadow-none border-none rounded-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900  bg-gray-50 overflow-hidden relative">
-        {/* Header */}
-        <CardHeader className="rounded-t-sm">
-          <CardTitle className="text-sm md:text-base font-semibold leading-tight flex items-center gap-2">
-            <TargetIcon className="w-4 h-4" />
-            Lead Generation Campaign
-          </CardTitle>
-          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 mt-1">
-            Get featured at the top of search results and receive
-            qualified leads directly.
-          </p>
-        </CardHeader>
+    if (!hasEnoughCredits) {
+      toast.error(`You need ${missingCredits} more credits to activate this package`);
+      return;
+    }
 
-        {/* Content */}
-        <CardContent className="p-4 md:p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Side */}
-            <div className="space-y-4">
-              {/* Service */}
-              <div className="space-y-2">
-                <label className="block font-medium text-sm">
-                  Service Type
-                </label>
-                <Select value={service} onValueChange={setService}>
-                  <SelectTrigger className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0077B6]">
-                    <SelectValue placeholder="Select a service" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800">
-                    {serviceOptions.map((option) => (
-                      <SelectItem
-                        key={option}
-                        value={option}
-                        className="text-sm"
-                      >
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+    if (!service || !selectedServiceId) {
+      toast.error("Please select a service first");
+      return;
+    }
 
-              {/* Location */}
-              <div className="space-y-2">
-                <label className="block font-medium text-sm">
-                  Target Location
-                </label>
-                <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 focus-within:ring-1 focus-within:ring-[#0077B6] bg-white dark:bg-gray-800">
-                  <MapPin className="h-4 w-4 text-gray-500 mr-2" />
-                  <Input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g., New York"
-                    className="p-0 border-0 focus-visible:ring-0 text-sm bg-transparent text-gray-800 dark:text-gray-200"
-                  />
-                </div>
-              </div>
+    // TODO: Implement ranking activation API call
+    toast.success(`Activating "${selectedPackage.name}" for ${service}...`);
+    console.log({
+      package: selectedPackage,
+      serviceId: selectedServiceId,
+      location: location,
+      credits: selectedPackage.credits
+    });
+  };
 
-              {/* Search Placement */}
-              <div className="bg-gradient-to-r from-[#0077B6]/10 to-[#0096C7]/10 p-4 rounded-md border border-[#0077B6]/20 dark:border-[#0096C7]/30">
-                <Button
-                  onClick={() => setShowSubscriptionModal(true)}
-                  className="w-full bg-[#0077B6] hover:bg-[#0066A1] text-normal text-white text-sm py-2 rounded-md"
-                >
-                  Select Subscription Plan
-                </Button>
-              </div>
-            </div>
+  const handlePurchaseCredits = () => {
+    router.push("/credits");
+  };
 
-            {/* Right Side */}
-            <div className="space-y-4">
-              {/* Metrics */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white dark:bg-gray-900 p-3 rounded-md border border-gray-200 dark:border-gray-700">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Estimated Leads
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    {estimatedLeads}
-                  </p>
-                </div>
-                <div className="bg-white dark:bg-gray-900 p-3 rounded-md border border-gray-200 dark:border-gray-700">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Cost Per Lead
-                  </p>
-                  <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                    ${estimatedCostPerLead}
-                  </p>
-                </div>
-              </div>
+  if (isLoading) {
+    return <GlobalLoader />;
+  }
 
-              {/* Visibility */}
-              <div className=" p-4">
-                <h3 className="text-sm font-medium text-[#0077B6] mb-2 flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Visibility Metrics
-                </h3>
-                <div className="space-y-6">
-                  <MetricBar
-                    label="Search Impression Share"
-                    value="78%"
-                    width="78%"
-                  />
-                  <MetricBar
-                    label="Top Placement Rate"
-                    value="92%"
-                    width="92%"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              variant="outline"
-              className="border-gray-300 text-normal dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              Save Draft
-            </Button>
-            <Button className="bg-[#0077B6] text-normal hover:bg-[#0066A1] rounded-md text-white text-sm px-4 py-2 shadow-none">
-              Launch Campaign
-            </Button>
-          </div>
-        </CardContent>
-      </div>
-
-      {/* Subscription Dialog */}
-      <Dialog
-        open={showSubscriptionModal}
-        onOpenChange={setShowSubscriptionModal}
-      >
-        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-md text-sm text-gray-700 dark:text-gray-200">
-          <div className="bg-[#0077B6] text-white p-4">
-            <DialogHeader>
-              <DialogTitle className="text-base font-semibold">
-                Upgrade Your Search Placement
-              </DialogTitle>
-              <DialogDescription className="text-blue-100 text-sm">
-                Get more visibility and leads with premium search
-                placement options
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="px-5 pb-5 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-              {subscriptionPlans.map((plan) => (
-                <SubscriptionCard
-                  key={plan.id}
-                  plan={plan}
-                  selectedPlan={selectedPlan}
-                  setSelectedPlan={setSelectedPlan}
-                />
-              ))}
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => setShowSubscriptionModal(false)}
-                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-md px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                Cancel
-              </Button>
-              <Button className="bg-[#0077B6] rounded-md hover:bg-[#0066A1] text-white text-sm px-4 py-2 shadow-none">
-                Confirm Subscription
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
-
-// Reusable Metric Bar
-const MetricBar = ({
-  label,
-  value,
-  width,
-}: {
-  label: string;
-  value: string;
-  width: string;
-}) => (
-  <div>
-    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-      <span>{label}</span>
-      <span className="font-semibold text-[#0077B6]">{value}</span>
-    </div>
-    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-      <div
-        className="bg-[#0077B6] h-1 rounded-full"
-        style={{ width }}
-      ></div>
-    </div>
-  </div>
-);
-
-// Subscription Card
-const SubscriptionCard = ({
-  plan,
-  selectedPlan,
-  setSelectedPlan,
-}: {
-  plan: any;
-  selectedPlan: string;
-  /* eslint-disable no-unused-vars */
-  setSelectedPlan: (id: string) => void;
-  /* eslint-enable no-unused-vars */
-
-}) => {
-  const isSelected = selectedPlan === plan.id;
-  return (
-    <div
-      className={cn(
-        "rounded-md border p-4 transition-all cursor-pointer relative bg-white dark:bg-gray-900",
-        isSelected
-          ? "border-1 border-[#0077B6]"
-          : "border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
-      )}
-      onClick={() => setSelectedPlan(plan.id)}
-    >
-      {plan.recommended && (
-        <div className="absolute -top-2 left-0 right-0 mx-auto w-fit px-2 py-0.5 bg-[#0077B6] text-white text-[10px] font-medium rounded-full">
-          RECOMMENDED
+  if (error) {
+    return (
+      <div className="shadow-none border-none rounded-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 bg-gray-50 overflow-hidden relative p-6">
+        <div className="flex flex-col items-center justify-center py-12">
+          <AlertCircle className="h-8 w-8 text-red-700 mb-4" />
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Failed to load services</p>
+          <p className="text-xs text-gray-700 dark:text-gray-700">{error.message || "Unknown error"}</p>
         </div>
-      )}
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-sm">
-          {plan.name}
-        </h3>
-        {isSelected && (
-          <div className="h-4 w-4 rounded-full bg-[#0077B6] flex items-center justify-center">
-            <Check className="h-2.5 w-2.5 text-white" />
-          </div>
-        )}
       </div>
-      <div className="mb-3">
-        <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
-          {plan.price}
-        </span>
-        {plan.placement && (
-          <div className="mt-2 flex items-center text-[#0077B6] text-sm font-medium">
-            <Award className="h-3 w-3 mr-1" />
-            {plan.placement} Placement
+    );
+  }
+
+  return (
+    <div className="dark:border-gray-600 dark:bg-gray-900 overflow-hidden relative">
+      {/* Header */}
+      <CardHeader className="rounded-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 md:w-5 md:h-5 text-[#0077B6]" />
+            <CardTitle className="text-sm md:text-base font-semibold leading-tight">
+              Search Visibility & Lead Quality Ranking
+            </CardTitle>
           </div>
-        )}
-      </div>
-      <ul className="space-y-1.5">
-        {plan.features.map((feature: string, idx: number) => (
-          <li
-            key={idx}
-            className="flex items-start text-xs text-gray-600 dark:text-gray-300"
-          >
-            <Check className="h-3 w-3 text-[#0077B6] mr-1.5 mt-0.5 flex-shrink-0" />
-            {feature}
-          </li>
-        ))}
-      </ul>
-      <Button
-        className={cn(
-          "w-full mt-4 text-sm py-2 rounded-md",
-          isSelected
-            ? "bg-[#0077B6] hover:bg-[#0066A1] text-white"
-            : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
-        )}
-      >
-        {isSelected ? "Selected" : "Select Plan"}
-      </Button>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#0077B6]/20 dark:text-[#40A4FF]">
+              <Star className="w-3 h-3 mr-1" />
+              Verified Lead Priority
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+
+      {/* Content */}
+      <CardContent className="py-4 space-y-6">
+        <Tabs defaultValue="boost" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-2 mb-6">
+            <TabsTrigger value="boost" className="flex items-center gap-2 text-xs sm:text-sm">
+              <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Boost Ranking</span>
+              <span className="xs:hidden">Boost</span>
+            </TabsTrigger>
+            <TabsTrigger value="quality" className="flex items-center gap-2 text-xs sm:text-sm">
+              <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Lead Quality</span>
+              <span className="xs:hidden">Quality</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Boost Ranking Tab */}
+          <TabsContent value="boost" className="space-y-6">
+            {/* Campaign Setup Section */}
+            <div className="py-4 rounded-sm border-[#0077B6]/20 dark:border-[#0096C7]/30">
+              <h3 className="text-sm  text-[#0077B6] mb-3 flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Boost Your Search Ranking
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column - Configuration */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block  text-sm items-center gap-2">
+                      Service to Boost
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="text-xs">Select which service you want to improve search ranking for</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </label>
+                    <Select
+                      value={service}
+                      onValueChange={handleServiceChange}
+                      disabled={noServicesAvailable}
+                    >
+                      <SelectTrigger className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0077B6] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder={noServicesAvailable ? "No services available" : "Select a service"}>
+                          {noServicesAvailable ? "No services available" : service || "Select a service"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-900">
+                        {availableServices.map((serviceItem) => (
+                          <SelectItem
+                            key={serviceItem._id || "all"}
+                            value={serviceItem.service_name}
+                            className="text-sm"
+                          >
+                            {serviceItem.service_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block  text-sm items-center gap-2">
+                      Target Location
+                    </label>
+                    <Select
+                      value={location}
+                      onValueChange={setLocation}
+                      disabled={noServicesAvailable || !selectedServiceId || locations.length === 0}
+                    >
+                      <SelectTrigger className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0077B6] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <SelectValue placeholder="Select a location">
+                          {location || "Select a location"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-900 max-h-60">
+                        {locations.length > 0 ? (
+                          locations.map((loc) => (
+                            <SelectItem
+                              key={loc._id}
+                              value={`${loc.city}  ${loc.state}  ${loc.country}`}
+                              className="text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-3 h-3" />
+                                <span>{loc.city} {loc.state}  {loc.country}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="No locations available" disabled>
+                            No locations available
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Duration Selection */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+                      Plan Duration
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {durationOptions.map((option) => {
+                        const isSelected = selectedDuration === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setSelectedDuration(option.id as "monthly" | "annual")}
+                            className={`
+                              relative w-full rounded-sm border px-3 py-2 text-center transition-all
+                              ${isSelected
+                                ? "border-[#0077B6] bg-blue-50/60 dark:bg-blue-900/15 ring-1 ring-[#0077B6]/25"
+                                : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900"
+                              }
+                            `}
+                          >
+                            {isSelected && (
+                              <CheckCircle className="absolute top-1 right-1 h-3 w-3 text-[#0077B6]" />
+                            )}
+                            <h4 className="text-xs  text-gray-900 dark:text-gray-100">
+                              {option.name}
+                            </h4>
+                            <p className="text-[10px] text-gray-700 dark:text-gray-400 mt-1">
+                              {option.description}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Ranking Packages */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+                      Available Ranking Packages
+                    </label>
+
+                    <div className="space-y-2">
+                      {filteredPackages.length > 0 ? (
+                        filteredPackages.map((pkg) => {
+                          const isSelected = selectedPackage?._id === pkg._id;
+                          const hasEnough = userCredits.credits >= pkg.credits;
+
+                          return (
+                            <button
+                              key={pkg._id}
+                              type="button"
+                              onClick={() => setSelectedPackage(pkg)}
+                              className={`
+                                w-full rounded-sm border px-4 py-3 text-left transition-all
+                                ${isSelected
+                                  ? "border-[#0077B6] bg-blue-50/60 dark:bg-blue-900/15 ring-1 ring-[#0077B6]/25"
+                                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900"
+                                }
+                                ${!hasEnough ? "opacity-70 cursor-not-allowed" : ""}
+                              `}
+                              disabled={!hasEnough}
+                            >
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-xs  text-gray-900 dark:text-gray-100">
+                                    {pkg.name}
+                                  </h4>
+                                  <div className="flex items-center gap-2">
+                                    {pkg.billingType === "annual" || pkg.billingType === "yearly" ? (
+                                      <Badge className="text-[10px]  bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 px-1.5 py-0.5">
+                                        Best value
+                                      </Badge>
+                                    ) : null}
+                                    {!hasEnough && (
+                                      <Badge className="text-[10px]  bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 px-1.5 py-0.5">
+                                        Need {(pkg.credits - userCredits.credits)} more credits
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <p className="text-[11px] leading-tight text-gray-700 dark:text-gray-400">
+                                  {pkg.description || "Improve your search ranking with premium placement"}
+                                </p>
+
+                                <div className="flex items-center justify-between pt-1">
+                                  <div>
+                                    <p className="text-xs  text-gray-900 dark:text-gray-100">
+                                      {pkg.credits} credits
+                                    </p>
+                                    <p className="text-[11px] text-gray-700 dark:text-gray-400 capitalize">
+                                      {pkg.billingType.replace('_', ' ')}
+                                    </p>
+                                  </div>
+
+                                  <div className="text-right">
+                                    {pkg.discountPrice ? (
+                                      <>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                          ${pkg.discountPrice}
+                                        </p>
+                                        <p className="text-[11px] line-through text-gray-700 dark:text-gray-400">
+                                          ${pkg.price}
+                                        </p>
+                                      </>
+                                    ) : (
+                                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                        ${pkg.price}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-4 text-sm text-gray-700 dark:text-gray-400">
+                          No ranking packages available for {selectedDuration} plans
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Credit Status - Moved under Available Ranking Packages */}
+                    <div className="mt-6 rounded-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center gap-2">
+                          <div className="h-9 w-9 rounded-sm bg-[#0077B6]/10 flex items-center justify-center">
+                            <CreditCard className="h-4 w-4 text-[#0077B6]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                              Credit Overview
+                            </p>
+                            <p className="text-xs text-gray-700 dark:text-gray-400">
+                              Balance & package requirements
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="px-6 py-6 space-y-6">
+
+                        {/* Balance Metric */}
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-gray-700">
+                              Available Credits
+                            </p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                              <span className="text-3xl font-semibold text-[#0077B6]">
+                                {userCredits.credits}
+                              </span>
+                              <span className="text-sm text-gray-700">credits</span>
+                            </div>
+                          </div>
+
+                          {hasEnoughCredits && (
+                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                              Ready to activate
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="h-px bg-gray-100 dark:bg-gray-800" />
+
+                        {/* Package Info */}
+                        {selectedPackage ? (
+                          <div className="space-y-3">
+
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-700">Selected Package</span>
+                              <span className=" text-gray-900 dark:text-white">
+                                {selectedPackage.name}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-700">Required Credits</span>
+                              <span
+                                className={` ${hasEnoughCredits ? "text-[#0077B6]" : "text-red-600"
+                                  }`}
+                              >
+                                {selectedPackage.credits}
+                              </span>
+                            </div>
+
+                            {!hasEnoughCredits && (
+                              <div className="rounded-sm  dark:bg-red-900/20 p-4 space-y-3">
+                                <p className="text-sm  text-red-700 ">
+                                  You are short of {missingCredits} credits
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full border-red-300 text-red-700"
+                                  onClick={handlePurchaseCredits}
+                                >
+                                  <ShoppingCart className="  w-4 h-4 mr-2" />
+                                  Purchase Credits
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="rounded-sm border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center text-sm text-gray-700">
+                            Select a package to view requirements
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Right Column - Benefits & Action */}
+                <div className="space-y-4">
+                  {/* Verified Lead Benefits */}
+                  <div className="bg-white dark:bg-gray-900 p-4 rounded-sm border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm  mb-3 flex items-center gap-2">
+                      <BadgeCheck className="w-4 h-4 text-[#0077B6]" />
+                      Verified Lead Priority Ranking
+                    </h4>
+                    <div className="space-y-3">
+                      {qualifiedLeadBenefits.map((benefit, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${benefit.color}`}>
+                            {benefit.icon}
+                          </div>
+                          <div>
+                            <p className=" text-sm text-gray-900 dark:text-white">{benefit.title}</p>
+                            <p className="text-xs text-gray-700 dark:text-gray-400 mt-1">
+                              {benefit.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-3">
+                    <Button
+                      className="w-full bg-[#0077B6] hover:bg-[#016ca6] dark:bg-[#40A4FF] dark:hover:bg-[#2B90D9] text-white text-sm py-3 rounded-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                      onClick={handleBoostRanking}
+                      disabled={
+                        noServicesAvailable ||
+                        !service ||
+                        !location ||
+                        location.includes("No locations") ||
+                        !selectedPackage ||
+                        !hasEnoughCredits
+                      }
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      {selectedPackage
+                        ? `Boost with ${selectedPackage.name}`
+                        : 'Boost Search Ranking Now'
+                      }
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Lead Quality Tab */}
+          <TabsContent value="quality" className="space-y-6">
+            <div className="py-4 rounded-sm border-[#0077B6]/20 dark:border-[#0096C7]/30">
+              <h3 className="text-sm  text-[#0077B6] mb-3 flex items-center gap-2">
+                <BadgeCheck className="w-4 h-4" />
+                Manage Active Ranking System
+              </h3>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400">
+                No active ranking campaigns yet. Start boosting your search ranking above!
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
     </div>
   );
 };
-
-// Check Icon
-const Check = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="3"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>
-);
 
 export default GetMoreLeads;

@@ -58,6 +58,7 @@ import toast from 'react-hot-toast';
 const GuarantyList = () => {
     const token = getAccessToken() || '';
     const { data, error, isLoading, refetch } = useGetServices(token)
+    console.log("Guarantee Data:", data);
     const { mutate: deleteGuarantee } = useDeleteActivateGuarantee()
     const { mutate: updateStatus } = useGuaranteeStatus()
     const guarantees = data?.services?.guarantee || null
@@ -379,7 +380,7 @@ const GuarantyList = () => {
                                                     <div className="col-span-2">
                                                         <div className="flex flex-col gap-2">
                                                             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-[13px]">
-                                                                <span>{guarantee.service_id.service_name || 0}</span>
+                                                                <span>{guarantee?.service_id?.service_name || "NA"}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -555,7 +556,7 @@ const GuarantyList = () => {
                                                         Service
                                                     </p>
                                                     <p className="text-gray-900 dark:text-white font-medium truncate">
-                                                        {guarantee.service_id?.service_name || "N/A"}
+                                                        {guarantee?.service_id?.service_name || "N/A"}
                                                     </p>
                                                 </div>
 

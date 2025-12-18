@@ -81,7 +81,7 @@ const AppHeader: React.FC = () => {
           </button>
 
           <Link href="/home-services/dahsboard" className="lg:hidden">
-            Servicyee
+            Allneeda
           </Link>
 
           {/* Added ModeToggle here in the top section */}
