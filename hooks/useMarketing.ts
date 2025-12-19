@@ -3,8 +3,12 @@ import {
   ActivateGuaranteeAPI,
   ActiveGuaranteeStatusAPI,
   DeleteActivateGuarantee,
-} from "@/app/api/guarantee";
-import { useMutation } from "@tanstack/react-query";
+  GetRankingCampaignAPI,
+  RankingCampaignAPI,
+  RankingCampaignPayload,
+  RankingCampaignResponse,
+} from "@/app/api/marketing";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 
 interface GuaranteeFormData {
@@ -60,3 +64,35 @@ export const useDeleteActivateGuarantee = () => {
     }) => DeleteActivateGuarantee(guarantee_id, token),
   });
 };
+
+interface MutationParams {
+  data: RankingCampaignPayload;
+  token: string;
+}
+export function useRankingCampaign() {
+  return useMutation<RankingCampaignResponse, unknown, MutationParams>({
+    mutationKey: ["RankingCampaign"],
+    mutationFn: async ({ data, token }) => {
+      return RankingCampaignAPI(data, token);
+    },
+    onSuccess: (response) => {
+      toast.success(
+        response?.message || "Ranking Campaign activated successfully"
+      );
+    },
+  });
+}
+
+export function useGetRankingCampaign(
+  professional_id: string,
+  token: string | null,
+) {
+  return useQuery({
+    queryKey: ["GetRankingCampaign"],
+    queryFn: () => GetRankingCampaignAPI(professional_id, token!),
+    enabled: !!token,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+  });
+}

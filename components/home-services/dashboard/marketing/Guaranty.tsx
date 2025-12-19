@@ -36,10 +36,10 @@ import {
 import { useGetServices } from "@/hooks/useServices";
 import { getAccessToken } from "@/app/api/axios";
 import GlobalLoader from "@/components/ui/global-loader";
-import { useActivateGuarantee } from "@/hooks/useGuarantee";
+import { useActivateGuarantee } from "@/hooks/useMarketing";
 import toast from "react-hot-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import GuarantyList from "./reviews/GuarantyList";
+import GuarantyList from "./GuarantyList";
 
 // Types
 interface GuaranteeFormData {

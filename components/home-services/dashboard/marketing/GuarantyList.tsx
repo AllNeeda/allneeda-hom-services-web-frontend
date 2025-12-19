@@ -52,7 +52,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useDeleteActivateGuarantee, useGuaranteeStatus } from '@/hooks/useGuarantee';
+import { useDeleteActivateGuarantee, useGuaranteeStatus } from '@/hooks/useMarketing';
 import toast from 'react-hot-toast';
 
 const GuarantyList = () => {

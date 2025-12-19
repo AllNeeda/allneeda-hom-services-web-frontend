@@ -12,7 +12,7 @@ import CustomerRetention from "./CustomerRetention";
 
 const HomeServicesMarketingHub: React.FC = () => {
   const [activeSection, setActiveSection] = useState<
-    "reviews" | "leads" | "visibility" | "retention" | "guarantee"
+    "reviews" | "leads" | "visibility" | "retention" | "guarantee" | "allneeds" | "Ai Agent"
   >("reviews");
 
   return (
@@ -34,7 +34,7 @@ const HomeServicesMarketingHub: React.FC = () => {
           variant={activeSection === "reviews" ? "default" : "outline"}
           onClick={() => setActiveSection("reviews")}
         >
-          Review‑Based Marketing
+          Review‑Based
         </Button>
         <Button
           className="w-full sm:w-auto"
@@ -48,14 +48,14 @@ const HomeServicesMarketingHub: React.FC = () => {
           variant={activeSection === "leads" ? "default" : "outline"}
           onClick={() => setActiveSection("leads")}
         >
-          Get More Leads
+          More Leads
         </Button>
         <Button
           className="w-full sm:w-auto"
           variant={activeSection === "visibility" ? "default" : "outline"}
           onClick={() => setActiveSection("visibility")}
         >
-          Profile Visibility
+          Visibility
         </Button>
         <Button
           className="w-full sm:w-auto"
@@ -63,6 +63,20 @@ const HomeServicesMarketingHub: React.FC = () => {
           onClick={() => setActiveSection("retention")}
         >
           Customer Retention
+        </Button>
+        <Button
+          className="w-full sm:w-auto "
+          variant={activeSection === "allneeds" ? "default" : "outline"}
+          onClick={() => setActiveSection("allneeds")}
+        >
+          Allneeda Ads
+        </Button>
+        <Button
+          className="w-full sm:w-auto "
+          variant={activeSection === "Ai Agent" ? "default" : "outline"}
+          onClick={() => setActiveSection("Ai Agent")}
+        >
+          AI Agent 
         </Button>
 
       </div>

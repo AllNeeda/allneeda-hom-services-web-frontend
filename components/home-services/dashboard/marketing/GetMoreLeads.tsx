@@ -26,6 +26,7 @@ import {
   MapPin,
   CreditCard,
   ShoppingCart,
+  Loader2,
 } from "lucide-react";
 import { useGetServices } from "@/hooks/useServices";
 import { getAccessToken } from "@/app/api/axios";
@@ -36,6 +37,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useGetCreditPackage } from "@/hooks/useCredits";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { useRankingCampaign } from "@/hooks/useMarketing";
+import { RankingactiveList } from "./rankingactiveList";
 
 // Interface for credit package
 interface CreditPackage {
@@ -92,6 +95,7 @@ const GetMoreLeads: React.FC = () => {
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const token = getAccessToken() || "";
   const { data: servicesData, isLoading, error } = useGetServices(token);
+  const { mutate: activateRankingCampaign, isPending: isActivating } = useRankingCampaign();
   const { data: creditsPackage } = useGetCreditPackage(token);
   const router = useRouter();
 
@@ -110,6 +114,7 @@ const GetMoreLeads: React.FC = () => {
   const [rankingPackages, setRankingPackages] = useState<CreditPackage[]>([]);
   const [userCredits, setUserCredits] = useState<UserCredits>({ credits: 0 });
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
+
 
   // Extract user credits from services data
   useEffect(() => {
@@ -246,7 +251,7 @@ const GetMoreLeads: React.FC = () => {
   const durationOptions = useMemo(() => [
     {
       id: "monthly",
-      name: "Monthly Plans 2924",
+      name: "Monthly Plans",
       description: "Flexible monthly boosting options",
     },
     {
@@ -299,13 +304,52 @@ const GetMoreLeads: React.FC = () => {
       return;
     }
 
-    // TODO: Implement ranking activation API call
-    toast.success(`Activating "${selectedPackage.name}" for ${service}...`);
-    console.log({
-      package: selectedPackage,
-      serviceId: selectedServiceId,
-      location: location,
-      credits: selectedPackage.credits
+    // Get the professional ID from services data
+    const professionalId = servicesData?.services?.professional?._id;
+    if (!professionalId) {
+      toast.error("Unable to identify professional profile");
+      return;
+    }
+
+    // Get selected location ID if a specific location is selected
+    let locationId = null;
+    if (location !== "All Locations" && locations.length > 0) {
+      const selectedLoc = locations.find(
+        loc => `${loc.city}  ${loc.state}  ${loc.country}` === location
+      );
+      locationId = selectedLoc?._id || null;
+    }
+
+    // Prepare the data according to the backend schema
+    const rankingCampaignData = {
+      professional_id: professionalId,
+      service_id: selectedServiceId,
+      location_id: locationId, // Will be null if "All Locations" is selected
+      package_id: selectedPackage._id,
+      service_name: service,
+      duration: selectedDuration, // "monthly" or "annual"
+      credits_used: selectedPackage.credits,
+      // start_date is automatically set by backend (default: Date.now)
+      // end_date will be calculated by backend based on duration
+    };
+
+    // Call the API using the mutation hook
+    activateRankingCampaign({
+      data: rankingCampaignData,
+      token: token
+    }, {
+      onSuccess: (response) => {
+        // Success toast is already handled in the hook's onSuccess
+        console.log("Ranking campaign activated successfully:", response);
+
+        // You might want to refresh user credits or other data here
+        // For example, refetch credits data:
+        // queryClient.invalidateQueries(['userCredits']);
+      },
+      onError: (error) => {
+        // Error is handled by the hook, but you can add additional handling here
+        console.error("Failed to activate ranking campaign:", error);
+      }
     });
   };
 
@@ -358,10 +402,10 @@ const GetMoreLeads: React.FC = () => {
               <span className="hidden xs:inline">Boost Ranking</span>
               <span className="xs:hidden">Boost</span>
             </TabsTrigger>
-            <TabsTrigger value="quality" className="flex items-center gap-2 text-xs sm:text-sm">
+            <TabsTrigger value="manage" className="flex items-center gap-2 text-xs sm:text-sm">
               <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Lead Quality</span>
-              <span className="xs:hidden">Quality</span>
+              <span className="hidden xs:inline"> Manage</span>
+              <span className="xs:hidden">Manage</span>
             </TabsTrigger>
           </TabsList>
 
@@ -708,32 +752,35 @@ const GetMoreLeads: React.FC = () => {
                         !location ||
                         location.includes("No locations") ||
                         !selectedPackage ||
-                        !hasEnoughCredits
+                        !hasEnoughCredits ||
+                        isActivating // Add this
                       }
                     >
-                      <Zap className="w-4 h-4 mr-2" />
-                      {selectedPackage
-                        ? `Boost with ${selectedPackage.name}`
-                        : 'Boost Search Ranking Now'
-                      }
+                      {isActivating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Activating...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 mr-2" />
+                          {selectedPackage
+                            ? `Boost with ${selectedPackage.name}`
+                            : 'Boost Search Ranking Now'
+                          }
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
               </div>
             </div>
+
           </TabsContent>
 
           {/* Lead Quality Tab */}
-          <TabsContent value="quality" className="space-y-6">
-            <div className="py-4 rounded-sm border-[#0077B6]/20 dark:border-[#0096C7]/30">
-              <h3 className="text-sm  text-[#0077B6] mb-3 flex items-center gap-2">
-                <BadgeCheck className="w-4 h-4" />
-                Manage Active Ranking System
-              </h3>
-              <div className="text-center py-8 text-gray-700 dark:text-gray-400">
-                No active ranking campaigns yet. Start boosting your search ranking above!
-              </div>
-            </div>
+          <TabsContent value="manage" className="space-y-6">
+              <RankingactiveList professionalId={servicesData?.services?.professional?._id || ""} />
           </TabsContent>
         </Tabs>
       </CardContent>
