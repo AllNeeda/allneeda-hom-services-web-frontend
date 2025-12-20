@@ -1,363 +1,428 @@
-// components/ui/admin/DataTable.tsx
-"use client";
-
-import { Image as ImageIcon } from "lucide-react";
+import React from "react";
+import { Pagination } from "./Pagination";
+import { cn } from "@/lib/utils";
+import { Zap, Database, Server, Sparkles, Binary } from "lucide-react";
 import Image from "next/image";
-import { ReactNode, useState } from "react";
 
-export interface Column<T> {
+export type Column<T> = {
   key: keyof T | string;
-  header: string;
-  /* eslint-disable no-unused-vars */
-  render?: (item: T, index: number) => ReactNode;
-  /* eslint-enable no-unused-vars */
+  header?: React.ReactNode;
   className?: string;
-  headerClassName?: string;
   cellClassName?: string;
-  sortable?: boolean;
   isImage?: boolean;
-}
+  imageClassName?: string;
+  /* eslint-disable no-unused-vars */
+  render?: (item: T) => React.ReactNode;
+  /* eslint-enable no-unused-vars */
+  sortable?: boolean;
+  sortDirection?: "asc" | "desc";
+  onSort?: () => void;
+};
 
-interface DataTableProps<T> {
+export interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
-  keyField: keyof T;
-  staticURL: string;
+  keyField: string;
+  staticURL?: string;
   emptyMessage?: string;
-  emptyIcon?: ReactNode;
-  emptyAction?: ReactNode;
+  emptyIcon?: React.ReactNode;
+  emptyAction?: React.ReactNode;
   /* eslint-disable no-unused-vars */
   onRowClick?: (item: T) => void;
   /* eslint-enable no-unused-vars */
-  className?: string;
-  loading?: boolean;
-  header?: ReactNode;
-  footer?: ReactNode;
-  striped?: boolean;
+  header?: React.ReactNode | null;
   hover?: boolean;
+  striped?: boolean;
   compact?: boolean;
-  /* eslint-disable no-unused-vars */
-  onSort?: (key: keyof T | string, direction: "asc" | "desc") => void;
-  /* eslint-enable no-unused-vars */
-  sortKey?: string;
-  sortDirection?: "asc" | "desc";
+  futuristic?: boolean;
+  glowEffect?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    /* eslint-disable no-unused-vars */
+    onPageChange: (page: number) => void;
+    onItemsPerPageChange?: (n: number) => void;
+    /* eslint-enable no-unused-vars */
+  } | null;
 }
 
-const DataTable = <T,>({
+export default function DataTable<T>({
   data,
   columns,
   keyField,
-  staticURL,
-  emptyMessage = "No data available",
+  staticURL = "",
+  emptyMessage = "No data found",
   emptyIcon,
   emptyAction,
   onRowClick,
-  className = "",
-  loading = false,
   header,
-  footer,
+  hover = false,
   striped = false,
-  hover = true,
   compact = false,
-  onSort,
-  sortKey,
-  sortDirection,
-}: DataTableProps<T>) => {
-  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-
-  const getValue = (item: T, key: keyof T | string): any => {
-    try {
-      return item[key as keyof T] ?? "";
-    } catch {
-      return "";
+  futuristic = false,
+  glowEffect = false,
+  pagination,
+}: DataTableProps<T>) {
+  const getItemId = (item: T): string => {
+    if (typeof keyField === "string") {
+      return (item as any)[keyField] || "";
     }
+    return String(item[keyField]);
   };
 
-  const isImageFile = (value: string): boolean => {
-    if (typeof value !== "string") return false;
-    const imageExtensions = [
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".gif",
-      ".webp",
-      ".svg",
-      ".bmp",
-    ];
-    return imageExtensions.some((ext) => value.toLowerCase().endsWith(ext));
-  };
+  const isEmpty = data.length === 0;
 
-  const buildImageUrl = (imageName: string): string => {
-    if (!imageName) return "";
+  // Default empty state for futuristic mode
+  const defaultEmptyIcon = futuristic ? (
+    <div className="relative">
+      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-500/10 dark:from-cyan-500/20 dark:to-blue-500/20 flex items-center justify-center mx-auto mb-4">
+        <Database className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />
+      </div>
+      <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-pulse">
+        <Zap className="w-3 h-3 text-white" />
+      </div>
+    </div>
+  ) : (
+    emptyIcon
+  );
 
-    // If the imageName is already a full URL, return it as is
-    if (imageName.startsWith("http://") || imageName.startsWith("https://")) {
-      return imageName;
-    }
+  const defaultEmptyMessage = futuristic
+    ? "Data matrix is empty. Initialize the system to begin."
+    : emptyMessage;
 
-    // If imageName starts with /, it's already an absolute path
-    if (imageName.startsWith("/")) {
-      return `${staticURL}${imageName}`;
-    }
-
-    // Otherwise, build the URL normally
-    const cleanStaticURL = staticURL.replace(/\/$/, "");
-    const cleanImageName = imageName.replace(/^\//, "");
-
-    return `${cleanStaticURL}/${cleanImageName}`;
-  };
-
-  const handleImageError = (imageUrl: string) => {
-    setImageErrors((prev) => new Set(prev.add(imageUrl)));
-  };
-
-  const handleSort = (column: Column<T>) => {
-    if (!column.sortable || !onSort) return;
-
-    const key = column.key;
-    const newDirection =
-      sortKey === key && sortDirection === "asc" ? "desc" : "asc";
-
-    onSort(key, newDirection);
-  };
-
-  const renderSortIndicator = (column: Column<T>) => {
-    if (!column.sortable || sortKey !== column.key) {
-      return (
-        <svg
-          className="w-4 h-4 opacity-30"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-          />
-        </svg>
-      );
-    }
-
-    return sortDirection === "asc" ? (
-      <svg
-        className="w-4 h-4 text-sky-600"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M5 15l7-7 7 7"
-        />
-      </svg>
-    ) : (
-      <svg
-        className="w-4 h-4 text-sky-600"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
-        />
-      </svg>
-    );
-  };
-
-  const renderCellContent = (
-    column: Column<T>,
-    item: T,
-    index: number
-  ): ReactNode => {
-    if (column.render) {
-      return column.render(item, index);
-    }
-
-    const value = getValue(item, column.key);
-
-    if (column.isImage || (typeof value === "string" && isImageFile(value))) {
-      const imageUrl = buildImageUrl(value);
-      const hasError = imageErrors.has(imageUrl);
-
-      return (
-        <div className="flex items-center justify-center">
-          <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
-            {imageUrl && !hasError ? (
-              <Image
-                src={imageUrl}
-                alt=""
-                width={100}
-                height={100}
-                className="w-full h-full object-cover"
-                onError={() => handleImageError(imageUrl)}
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                <ImageIcon className="text-gray-400 w-6 h-6" />
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return String(value || "-");
-  };
-
-  if (loading) {
+  if (isEmpty) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {header && (
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            {header}
-          </div>
+      <div
+        className={cn(
+          "rounded-2xl border overflow-hidden",
+          futuristic
+            ? "bg-gradient-to-br from-white/50 to-white/30 dark:from-gray-900/30 dark:to-gray-800/20 border-gray-200/50 dark:border-gray-700/30 shadow-xl backdrop-blur-sm"
+            : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm"
         )}
-        <div className="animate-pulse">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex space-x-4">
-              {columns.map((_, index) => (
-                <div key={index} className="h-4 bg-gray-200 rounded flex-1" />
-              ))}
-            </div>
-          </div>
-          {[...Array(5)].map((_, index) => (
-            <div key={index} className="p-6 border-b border-gray-200">
-              <div className="flex space-x-4">
-                {columns.map((_, colIndex) => (
-                  <div key={colIndex} className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    {colIndex === 0 && (
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+      >
+        {header}
+        <div className="p-12 text-center">
+          {defaultEmptyIcon && (
+            <div className="flex justify-center mb-6">{defaultEmptyIcon}</div>
+          )}
+          <p
+            className={cn(
+              "text-sm mb-6",
+              futuristic
+                ? "text-gray-700 dark:text-gray-300"
+                : "text-gray-500 dark:text-gray-400"
+            )}
+          >
+            {defaultEmptyMessage}
+          </p>
+          {emptyAction && <div>{emptyAction}</div>}
         </div>
       </div>
     );
   }
 
-  const isEmpty = !data || data.length === 0;
-
   return (
     <div
-      className={`bg-white rounded shadow-sm border border-gray-200 overflow-hidden ${className}`}
-    >
-      {header && (
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          {header}
-        </div>
+      className={cn(
+        "rounded overflow-hidden",
+        futuristic
+          ? cn(
+              "bg-gradient-to-br from-white/50 to-white/30 dark:from-gray-900/30 dark:to-gray-800/20",
+              "border border-gray-200/50 dark:border-gray-700/30",
+              "shadow-xl backdrop-blur-sm",
+              glowEffect && "shadow-cyan-500/10 dark:shadow-cyan-500/20"
+            )
+          : "bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 shadow-sm"
       )}
+    >
+      {header}
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={column.key as string}
-                  onClick={() => handleSort(column)}
-                  className={`
-                    px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
-                    whitespace-nowrap
-                    ${
-                      column.sortable
-                        ? "cursor-pointer hover:bg-gray-100 transition-colors duration-150"
-                        : ""
-                    }
-                    ${column.headerClassName || ""}
-                    ${compact ? "px-4 py-3" : ""}
-                  `}
-                >
-                  <div className="flex items-center gap-2">
-                    {column.header}
-                    {column.sortable && renderSortIndicator(column)}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* Table Container with futuristic effects */}
+      <div className="relative">
+        {futuristic && glowEffect && (
+          <>
+            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent blur-sm"></div>
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gray-300/50 dark:via-gray-600/50 to-transparent"></div>
+          </>
+        )}
 
-          {!isEmpty && (
-            <tbody
-              className={`divide-y divide-gray-200 ${
-                striped ? "bg-gray-50/30" : ""
-              }`}
-            >
-              {data.map((item, index) => (
-                <tr
-                  key={String(getValue(item, keyField)) || index}
-                  onClick={() => onRowClick?.(item)}
-                  className={`
-                    transition-colors duration-150
-                    ${onRowClick ? "cursor-pointer" : ""}
-                    ${hover ? "hover:bg-gray-50" : ""}
-                    ${striped && index % 2 === 0 ? "bg-gray-50/50" : ""}
-                  `}
-                >
-                  {columns.map((column) => (
-                    <td
-                      key={column.key as string}
-                      className={`
-                        px-2 py-2
-                        ${compact ? "px-4 py-1" : ""}
-                        ${column.cellClassName || ""}
-                        ${column.isImage ? "text-center" : ""}
-                      `}
+        <div className="overflow-x-auto">
+          <table
+            className={cn(
+              "w-full",
+              compact ? "text-xs" : "text-sm",
+              futuristic && "font-sans"
+            )}
+          >
+            {/* Futuristic Table Header */}
+            <thead>
+              <tr
+                className={cn(
+                  futuristic
+                    ? "bg-gradient-to-r from-gray-50/50 to-white/30 dark:from-gray-800/20 dark:to-gray-900/20"
+                    : "bg-gray-50 dark:bg-gray-800/50"
+                )}
+              >
+                {columns.map((column, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === columns.length - 1;
+
+                  return (
+                    <th
+                      key={index}
+                      className={cn(
+                        "px-6 py-4 text-left font-semibold uppercase tracking-wider transition-colors duration-200",
+                        futuristic
+                          ? cn(
+                              "text-xs",
+                              isFirst && "rounded-tl-2xl pl-8",
+                              isLast && "rounded-tr-2xl pr-8",
+                              "text-gray-700 dark:text-gray-300 border-b border-gray-200/50 dark:border-gray-700/30"
+                            )
+                          : "text-xs text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700",
+                        column.sortable &&
+                          "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50",
+                        column.className
+                      )}
+                      onClick={column.sortable ? column.onSort : undefined}
                     >
-                      {renderCellContent(column, item, index)}
-                    </td>
-                  ))}
+                      <div className="flex items-center gap-2">
+                        {column.header}
+                        {column.sortable && (
+                          <div className="relative">
+                            <div className="w-4 h-4 text-gray-400 dark:text-gray-500">
+                              {column.sortDirection === "asc" ? (
+                                <span className="text-cyan-600 dark:text-cyan-400">
+                                  ↑
+                                </span>
+                              ) : column.sortDirection === "desc" ? (
+                                <span className="text-cyan-600 dark:text-cyan-400">
+                                  ↓
+                                </span>
+                              ) : (
+                                <span>↕</span>
+                              )}
+                            </div>
+                            {futuristic && column.sortDirection && (
+                              <div className="absolute -inset-1 bg-cyan-500/10 rounded-full blur-sm"></div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+
+            {/* Table Body with futuristic effects */}
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700/30">
+              {data.map((item, rowIndex) => (
+                <tr
+                  key={getItemId(item)}
+                  onClick={() => onRowClick?.(item)}
+                  className={cn(
+                    "group transition-all duration-200",
+                    hover &&
+                      "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                    striped &&
+                      (rowIndex % 2 === 0
+                        ? futuristic
+                          ? "bg-gradient-to-r from-gray-50/20 to-transparent dark:from-gray-800/10"
+                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                        : ""),
+                    futuristic && "hover:shadow-lg"
+                  )}
+                >
+                  {columns.map((column, colIndex) => {
+                    const isFirst = colIndex === 0;
+                    const isLast = colIndex === columns.length - 1;
+
+                    return (
+                      <td
+                        key={colIndex}
+                        className={cn(
+                          "px-1 transition-all duration-200",
+                          compact ? "py-1" : "py-1",
+                          futuristic
+                            ? cn(
+                                isFirst && "rounded-l-2xl pl-8",
+                                isLast && "rounded-r-2xl pr-8",
+                                "border-l border-transparent group-hover:border-cyan-300/30 dark:group-hover:border-cyan-700/30",
+                                glowEffect &&
+                                  "group-hover:bg-gradient-to-r group-hover:from-cyan-500/5 group-hover:to-transparent"
+                              )
+                            : "",
+                          column.cellClassName
+                        )}
+                      >
+                        {column.render ? (
+                          <div className="relative z-10">
+                            {column.render(item)}
+                          </div>
+                        ) : column.isImage ? (
+                          <div className="flex justify-center">
+                            {(item as any)[column.key] ? (
+                              <div className="relative group/image">
+                                <Image
+                                  src={`${staticURL}/${
+                                    (item as any)[column.key]
+                                  }`}
+                                  alt=""
+                                  width={100}
+                                  height={100}
+                                  className={cn(
+                                    "rounded transition-transform duration-300",
+                                    futuristic
+                                      ? "w-15 h-10 object-cover border-2 border-gray-200/50 dark:border-gray-700/50 group-hover/image:scale-110 group-hover/image:border-cyan-400/50 dark:group-hover/image:border-cyan-600/50"
+                                      : "w-12 h-8 object-cover border border-gray-200 dark:border-gray-700",
+                                    column.imageClassName
+                                  )}
+                                  onError={(e) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).src = `data:image/svg+xml;base64,${btoa(
+                                      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+                                    )}`;
+                                  }}
+                                />
+                                {futuristic && glowEffect && (
+                                  <div className="absolute -inset-1 bg-cyan-500/10 rounded-lg blur-md opacity-0 group-hover/image:opacity-100 transition-opacity duration-300"></div>
+                                )}
+                              </div>
+                            ) : (
+                              <div
+                                className={cn(
+                                  "flex items-center justify-center rounded-lg",
+                                  futuristic
+                                    ? "w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border border-gray-300/30 dark:border-gray-700/50"
+                                    : "w-8 h-8 bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-700"
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "text-xs",
+                                    futuristic
+                                      ? "text-gray-500 dark:text-gray-400"
+                                      : "text-gray-500 dark:text-gray-400"
+                                  )}
+                                >
+                                  No img
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <span
+                              className={cn(
+                                "truncate inline-block max-w-xs",
+                                futuristic
+                                  ? "text-gray-800 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white"
+                                  : "text-gray-700 dark:text-gray-300"
+                              )}
+                            >
+                              {(item as any)[column.key] || (
+                                <span
+                                  className={cn(
+                                    futuristic
+                                      ? "text-gray-400 dark:text-gray-500"
+                                      : "text-gray-400 dark:text-gray-500"
+                                  )}
+                                >
+                                  -
+                                </span>
+                              )}
+                            </span>
+                            {futuristic && hover && (
+                              <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 group-hover:w-full transition-all duration-300"></div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
-          )}
-        </table>
-
-        {isEmpty && (
-          <div className="text-center py-12">
-            {emptyIcon || (
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                />
-              </svg>
-            )}
-            <h3 className="mt-4 text-lg font-medium text-gray-900">
-              No data found
-            </h3>
-            <p className="mt-2 text-gray-500 max-w-sm mx-auto">
-              {emptyMessage}
-            </p>
-            {emptyAction && <div className="mt-6">{emptyAction}</div>}
-          </div>
-        )}
+          </table>
+        </div>
       </div>
 
-      {footer && !isEmpty && (
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          {footer}
+      {/* Futuristic Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div
+          className={cn(
+            "border-t",
+            futuristic
+              ? "border-gray-200/50 dark:border-gray-700/30 bg-gradient-to-r from-white/30 to-white/10 dark:from-gray-900/20 dark:to-gray-800/10"
+              : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+          )}
+        >
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={pagination.onPageChange}
+            onItemsPerPageChange={pagination.onItemsPerPageChange}
+            showItemsPerPage={true}
+            futuristic={futuristic}
+          />
+        </div>
+      )}
+
+      {/* Futuristic Table Stats */}
+      {futuristic && (
+        <div
+          className={cn(
+            "px-6 py-3 border-t border-gray-200/50 dark:border-gray-700/30",
+            "bg-gradient-to-r from-gray-50/30 to-white/20 dark:from-gray-800/10 dark:to-gray-900/10"
+          )}
+        >
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Server className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  Showing{" "}
+                  <span className="font-bold text-gray-900 dark:text-gray-100">
+                    {Math.min(
+                      (pagination?.currentPage || 1) *
+                        (pagination?.itemsPerPage || data.length),
+                      pagination?.totalItems || data.length
+                    )}
+                  </span>{" "}
+                  of {pagination?.totalItems || data.length} records
+                </span>
+              </div>
+              {pagination && (
+                <div className="flex items-center gap-2">
+                  <Binary className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Page{" "}
+                    <span className="font-bold text-gray-900 dark:text-gray-100">
+                      {pagination.currentPage}
+                    </span>{" "}
+                    of {pagination.totalPages}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Matrix:{" "}
+                <span className="font-bold text-gray-900 dark:text-gray-100">
+                  {data.length} items
+                </span>
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
-};
-
-export default DataTable;
+}
