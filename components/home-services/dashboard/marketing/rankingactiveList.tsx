@@ -1,6 +1,6 @@
 "use client";
 import { getAccessToken } from "@/app/api/axios";
-import { useGetRankingCampaign } from "@/hooks/useMarketing";
+import { useDeleteActivateRanking, useGetRankingCampaign, useRankingStatus } from "@/hooks/useMarketing";
 import React, { useState } from "react";
 import {
     Card,
@@ -50,6 +50,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import GlobalLoader from "@/components/ui/global-loader";
+import toast from "react-hot-toast";
 
 interface RankingCampaign {
     _id: string;
@@ -81,6 +82,8 @@ interface RankingCampaign {
 export const RankingactiveList = ({ professionalId }: { professionalId: string }) => {
     const token = getAccessToken();
     const { data, error, isLoading, refetch } = useGetRankingCampaign(professionalId, token || "");
+    const { mutate: updateStatus } = useRankingStatus();
+    const { mutate: deleteRanking } = useDeleteActivateRanking();
     const campaignsData = data?.data || [];
     const campaignsArray: RankingCampaign[] = Array.isArray(campaignsData) ? campaignsData : campaignsData ? [campaignsData] : [];
     const [sortField] = useState("start_date");
@@ -161,27 +164,49 @@ export const RankingactiveList = ({ professionalId }: { professionalId: string }
 
     // Handle delete campaign
     const handleDeleteCampaign = async () => {
-        if (!selectedCampaign) return;
+        if (!selectedCampaign || !token) return;
 
         setActionLoading(true);
         try {
-            refetch();
-            setDeleteDialogOpen(false);
-            setActionLoading(false);
-            setSelectedCampaign(null);
+            deleteRanking(
+                { campaign_id: selectedCampaign._id, token },
+                {
+                    onSuccess: () => {
+                        toast.success("Campaign deleted successfully");
+                        refetch();
+                        setDeleteDialogOpen(false);
+                        setActionLoading(false);
+                        setSelectedCampaign(null);
+                    },
+                }
+            );
         } catch {
             setActionLoading(false);
         }
     };
     const handleDeactivateCampaign = async () => {
-        if (!selectedCampaign) return;
+        if (!selectedCampaign || !token) return;
 
         setActionLoading(true);
         try {
-            refetch();
-            setDeactivateDialogOpen(false);
-            setActionLoading(false);
-            setSelectedCampaign(null);
+            const newStatus = selectedCampaign.status === "active" ? "inactive" : "active";
+
+            await updateStatus(
+                {
+                    campaign_id: selectedCampaign._id,
+                    status: newStatus,
+                    token
+                },
+                {
+                    onSuccess: () => {
+                        toast.success(`Campaign ${newStatus === "active" ? "activated" : "deactivated"} successfully`);
+                        refetch();
+                        setDeactivateDialogOpen(false);
+                        setActionLoading(false);
+                        setSelectedCampaign(null);
+                    },
+                }
+            );
         } catch {
             setActionLoading(false);
         }

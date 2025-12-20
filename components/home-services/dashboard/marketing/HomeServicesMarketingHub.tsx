@@ -48,7 +48,7 @@ const HomeServicesMarketingHub: React.FC = () => {
           variant={activeSection === "leads" ? "default" : "outline"}
           onClick={() => setActiveSection("leads")}
         >
-          More Leads
+          Lead Growth
         </Button>
         <Button
           className="w-full sm:w-auto"
@@ -76,7 +76,7 @@ const HomeServicesMarketingHub: React.FC = () => {
           variant={activeSection === "Ai Agent" ? "default" : "outline"}
           onClick={() => setActiveSection("Ai Agent")}
         >
-          AI Agent 
+          AI Agent
         </Button>
 
       </div>

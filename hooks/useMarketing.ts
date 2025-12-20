@@ -2,7 +2,9 @@
 import {
   ActivateGuaranteeAPI,
   ActiveGuaranteeStatusAPI,
+  ActiveRankingStatusAPI,
   DeleteActivateGuarantee,
+  DeleteActivateRankingAPI,
   GetRankingCampaignAPI,
   RankingCampaignAPI,
   RankingCampaignPayload,
@@ -85,7 +87,7 @@ export function useRankingCampaign() {
 
 export function useGetRankingCampaign(
   professional_id: string,
-  token: string | null,
+  token: string | null
 ) {
   return useQuery({
     queryKey: ["GetRankingCampaign"],
@@ -96,3 +98,27 @@ export function useGetRankingCampaign(
     refetchOnReconnect: true,
   });
 }
+
+export function useRankingStatus() {
+  return useMutation({
+    mutationKey: ["update-statusRanking"],
+    mutationFn: (data: {
+      campaign_id: string;
+      status: string;
+      token: string;
+    }) => ActiveRankingStatusAPI(data),
+  });
+}
+
+export const useDeleteActivateRanking = () => {
+  return useMutation({
+    mutationKey: ["DeleteActivateBoost"],
+    mutationFn: ({
+      campaign_id,
+      token,
+    }: {
+      campaign_id: string;
+      token: string;
+    }) => DeleteActivateRankingAPI(campaign_id, token),
+  });
+};

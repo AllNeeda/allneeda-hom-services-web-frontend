@@ -365,7 +365,7 @@ const Guarantee: React.FC = () => {
                           <span className="truncate max-w-[180px] sm:max-w-xs">{service.name}</span>
                           <Badge
                             variant={service.service_status ? "default" : "secondary"}
-                            className="ml-2 rounded-[4px] text-[10px] shrink-0"
+                            className="ml-2 rounded-sm text-[10px] shrink-0"
                           >
                             {service.service_status ? "Active" : "Inactive"}
                           </Badge>
@@ -435,7 +435,7 @@ const Guarantee: React.FC = () => {
                         {option.id === "annual" && (
                           <Badge
                             variant="outline"
-                            className="text-[10px] rounded-[4px] bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            className="text-[10px] rounded-sm bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                           >
                             Save 10%
                           </Badge>
