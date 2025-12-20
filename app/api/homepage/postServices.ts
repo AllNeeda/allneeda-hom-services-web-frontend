@@ -12,11 +12,15 @@ export interface CategoryType {
 }
 
 // ✅ Correct PostCategory function
-export const PostCategory = async (formData: FormData) => {
+export const PostCategory = async (formData: FormData, token: string) => {
+  if(!token) {
+    throw new Error("You are not authorized to perform this action.");
+  }
   try {
     const response = await api.post("/categories", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -27,11 +31,59 @@ export const PostCategory = async (formData: FormData) => {
   }
 };
 
-export const postSubcategory = async (formData: FormData) => {
+export const UpdateCategory = async (id: string, formData: FormData, token: string) => {
+  if(!token) {
+    throw new Error("You are not authorized to perform this action.");
+  }
+  try {
+    const response = await api.put(`/categories/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating category:", error);
+    throw error;
+  }
+};
+
+export const DeleteCategory = async (id: string, token: string) => {
+  if(!token) {
+    throw new Error("You are not authorized to perform this action.");
+  }
+  const response = await api.delete(`/categories/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};
+
+export const ToggleCategoryStatus = async (id: string, isActive: boolean, token: string) => {
+  if(!token) {
+    throw new Error("You are not authorized to perform this action.");
+  }
+  const response = await api.put(`/categories/${id}/status`, 
+  { is_active: isActive },
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+}
+
+
+
+
+export const postSubcategory = async (formData: FormData, token: string) => {
   try {
     const response = await api.post("/subcategories", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data;
@@ -40,18 +92,127 @@ export const postSubcategory = async (formData: FormData) => {
     throw error;
   }
 }
+
+export const updateSubcategory = async (id: string, formData: FormData, token: string) => {
+  try {
+    const response = await api.put(`/subcategories/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating subcategory: ", error);
+    throw error;
+  }
+}
+
+export const deleteSubcategory = async (id: string, token: string) => {
+  try {
+    const response = await api.delete(`/subcategories/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting subcategory: ", error);
+    throw error;
+  }
+}
+
+export const toggleSubcategoryStatus = async (id: string, isActive: boolean, token: string) => {
+  try {
+    const response = await api.put(`/subcategories/${id}/status`, 
+    { is_active: isActive },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error toggling subcategory status: ", error);
+    throw error;
+  }
+}
+
+
 // post services
-export const postServices = async (formData: FormData) => {
+export const PostService = async (formData: FormData, token: string) => {
   try {
     console.log("in PostService.ts: ", formData);
     const response = await api.post("/services", formData,{
       headers: {
         "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data;
   } catch (error) {
     console.error("Error creating service: ", error);
+    throw error;
+  }
+}
+
+export const UpdateService = async (id: string, formData: FormData, token: string) => {
+  try {
+    const response = await api.put(`/services/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating service: ", error);
+    throw error;
+  }
+}
+
+export const DeleteService = async (id: string, token: string) => {
+  try {
+    const response = await api.delete(`/services/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting service: ", error);
+    throw error;
+  }
+}
+
+export const ToggleServiceStatus = async (id: string, isActive: boolean, token: string) => {
+  try {
+    const response = await api.put(`/services/${id}/status`, 
+    { is_active: isActive },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error toggling service status: ", error);
+    throw error;
+  }
+}
+
+export const ToggleServiceFeatured = async (id: string, isFeatured: boolean, token: string) => {
+  try {
+    const response = await api.put(`/services/${id}/featured`, 
+    { is_featured: isFeatured },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error toggling service featured status: ", error);
     throw error;
   }
 }
@@ -90,4 +251,6 @@ export const searchServiceByQuery = async (query:string) => {
   const response = await api.get(`/search/service?q=${query}`);
   return response.data;
 }
+
+
 

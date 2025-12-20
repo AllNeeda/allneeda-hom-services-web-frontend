@@ -1,21 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import ActiveToggle from "@/components/ui/admin/ActiveToggle";
+import { useEffect, useState, useRef } from "react";
 import ImageUploadSection from "@/components/ui/admin/ImageUploadSection";
 import {
   useCategoryServiceCount,
   useSubcategoryServiceCount,
 } from "@/hooks/useHomeServices";
-import { SubcategoryType } from "@/types/service/services";
-import StatusMessage from "@/components/ui/admin/StatusMessage";
-import SubmitButton from "@/components/ui/admin/SubmitButton";
-import RecentItems from "./ReactItems";
-import { postSubcategory } from "@/app/api/homepage/postServices";
+import {
+  postSubcategory,
+  updateSubcategory,
+  deleteSubcategory,
+  toggleSubcategoryStatus,
+} from "@/app/api/homepage/postServices";
+import { getAccessToken, getSubcategoryStaticURL } from "@/app/api/axios";
 import DataTable, { Column } from "@/components/admin/ui/DataTable";
-import { getSubcategoryStaticURL } from "@/app/api/axios";
+import StatsCard from "@/components/admin/ui/StatsCard";
+import { usePagination } from "@/hooks/usePagination";
+import { useConfirmation } from "@/hooks/useConfirmation";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
-interface ItemTypes {
+import {
+  Layers,
+  CheckCircle,
+  XCircle,
+  Edit,
+  Trash2,
+  Plus,
+  FolderTree,
+  Cpu,
+  Zap,
+  Sparkles,
+  CircuitBoard,
+  Binary,
+  Network,
+  Server,
+  Link,
+  Tag,
+  ListTree,
+  Briefcase,
+} from "lucide-react";
+
+interface SubcategoryItem {
   _id: string;
   name: string;
   slug: string;
@@ -32,28 +66,57 @@ interface CategoryItem {
   _id: string;
   name: string;
   is_active: boolean;
+  subcategoryCount?: number;
+}
+
+interface SubcategoryFormDataType {
+  _id?: string;
+  name: string;
+  slug: string;
+  category_id: string;
+  description: string;
+  is_active: boolean;
+  subcategory_image_file: File | null;
+  subcategory_image_url: string;
 }
 
 const SubcategoryTab = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const { delete: confirmDelete } = useConfirmation();
+
+  // Store object URLs for cleanup
+  const objectUrlsRef = useRef<string[]>([]);
 
   const [subcategoryFormData, setSubcategoryFormData] =
-    useState<SubcategoryType>({
+    useState<SubcategoryFormDataType>({
+      _id: undefined,
       name: "",
       slug: "",
       category_id: "",
       description: "",
       is_active: true,
-      subcategory_image_file: null as unknown as File,
+      subcategory_image_file: null,
       subcategory_image_url: "",
     });
 
+  const token = getAccessToken() || "";
   const staticURL = getSubcategoryStaticURL();
 
-  console.log("🔍 Subcategory Static URL:", staticURL);
+  // Cleanup function for object URLs
+  useEffect(() => {
+    return () => {
+      // Clean up all object URLs on unmount
+      objectUrlsRef.current.forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      objectUrlsRef.current = [];
+    };
+  }, []);
 
   const slugify = (text: string) =>
     text
@@ -66,95 +129,230 @@ const SubcategoryTab = () => {
     setSubcategoryFormData((prev) => ({ ...prev, slug: slugify(prev.name) }));
   }, [subcategoryFormData.name]);
 
-  const handleImageSelect = (file: File) => {
-    setSubcategoryFormData((prev) => ({
-      ...prev,
-      subcategory_image_file: file,
-      subcategory_image_url: URL.createObjectURL(file),
-    }));
+  const handleImageSelect = (file: File | null) => {
+    // Clean up previous object URL if it was a blob URL
+    if (
+      subcategoryFormData.subcategory_image_url &&
+      subcategoryFormData.subcategory_image_url.startsWith("blob:")
+    ) {
+      const prevUrl = subcategoryFormData.subcategory_image_url;
+      URL.revokeObjectURL(prevUrl);
+
+      // Remove from ref array
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== prevUrl
+      );
+    }
+
+    if (file) {
+      try {
+        const objectUrl = URL.createObjectURL(file);
+        objectUrlsRef.current.push(objectUrl);
+
+        setSubcategoryFormData((prev) => ({
+          ...prev,
+          subcategory_image_file: file,
+          subcategory_image_url: objectUrl,
+        }));
+      } catch (error) {
+        console.error("Error creating object URL:", error);
+        toast.error("Error", {
+          description: "Failed to process image file",
+        });
+      }
+    } else {
+      // Handle case when image is cleared
+      setSubcategoryFormData((prev) => ({
+        ...prev,
+        subcategory_image_file: null,
+        subcategory_image_url: "",
+      }));
+    }
   };
 
-  const handlePostSubcategory = async () => {
-    if (!subcategoryFormData.subcategory_image_file) {
-      setError("Subcategory image is required");
+  const handlepostSubcategory = async () => {
+    if (!subcategoryFormData.subcategory_image_file && !isEditing) {
+      toast.error("Error", {
+        description: "Subcategory image is required for new subcategories",
+      });
       return;
     }
 
     if (!subcategoryFormData.category_id) {
-      setError("Please select a category");
+      toast.error("Error", {
+        description: "Please select a category",
+      });
+      return;
+    }
+
+    if (!subcategoryFormData.name.trim()) {
+      toast.error("Error", {
+        description: "Subcategory name is required",
+      });
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setError(null);
-      setSuccess(null);
 
       const formData = new FormData();
       formData.append("name", subcategoryFormData.name);
       formData.append("slug", subcategoryFormData.slug);
       formData.append("category_id", subcategoryFormData.category_id);
-      formData.append("description", String(subcategoryFormData.description));
+      formData.append("description", subcategoryFormData.description);
       formData.append("is_active", String(subcategoryFormData.is_active));
-      formData.append(
-        "subcategory_image_url",
-        subcategoryFormData.subcategory_image_file
-      );
 
-      await postSubcategory(formData);
-      setSuccess("Subcategory created successfully!");
+      if (subcategoryFormData.subcategory_image_file) {
+        formData.append(
+          "subcategory_image_url",
+          subcategoryFormData.subcategory_image_file
+        );
+      }
 
-      // Reset form
-      setSubcategoryFormData({
-        name: "",
-        slug: "",
-        category_id: "",
-        description: "",
-        is_active: true,
-        subcategory_image_file: null as unknown as File,
-        subcategory_image_url: "",
-      });
-      setShowForm(false);
+      if (isEditing && editingId) {
+        await updateSubcategory(editingId, formData, token);
+        toast.success("Success!", {
+          description: "Subcategory updated successfully!",
+        });
+      } else {
+        await postSubcategory(formData, token);
+        toast.success("Success!", {
+          description: "Subcategory created successfully!",
+        });
+      }
 
-      // You might want to add a refetch function here to refresh the subcategory list
+      // Refresh data
+      refetchSubcategories();
+      resetForm();
+      setDialogOpen(false);
     } catch (err: any) {
-      setError(
+      const errorMsg =
         err.response?.data?.message ||
-          err.message ||
-          "Failed to create subcategory"
-      );
+        err.message ||
+        `Failed to ${isEditing ? "update" : "create"} subcategory`;
+
+      toast.error("Error", {
+        description: errorMsg,
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const resetForm = () => {
+  const handleEditSubcategory = (subcategory: SubcategoryItem) => {
+    setIsEditing(true);
+    setEditingId(subcategory._id);
+
+    // Don't create object URL for existing images - use the direct URL
     setSubcategoryFormData({
+      _id: subcategory._id,
+      name: subcategory.name,
+      slug: subcategory.slug,
+      category_id: subcategory.category_id,
+      description: subcategory.description || "",
+      is_active: subcategory.is_active,
+      subcategory_image_file: null,
+      subcategory_image_url: subcategory.subcategory_image_url
+        ? `${staticURL}/${subcategory.subcategory_image_url}`
+        : "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleAddSubcategory = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
+  const handleToggleStatus = async (
+    subcategoryId: string,
+    currentStatus: boolean
+  ) => {
+    try {
+      await toggleSubcategoryStatus(subcategoryId, !currentStatus, token);
+      toast.success("Success!", {
+        description: `Subcategory ${
+          !currentStatus ? "activated" : "deactivated"
+        } successfully!`,
+      });
+      refetchSubcategories();
+    } catch (err: any) {
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to update subcategory status";
+      toast.error("Error", {
+        description: errorMsg,
+      });
+    }
+  };
+
+  const handledeleteSubcategory = (
+    subcategoryId: string,
+    subcategoryName: string
+  ) => {
+    confirmDelete(
+      `Are you sure you want to delete "${subcategoryName}"? This action cannot be undone.`,
+      async () => {
+        try {
+          await deleteSubcategory(subcategoryId, token);
+          toast.success("Success!", {
+            description: `Subcategory "${subcategoryName}" deleted successfully!`,
+          });
+          refetchSubcategories();
+        } catch (err: any) {
+          console.log("Error deleting subcategory:", err);
+          toast.error("Error", {
+            description:
+              err.response?.data?.message || "Failed to delete subcategory",
+          });
+        }
+      },
+      subcategoryName
+    );
+  };
+
+  const resetForm = () => {
+    // Clean up object URL if exists
+    if (
+      subcategoryFormData.subcategory_image_url &&
+      subcategoryFormData.subcategory_image_url.startsWith("blob:")
+    ) {
+      URL.revokeObjectURL(subcategoryFormData.subcategory_image_url);
+
+      // Remove from ref array
+      objectUrlsRef.current = objectUrlsRef.current.filter(
+        (url) => url !== subcategoryFormData.subcategory_image_url
+      );
+    }
+
+    setSubcategoryFormData({
+      _id: undefined,
       name: "",
       slug: "",
       category_id: "",
       description: "",
       is_active: true,
-      subcategory_image_file: null as unknown as File,
+      subcategory_image_file: null,
       subcategory_image_url: "",
     });
-    setError(null);
-    setSuccess(null);
+    setIsEditing(false);
+    setEditingId(null);
   };
 
   // Data fetching
-  const { data: subcategoryServiceCount } = useSubcategoryServiceCount();
+  const { data: subcategoryServiceCount, refetch: refetchSubcategories } =
+    useSubcategoryServiceCount();
   const { data: categoryServiceCount } = useCategoryServiceCount();
 
   // Process subcategory data
-  const subcategoryData = subcategoryServiceCount?.data || [];
-  let itemsArray: ItemTypes[] = [];
-  console.log("This is subcategory data: ", subcategoryData);
+  const subcategoryDataRaw = subcategoryServiceCount?.data || [];
+  let subcategoryItems: SubcategoryItem[] = [];
 
-  if (Array.isArray(subcategoryData)) {
-    itemsArray = subcategoryData;
-  } else if (subcategoryData && Array.isArray(subcategoryData.data)) {
-    itemsArray = subcategoryData.data;
+  if (Array.isArray(subcategoryDataRaw)) {
+    subcategoryItems = subcategoryDataRaw;
+  } else if (subcategoryDataRaw && Array.isArray(subcategoryDataRaw.data)) {
+    subcategoryItems = subcategoryDataRaw.data;
   }
 
   // Process category data for dropdown
@@ -172,296 +370,397 @@ const SubcategoryTab = () => {
     (category) => category.is_active
   );
 
-  // Define columns for the subcategories table - FIXED VERSION
-  const subcategoryColumns: Column<ItemTypes>[] = [
+  // Use pagination hook
+  const {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    paginatedItems,
+    goToPage,
+    setItemsPerPage,
+  } = usePagination(subcategoryItems, { itemsPerPage: 10 });
+
+  // Calculate stats
+  const totalSubcategories = subcategoryItems.length;
+  const activeSubcategories = subcategoryItems.filter(
+    (s) => s.is_active
+  ).length;
+  const inactiveSubcategories = subcategoryItems.filter(
+    (s) => !s.is_active
+  ).length;
+  const totalServices = subcategoryItems.reduce(
+    (sum, item) => sum + (item.servicesCount || item.serviceCount || 0),
+    0
+  );
+
+  // Futuristic table columns for subcategories
+  const subcategoryColumns: Column<SubcategoryItem>[] = [
     {
       key: "subcategory_image_url",
-      header: "Image",
+      header: "",
       isImage: true,
-      className: "w-20",
-      cellClassName: "text-center",
+      className: "w-14",
+      cellClassName: "py-3",
+      imageClassName: "w-10 h-10 rounded-lg",
     },
     {
       key: "name",
-      header: "Subcategory",
+      header: "SUBCATEGORY",
+      className: "min-w-[180px]",
       render: (item) => (
-        <div>
-          <div className="font-medium text-gray-900">{item.name}</div>
+        <div className="space-y-1">
+          <div className="font-medium text-gray-900 dark:text-gray-100 text-sm flex items-center gap-2">
+            {item.name}
+          </div>
         </div>
       ),
     },
     {
       key: "description",
-      header: "Description",
+      header: "DESCRIPTION",
+      className: "min-w-[250px]",
       render: (item) => (
-        <div className="text-sm text-gray-500">
-          {item.description || "No description provided"}
+        <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-1 w-48">
+          {item.description || (
+            <span className="text-gray-400 dark:text-gray-500 italic">
+              No description
+            </span>
+          )}
         </div>
       ),
     },
     {
-      key: "services",
-      header: "Services",
+      key: "servicesCount",
+      header: (
+        <div className="flex items-center gap-1.5">
+          <Briefcase className="w-3.5 h-3.5" />
+          <span>SERVICES</span>
+        </div>
+      ),
+      className: "w-28 text-center",
       render: (item) => (
-        <span className="inline-flex items-center text-xs border border-sky-500 px-3 py-1 rounded-full text-sm font-medium bg-sky-100 text-sky-800">
-          {item.servicesCount || item.serviceCount || 0} services
-        </span>
+        <div className="flex items-center justify-center">
+          <div className="relative">
+            <span className="inline-flex items-center justify-center w-9 h-9 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 text-blue-700 dark:text-blue-300 rounded-full text-sm font-bold border border-blue-200 dark:border-blue-700/50">
+              {item.servicesCount || item.serviceCount || 0}
+            </span>
+            {(item.servicesCount || item.serviceCount) > 0 && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></div>
+            )}
+          </div>
+        </div>
       ),
     },
     {
-      key: "status",
-      header: "Status",
+      key: "is_active",
+      header: "STATUS",
+      className: "w-32",
       render: (item) => (
-        <span
-          className={`inline-flex items-center text-xs px-3 py-1 rounded-full text-sm font-medium ${
-            item.is_active
-              ? "bg-green-100 text-green-800 border border-green-400"
-              : "bg-red-100 text-red-800 border border-red-400"
-          }`}
-        >
-          {item.is_active ? "Active" : "Inactive"}
-        </span>
+        <div className="flex items-center justify-center">
+          <div className="relative group">
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${
+                item.is_active
+                  ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 dark:from-green-500/30 dark:to-emerald-500/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700/50"
+                  : "bg-gradient-to-r from-red-500/20 to-rose-500/20 dark:from-red-500/30 dark:to-rose-500/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-700/50"
+              }`}
+            >
+              {item.is_active ? (
+                <>
+                  <CheckCircle className="w-3 h-3" />
+                  ACTIVE
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-3 h-3" />
+                  INACTIVE
+                </>
+              )}
+            </span>
+            <div
+              className={`absolute -inset-1 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                item.is_active
+                  ? "bg-green-500/10 dark:bg-green-500/20"
+                  : "bg-red-500/10 dark:bg-red-500/20"
+              }`}
+            ></div>
+          </div>
+        </div>
       ),
     },
     {
       key: "actions",
-      header: "Actions",
+      header: "ACTIONS",
+      className: "min-w-[260px]",
       render: (item) => (
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // handleToggleStatus(item._id, item.is_active);
+              handleToggleStatus(item._id, item.is_active);
             }}
-            className={`px-4 py-1 rounded text-xs font-medium transition-colors duration-200 ${
+            className={`group relative px-3 py-1.5 rounded text-xs font-medium transition-all duration-300 hover:scale-105 ${
               item.is_active
-                ? "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                ? "bg-gradient-to-r from-red-500/10 to-rose-500/10 dark:from-red-500/20 dark:to-rose-500/20 text-red-600 dark:text-red-400 hover:from-red-500/20 hover:to-rose-500/20 dark:hover:from-red-500/30 dark:hover:to-rose-500/30 border border-red-200 dark:border-red-700/50"
+                : "bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-500/20 dark:to-emerald-500/20 text-green-600 dark:text-green-400 hover:from-green-500/20 hover:to-emerald-500/20 dark:hover:from-green-500/30 dark:hover:to-emerald-500/30 border border-green-200 dark:border-green-700/50"
             }`}
           >
-            {item.is_active ? "Deactivate" : "Activate"}
+            <div className="flex items-center gap-1.5">
+              {item.is_active ? (
+                <>
+                  <XCircle className="w-3.5 h-3.5" />
+                  Deactivate
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Activate
+                </>
+              )}
+            </div>
+            <div className="absolute -inset-0.5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-current/5 to-transparent"></div>
           </button>
+
           <button
-            onClick={(e) => e.stopPropagation()}
-            className="px-4 py-1 bg-gray-50 text-gray-700 rounded text-xs hover:bg-gray-100 border border-gray-200 transition-colors duration-200 text-sm font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditSubcategory(item);
+            }}
+            className="group relative px-3 py-1.5 rounded text-xs font-medium transition-all duration-300 hover:scale-105 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 dark:from-blue-500/20 dark:to-cyan-500/20 text-blue-600 dark:text-blue-400 hover:from-blue-500/20 hover:to-cyan-500/20 dark:hover:from-blue-500/30 dark:hover:to-cyan-500/30 border border-blue-200 dark:border-blue-700/50"
           >
-            Edit
+            <div className="flex items-center gap-1.5">
+              <Edit className="w-3.5 h-3.5" />
+              Edit
+            </div>
+            <div className="absolute -inset-0.5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-blue-500/10 to-transparent"></div>
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handledeleteSubcategory(item._id, item.name);
+            }}
+            className="group relative px-3 py-1.5 rounded text-xs font-medium transition-all duration-300 hover:scale-105 bg-gradient-to-r from-red-500/10 to-pink-500/10 dark:from-red-500/20 dark:to-pink-500/20 text-red-600 dark:text-red-400 hover:from-red-500/20 hover:to-pink-500/20 dark:hover:from-red-500/30 dark:hover:to-pink-500/30 border border-red-200 dark:border-red-700/50"
+          >
+            <div className="flex items-center gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </div>
+            <div className="absolute -inset-0.5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-red-500/10 to-transparent"></div>
           </button>
         </div>
       ),
     },
   ];
 
-  // Alternative: If you want to keep the custom layout with image combined
-  // const subcategoryColumnsAlternative: Column<ItemTypes>[] = [
-  //   {
-  //     key: "subcategory",
-  //     header: "Subcategory",
-  //     render: (item) => {
-  //       const imageUrl = item.subcategory_image_url
-  //         ? `${staticURL}/${item.subcategory_image_url}`
-  //         : null;
-
-  //       console.log("🖼️ Building subcategory image URL:", {
-  //         subcategory: item.name,
-  //         imageFilename: item.subcategory_image_url,
-  //         builtURL: imageUrl,
-  //       });
-
-  //       return (
-  //         <div className="flex items-center gap-4">
-  //           <div className="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-lg overflow-hidden">
-  //             {imageUrl ? (
-  //               <img
-  //                 src={imageUrl}
-  //                 alt={item.name}
-  //                 className="w-full h-full object-cover"
-  //                 onError={(e) => {
-  //                   console.error(
-  //                     "❌ Subcategory image failed to load:",
-  //                     imageUrl
-  //                   );
-  //                   e.currentTarget.style.display = "none";
-  //                   const fallback =
-  //                     e.currentTarget.parentElement?.querySelector(
-  //                       ".image-fallback"
-  //                     );
-  //                   if (fallback) fallback.classList.remove("hidden");
-  //                 }}
-  //                 onLoad={() =>
-  //                   console.log("✅ Subcategory image loaded:", imageUrl)
-  //                 }
-  //               />
-  //             ) : null}
-  //             <div
-  //               className={`hidden image-fallback w-full h-full bg-gray-300 flex items-center justify-center ${
-  //                 !imageUrl ? "flex" : ""
-  //               }`}
-  //             >
-  //               <svg
-  //                 className="w-6 h-6 text-gray-400"
-  //                 fill="none"
-  //                 stroke="currentColor"
-  //                 viewBox="0 0 24 24"
-  //               >
-  //                 <path
-  //                   strokeLinecap="round"
-  //                   strokeLinejoin="round"
-  //                   strokeWidth={2}
-  //                   d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-  //                 />
-  //               </svg>
-  //             </div>
-  //           </div>
-  //           <div>
-  //             <div className="font-medium text-gray-900">{item.name}</div>
-  //             <div className="text-sm text-gray-500">{item.slug}</div>
-  //             {item.category_name && (
-  //               <div className="text-xs text-gray-400 mt-1">
-  //                 Category: {item.category_name}
-  //               </div>
-  //             )}
-  //           </div>
-  //         </div>
-  //       );
-  //     },
-  //   },
-  //   {
-  //     key: "services",
-  //     header: "Services",
-  //     render: (item) => (
-  //       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-  //         {item.servicesCount || item.serviceCount || 0} services
-  //       </span>
-  //     ),
-  //   },
-  //   {
-  //     key: "status",
-  //     header: "Status",
-  //     render: (item) => (
-  //       <span
-  //         className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-  //           item.is_active
-  //             ? "bg-green-100 text-green-800"
-  //             : "bg-red-100 text-red-800"
-  //         }`}
-  //       >
-  //         {item.is_active ? "Active" : "Inactive"}
-  //       </span>
-  //     ),
-  //   },
-  //   {
-  //     key: "actions",
-  //     header: "Actions",
-  //     render: (item) => (
-  //       <div className="flex items-center gap-2">
-  //         <button
-  //           onClick={(e) => {
-  //             e.stopPropagation();
-  //             // handleToggleStatus(item._id, item.is_active);
-  //           }}
-  //           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-  //             item.is_active
-  //               ? "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-  //               : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-  //           }`}
-  //         >
-  //           {item.is_active ? "Deactivate" : "Activate"}
-  //         </button>
-  //         <button
-  //           onClick={(e) => e.stopPropagation()}
-  //           className="px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors duration-200 text-sm font-medium"
-  //         >
-  //           Edit
-  //         </button>
-  //       </div>
-  //     ),
-  //   },
-  // ];
+  const handleRowClick = (subcategory: SubcategoryItem) => {
+    // Optional: You can use this for viewing details
+    console.log("View subcategory:", subcategory);
+  };
 
   return (
-    <div className="space-y-8">
-      {/* Header Section */}
+    <div className="space-y-6">
+      {/* Header Section - Futuristic */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Subcategories</h2>
-          <p className="text-gray-600 mt-1">
-            Manage your service subcategories
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 border border-purple-200 dark:border-purple-700/50 flex items-center justify-center">
+              <Layers className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 bg-clip-text text-transparent">
+              Subcategories
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Manage specialized service groups within categories
+            </p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-sky-600 hover:bg-sky-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
+
+        {/* Add Subcategory Button - Futuristic */}
+        <Button
+          onClick={handleAddSubcategory}
+          className="group relative bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white h-11 px-5 rounded shadow-purple-500/20 dark:shadow-purple-500/30 transition-all duration-300 hover:scale-105"
+          size="sm"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Add New Subcategory
-        </button>
+          <div className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            <span className="font-semibold">New Subcategory</span>
+          </div>
+          <div className="absolute -inset-0.5 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-purple-500/20 to-pink-500/20"></div>
+        </Button>
       </div>
 
-      {/* Debug Info */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-bold text-blue-900 mb-2">Subcategories Status</h4>
-        <div className="flex flex-row items-center justify-between gap-4 text-sm font-semibold">
-          <div>
-            <span className="font-medium">Total Subcategories:</span>{" "}
-            {itemsArray.length}
-          </div>
-          <div>
-            <span className="font-medium">Active:</span>{" "}
-            {itemsArray.filter((s) => s.is_active).length}
-          </div>
-          <div>
-            <span className="font-medium">Deactive:</span>{" "}
-            {itemsArray.filter((s) => !s.is_active).length}
+      {/* Stats Cards - Futuristic Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total Subcategories"
+          value={totalSubcategories}
+          icon={ListTree}
+          color="purple"
+          total={totalSubcategories}
+          unit="subcats"
+          compact={false}
+        />
+
+        <StatsCard
+          title="Active"
+          value={activeSubcategories}
+          icon={Server}
+          color="emerald"
+          total={totalSubcategories}
+          unit="online"
+          compact={false}
+        />
+
+        <StatsCard
+          title="Inactive"
+          value={inactiveSubcategories}
+          icon={Network}
+          color="rose"
+          total={totalSubcategories}
+          unit="offline"
+          compact={false}
+        />
+
+        <StatsCard
+          title="Total Services"
+          value={totalServices}
+          icon={Briefcase}
+          color="amber"
+          total={totalServices}
+          unit="services"
+          compact={false}
+        />
+      </div>
+
+      {/* Subcategories Table - Futuristic Design */}
+      <div className="bg-gradient-to-br from-white/50 to-white/30 dark:from-gray-900/30 dark:to-gray-800/20 rounded-2xl border border-gray-200/50 dark:border-gray-700/30 overflow-hidden shadow-xl backdrop-blur-sm">
+        {/* Table Header */}
+        <div className="px-6 py-4 border-b border-gray-200/50 dark:border-gray-700/30 bg-gradient-to-r from-gray-50/50 to-white/30 dark:from-gray-800/20 dark:to-gray-900/20">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Cpu className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Subcategory Grid
+              </h3>
+              <span className="text-xs px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700/30">
+                {subcategoryItems.length} total
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                <Binary className="w-4 h-4 inline mr-1" />
+                Page{" "}
+                <span className="font-bold text-gray-900 dark:text-gray-100">
+                  {currentPage}
+                </span>{" "}
+                of {totalPages}
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Data Table */}
+        <DataTable
+          data={paginatedItems}
+          columns={subcategoryColumns}
+          staticURL={staticURL}
+          keyField="_id"
+          emptyMessage="No subcategories found. Initialize the subcategory grid to begin."
+          emptyIcon={
+            <div className="text-gray-400 dark:text-gray-600">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center">
+                <FolderTree className="w-8 h-8" />
+              </div>
+            </div>
+          }
+          emptyAction={
+            <Button
+              onClick={handleAddSubcategory}
+              className="mt-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg shadow-purple-500/20"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Initialize Subcategory
+            </Button>
+          }
+          onRowClick={handleRowClick}
+          header={null}
+          hover={true}
+          striped={false}
+          compact={false}
+          pagination={{
+            currentPage,
+            totalPages,
+            totalItems: subcategoryItems.length,
+            itemsPerPage,
+            onPageChange: goToPage,
+            onItemsPerPageChange: setItemsPerPage,
+          }}
+        />
       </div>
 
-      {/* Add Subcategory Form */}
-      {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">
-            Create New Subcategory
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={subcategoryFormData.category_id}
-                  onChange={(e) =>
-                    setSubcategoryFormData((prev) => ({
-                      ...prev,
-                      category_id: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200"
-                >
-                  <option value="">Select a category</option>
-                  {activeCategories.map((item: CategoryItem) => (
-                    <option key={item._id} value={item._id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+      {/* Create/Edit Dialog - Futuristic */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-950 border border-gray-200 dark:border-gray-800">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 dark:from-purple-500/30 dark:to-pink-500/30 flex items-center justify-center">
+                {isEditing ? (
+                  <Edit className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                ) : (
+                  <Plus className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                )}
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-500 dark:to-pink-500 bg-clip-text text-transparent">
+                  {isEditing ? "Edit Subcategory" : "Create New Subcategory"}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
+                  {isEditing
+                    ? "Update the subcategory configuration"
+                    : "Initialize a new subcategory node in the system"}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Category Selection */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <FolderTree className="w-4 h-4 text-cyan-600" />
+                Parent Category *
+              </label>
+              <select
+                value={subcategoryFormData.category_id}
+                onChange={(e) =>
+                  setSubcategoryFormData((prev) => ({
+                    ...prev,
+                    category_id: e.target.value,
+                  }))
+                }
+                className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
+                required
+              >
+                <option value="" className="text-gray-400">
+                  Select a category
+                </option>
+                {activeCategories.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Name and Slug */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-purple-600" />
                   Subcategory Name *
                 </label>
                 <input
@@ -473,118 +772,149 @@ const SubcategoryTab = () => {
                       name: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200"
+                  className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200"
                   placeholder="Enter subcategory name"
+                  required
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Slug
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                  <Link className="w-4 h-4 text-gray-500" />
+                  URL Slug
                 </label>
                 <input
                   type="text"
                   value={subcategoryFormData.slug}
                   disabled
-                  className="w-full px-4 py-3 bg-gray-50 text-gray-500 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-700 rounded text-sm"
                   placeholder="Auto-generated slug"
                 />
               </div>
             </div>
 
-            <div className="space-y-6">
+            {/* Description */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Description
+              </label>
+              <textarea
+                className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-all duration-200 resize-none"
+                rows={3}
+                value={subcategoryFormData.description}
+                onChange={(e) =>
+                  setSubcategoryFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                placeholder="Describe what services this subcategory includes..."
+              />
+            </div>
+
+            {/* Image Upload */}
+            <div className="space-y-3">
               <ImageUploadSection
                 onImageSelect={handleImageSelect}
                 previewUrl={subcategoryFormData.subcategory_image_url}
-                label="Subcategory Image *"
+                label={`Subcategory Image ${isEditing ? "(Optional)" : "*"}`}
+                compact={false}
+                futuristic={true}
               />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={subcategoryFormData.description}
-                  onChange={(e) =>
-                    setSubcategoryFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200"
-                  rows={4}
-                  placeholder="Enter subcategory description"
-                />
+            {/* Active Toggle */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CircuitBoard className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Active Status
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Toggle to make this subcategory visible or hidden
+                  </p>
+                </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSubcategoryFormData((prev) => ({
+                        ...prev,
+                        is_active: !prev.is_active,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-300 ${
+                      subcategoryFormData.is_active
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                        : "bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
+                        subcategoryFormData.is_active
+                          ? "translate-x-6"
+                          : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <div
+                    className={`absolute -inset-2 rounded-full blur-sm opacity-0 transition-opacity duration-300 ${
+                      subcategoryFormData.is_active
+                        ? "bg-green-500/20 group-hover:opacity-100"
+                        : "bg-gray-500/20 group-hover:opacity-100"
+                    }`}
+                  ></div>
+                </div>
               </div>
-
-              <ActiveToggle
-                isActive={subcategoryFormData.is_active || false}
-                onChange={(is_active) =>
-                  setSubcategoryFormData((prev) => ({ ...prev, is_active }))
-                }
-                label="Subcategory is active and visible to customers"
-                id="subcategoryIsActive"
-              />
             </div>
           </div>
 
-          <StatusMessage error={error} success={success} />
-
-          <div className="flex gap-3 pt-6 mt-6 border-t border-gray-200">
-            <SubmitButton
-              isSubmitting={isSubmitting}
-              onSubmit={handlePostSubcategory}
-              label="Create Subcategory"
-            />
-            <button
-              type="button"
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
               onClick={() => {
-                setShowForm(false);
+                setDialogOpen(false);
                 resetForm();
               }}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium"
+              className="px-6 py-2.5 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Subcategories Table */}
-      <DataTable
-        data={itemsArray}
-        staticURL={staticURL}
-        columns={subcategoryColumns} // Use the simplified version with automatic image handling
-        keyField="_id"
-        emptyMessage="Get started by creating your first subcategory."
-        emptyIcon={
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-            />
-          </svg>
-        }
-        header={
-          <div className="px-6 py-2">
-            <h3 className="text-lg font-semibold text-gray-800">
-              All Subcategories ({itemsArray.length})
-            </h3>
-          </div>
-        }
-        hover={true}
-        striped={true}
-      />
-
-      {/* Recent Items Section */}
-      <RecentItems dataItem={itemsArray} maxItems={3} />
+            </Button>
+            <Button
+              onClick={handlepostSubcategory}
+              disabled={isSubmitting}
+              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow shadow-purple-500/20 dark:shadow-purple-500/30 transition-all duration-300 hover:scale-105"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>{isEditing ? "Updating..." : "Initializing..."}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <>
+                      <Edit className="w-4 h-4" />
+                      Update Subcategory
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Create Subcategory
+                    </>
+                  )}
+                </div>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
