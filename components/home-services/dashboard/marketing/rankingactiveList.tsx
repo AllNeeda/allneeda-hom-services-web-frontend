@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import GlobalLoader from "@/components/ui/global-loader";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 interface RankingCampaign {
     _id: string;
@@ -385,14 +386,16 @@ export const RankingactiveList = ({ professionalId }: { professionalId: string }
                                                             <div className="w-10 h-10 from-[#0077B6] to-[#40A4FF] rounded-sm flex items-center justify-center">
                                                                 <TrendingUp className="w-5 h-5 text-[#0077B6]" />
                                                             </div>
-                                                            <div className="min-w-0">
-                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-[13px]">
-                                                                    {campaign.package_id?.name || "Ranking Boost"}
-                                                                </h3>
-                                                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
-                                                                    {campaign.credits_used} Credits
-                                                                </p>
-                                                            </div>
+                                                            <Link href={`/home-services/dashboard/marketing/campaignDetails/${campaign._id}`}>
+                                                                <div className="min-w-0">
+                                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px]">
+                                                                        {campaign.package_id?.name || "Ranking Boost"}
+                                                                    </h3>
+                                                                    <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
+                                                                        {campaign.credits_used} Credits
+                                                                    </p>
+                                                                </div>
+                                                            </Link>
                                                         </div>
                                                     </div>
 
