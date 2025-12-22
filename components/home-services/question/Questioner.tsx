@@ -23,7 +23,6 @@ import { useServiceQuestions } from "@/hooks/useHomeServices";
 import { generateLead } from "@/app/api/homepage/generateLead";
 import { toast } from "sonner";
 
-// Define TypeScript interfaces based on API response
 interface Question {
   _id: string;
   service_id: string;
@@ -52,14 +51,6 @@ interface UserInfo {
   files: FileList | null;
 }
 
-// interface Professional {
-//   id: number;
-//   name: string;
-//   rating: number;
-//   completedProjects: number;
-//   specialty: string;
-// }
-
 interface QuestionerProps {
   serviceId: string;
   professionalId: string;
@@ -67,6 +58,7 @@ interface QuestionerProps {
   triggerText?: string;
   className?: string;
   trigger?: React.ReactNode;
+  googleProDatails?: { name: string; phone?: string }[];
 }
 
 // Custom ProgressBar component
@@ -104,6 +96,7 @@ const Questioner = ({
   triggerText = "Request Quotation",
   className,
   trigger,
+  googleProDatails,
 }: QuestionerProps) => {
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [responses, setResponses] = useState<Record<string, string>>({});
@@ -246,6 +239,7 @@ const Questioner = ({
       serviceId,
       responses,
       professionalId,
+      googleProDatails,
       // Narrow the userInfo shape to what the API expects
       userInfo: {
         email: userInfo.email,

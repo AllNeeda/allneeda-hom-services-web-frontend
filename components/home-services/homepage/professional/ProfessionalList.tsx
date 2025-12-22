@@ -19,6 +19,7 @@ import Questioner from "../../question/Questioner";
 import { useEffect, useState } from "react";
 import { getPorfessionalsStaticURL } from "@/app/api/axios";
 import { Professional, GoogleProfessional } from "@/types/professional";
+
 interface ProfessionalListProps {
   professionals: Professional[];
   googleProfessionals?: GoogleProfessional[];
@@ -38,10 +39,7 @@ const transformGoogleProfessional = (
 
   const businessType = googlePro.types?.includes("general_contractor")
     ? "Company"
-    : googlePro.types?.includes("plumber") ||
-      googlePro.types?.includes("electrician")
-    ? "Specialist"
-    : "Business";
+    : "Handyman";
 
   return {
     id: googlePro.place_id,
@@ -56,9 +54,9 @@ const transformGoogleProfessional = (
     distance: 0,
     guarantee: googlePro.business_status === "OPERATIONAL",
     employee_count:
-      businessType === "Company" ? 10 : businessType === "Specialist" ? 3 : 1,
+      businessType === "Company" ? 10 : businessType === "Handyman" ? 1 : 3,
     total_hires: googlePro.user_ratings_total || 0,
-    founded: 2015, // Default year for Google businesses
+    founded: null, // Default year for Google businesses
     background_check: true, // Assume verified by Google
     status:
       googlePro.business_status === "OPERATIONAL"
@@ -73,9 +71,9 @@ const transformGoogleProfessional = (
     }`,
     imageUrl: googlePro.icon || "/assets/home-service/default-service.jpg",
     apiData: {
-      maximum_price: googlePro.price_level ? googlePro.price_level * 100 : 500,
-      minimum_price: googlePro.price_level ? googlePro.price_level * 50 : 100,
-      pricing_type: "hourly",
+      maximum_price: googlePro.price_level ? googlePro.price_level * 100 : "",
+      minimum_price: googlePro.price_level ? googlePro.price_level * 50 : "",
+      pricing_type: "",
       completed_tasks: googlePro.user_ratings_total || 0,
       professional_id: googlePro.place_id,
     },
@@ -94,8 +92,8 @@ export default function ProfessionalList({
   const [BASEDIR, setBaseDir] = useState("");
   const [showGoogleProfessionals, setShowGoogleProfessionals] = useState(true);
 
-  console.log("The professionals: ", professionals);
-  console.log("The google professionals: ", googleProfessionals);
+  // console.log("The professionals: ", professionals);
+  // console.log("The google professionals: ", googleProfessionals);
 
   // Format price range display
   // const formatPriceRange = (min: number, max: number, pricingType: string) => {
@@ -150,6 +148,13 @@ export default function ProfessionalList({
       </div>
     );
   }
+  const googleProDetails: { name: string; phone?: string }[] = [];
+  for (const pro of transformedGooglePros) {
+    googleProDetails.push({
+      name: pro.company,
+      phone: (pro as any).googleData?.formatted_phone_number,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -188,6 +193,7 @@ export default function ProfessionalList({
                 selectedProfessionals={selectedProfessionals}
                 BASEDIR={BASEDIR}
                 isGoogleProfessional={true}
+                googleProDatails={googleProDetails}
                 googleData={(professional as any).googleData}
               />
             ))}
@@ -214,6 +220,7 @@ interface ProfessionalCardProps {
   BASEDIR: string;
   isGoogleProfessional: boolean;
   googleData?: GoogleProfessional;
+  googleProDatails?: { name: string; phone?: string }[];
 }
 
 const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
@@ -223,6 +230,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   BASEDIR,
   isGoogleProfessional,
   googleData,
+  googleProDatails,
 }) => {
   const formatPriceRange = (min: number, max: number, pricingType: string) => {
     if (min === 0 && max === 0) return "Contact for pricing";
@@ -232,9 +240,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
     return `$${min} - $${max}`;
   };
 
-  const calculateYearsInBusiness = (founded: number) => {
-    return new Date().getFullYear() - founded;
-  };
+  // const calculateYearsInBusiness = (founded: number) => {
+  //   return new Date().getFullYear() - founded;
+  // };
 
   return (
     <motion.div
@@ -370,9 +378,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
               {professional.apiData && (
                 <div className="flex items-center text-sm font-medium text-green-600 dark:text-green-400">
                   {formatPriceRange(
-                    professional.apiData.minimum_price,
-                    professional.apiData.maximum_price,
-                    professional.apiData.pricing_type
+                    professional.apiData.minimum_price ?? 0,
+                    professional.apiData.maximum_price ?? 0,
+                    professional.apiData.pricing_type ?? ""
                   )}
                   <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 capitalize">
                     ({professional.apiData.pricing_type.replace("_", " ")})
@@ -412,9 +420,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
             </div>
             <div className="flex items-center truncate">
               <PackageOpen className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span className="truncate">
-                {calculateYearsInBusiness(professional.founded)} years
-              </span>
+              <span className="truncate">years of Experience</span>
             </div>
             <div className="flex items-center truncate">
               <MousePointerClick className="w-3 h-3 mr-1 flex-shrink-0" />
@@ -492,6 +498,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
                 professionalId={professional.id}
                 professionalIds={selectedProfessionals}
                 triggerText="Request Quote"
+                googleProDatails={googleProDatails}
               />
             </>
           ) : (

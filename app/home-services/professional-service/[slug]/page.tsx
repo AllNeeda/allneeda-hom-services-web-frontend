@@ -199,7 +199,7 @@ export default function ProfessionalPage({
           (type) =>
             type.includes("plumber") ||
             type.includes("electrician") ||
-            type.includes("handyman")
+            type.includes("Handyman")
         ) || false
       );
     }

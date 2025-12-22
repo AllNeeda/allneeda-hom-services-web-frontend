@@ -66,6 +66,19 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
   };
 
   const displayServices = services;
+  // Handle location safely
+  let userZipcode = "10003";
+  if (typeof window !== "undefined") {
+    const userLocation = localStorage.getItem("user_location");
+    if (userLocation) {
+      try {
+        const userData = JSON.parse(userLocation);
+        userZipcode = userData?.postcode || userZipcode;
+      } catch {
+        console.warn("Invalid user_location JSON");
+      }
+    }
+  }
 
   return (
     <section className="my-10 px-4">
@@ -112,7 +125,7 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
                 className="col-span-1"
               >
                 <Link
-                  href={`/home-services/professional-service/${slug}`}
+                  href={`/home-services/professional-service/${slug}?id=${id}&zipcode=${userZipcode}`}
                   className="group block h-full rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-gray-100 dark:bg-gray-800"
                   aria-label={`Browse ${name} services`}
                   prefetch={true}

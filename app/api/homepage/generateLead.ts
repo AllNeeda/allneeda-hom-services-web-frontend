@@ -11,6 +11,7 @@ export const generateLead = async (leadData: {
   responses: Record<string, any>;
   professionalId?: string;
   professionalIds?: string[];
+  googleProDetails?: { name: string; phone?: string }[];
   userInfo: {
     email: string;
     phone: string;
@@ -21,6 +22,7 @@ export const generateLead = async (leadData: {
     state?: string;
     postcode?: string;
   };
+  
   sendOption: 'top5' | 'selected';
 }) => {
   console.log("the lead Data posted: ", leadData);
