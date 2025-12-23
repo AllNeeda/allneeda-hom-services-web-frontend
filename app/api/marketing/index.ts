@@ -178,3 +178,63 @@ export const DeleteActivateRankingAPI = async (
     throw handleApiError(error);
   }
 };
+
+export interface VisibilitySettings {
+  total_hire: boolean;
+  last_hire: boolean;
+  last_seen: boolean;
+  last_activity: boolean;
+}
+
+export interface ProfileVisibilityData {
+  visibility_settings: VisibilitySettings;
+  total_hire: number;
+  last_hire_date: string;
+  last_seen: string;
+  last_activity: string;
+  profile_views: number;
+}
+
+// Update all visibility settings at once
+export const UpdateAllVisibilitySettingsAPI = async (data: {
+  settings: VisibilitySettings;
+  token: string;
+}) => {
+  const { settings, token } = data;
+
+  try {
+    const response = await api.put("/marketing/visibility_setting", settings, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+// Update single visibility setting
+export const UpdateSingleVisibilitySettingAPI = async (data: {
+  setting_type: keyof VisibilitySettings;
+  value: boolean;
+  token: string;
+}) => {
+  const { setting_type, value, token } = data;
+
+  try {
+    const response = await api.put(
+      `/marketing/visibility/${setting_type}`,
+      { value },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};

@@ -9,6 +9,9 @@ import {
   RankingCampaignAPI,
   RankingCampaignPayload,
   RankingCampaignResponse,
+  UpdateAllVisibilitySettingsAPI,
+  UpdateSingleVisibilitySettingAPI,
+  VisibilitySettings,
 } from "@/app/api/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -122,3 +125,23 @@ export const useDeleteActivateRanking = () => {
     }) => DeleteActivateRankingAPI(campaign_id, token),
   });
 };
+
+export function useUpdateAllVisibilitySettings() {
+  return useMutation({
+    mutationKey: ["update-all-visibility-settings"],
+    mutationFn: (data: { settings: VisibilitySettings; token: string }) =>
+      UpdateAllVisibilitySettingsAPI(data),
+  });
+}
+
+// Hook to update visibility with optimistic updates
+export function useVisibilityWithOptimisticUpdate() {
+  return useMutation({
+    mutationKey: ["update-visibility-optimistic"],
+    mutationFn: (data: {
+      setting_type: keyof VisibilitySettings;
+      value: boolean;
+      token: string;
+    }) => UpdateSingleVisibilitySettingAPI(data),
+  });
+}
