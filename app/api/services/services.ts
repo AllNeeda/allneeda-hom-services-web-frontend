@@ -296,3 +296,11 @@ export const DeleteServiceLocationAPI = async (
   }
 };
 
+
+// -------------get Service By id------------------
+export const getServiceById = async (serviceId: string) => {
+
+    const response = await api.get(`/services/${serviceId}`);
+    return response.data;
+
+}

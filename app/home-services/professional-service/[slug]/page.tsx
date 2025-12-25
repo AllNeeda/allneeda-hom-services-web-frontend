@@ -1,10 +1,8 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Dialog } from "@headlessui/react";
 import ProfessionalList from "@/components/home-services/homepage/professional/ProfessionalList";
 import Breadcrumbs from "@/components/home-services/homepage/Breadcrumbs";
-import ServiceQuestion from "@/components/home-services/question/ServiceQuestion";
 import { useSearchParams } from "next/navigation";
 import { useTopProfessionals } from "@/hooks/useHomeServices";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
@@ -84,13 +82,13 @@ const transformProfessionalData = (apiData: ApiProfessional[]) => {
     },
   }));
 };
-
+ /* eslint-disable no-unused-vars */
 function ProfessionalTypeFilter({
   selectedType,
   onTypeChange,
 }: {
   selectedType: string;
-  /* eslint-disable no-unused-vars */
+ 
   onTypeChange: (type: string) => void;
   /* eslint-enable no-unused-vars */
 }) {
@@ -130,6 +128,7 @@ function ProfessionalTypeFilter({
   );
 }
 
+/* eslint-disable no-unused-vars */
 export default function ProfessionalPage({
   params,
 }: {
@@ -174,6 +173,7 @@ export default function ProfessionalPage({
       setLoading(false);
     }
   };
+  /* eslint-enable no-unused-vars */
 
   const platformProfessionals = topProfessionals?.data
     ? transformProfessionalData(topProfessionals.data)
@@ -242,13 +242,16 @@ export default function ProfessionalPage({
   }
 
   const userLocationRaw = localStorage.getItem("user_location");
+  /* eslint-disable no-unused-vars */
   let userLocation: any = null;
+   
   try {
     userLocation = userLocationRaw ? JSON.parse(userLocationRaw) : null;
   } catch (e) {
     console.error("Failed to parse user_location from localStorage:", e);
     userLocation = null;
   }
+  /* eslint-enable no-unused-vars */
 
   return (
     <div className="relative bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300 dark:text-gray-100 text-gray-900">
@@ -267,86 +270,15 @@ export default function ProfessionalPage({
           transition={{ duration: 0.5 }}
           className="py-4"
         ></motion.div>
-
-        {/* Mobile Filter Button */}
-        <div className="lg:hidden mb-4">
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className="w-full py-2 px-4 bg-sky-600 text-white rounded-md shadow hover:bg-sky-700 transition-colors"
-          >
-            Filter Professionals
-          </button>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6 order-3">
-          {/* Sidebar Filter - Hidden on mobile */}
-          <div className="hidden lg:block lg:w-1/4">
-            <ServiceQuestion serviceId={slug} />
-          </div>
-
-          <div className="lg:w-2/4 flex-1">
-            <div className="flex flex-row flex-wrap justify-between items-center my-2">
-              <div className="space-y-2">
-                <h1 className="text-md md:text-md font-bold">
-                  Top {filteredProfessionals.length} {formatted} Professionals
-                  in&nbsp;
-                  <u className="text-sky-600 dark:text-sky-400">
-                    {userLocation?.city}, {userLocation?.state}
-                  </u>
-                </h1>
-
-                <ProfessionalTypeFilter
-                  selectedType={selectedType}
-                  onTypeChange={setSelectedType}
-                />
-              </div>
-            </div>
-
+        <div>
             <ProfessionalList
               professionals={filteredProfessionals}
               googleProfessionals={filteredGoogleProfessionals}
               serviceId={service}
               loading={loading || isLoading}
             />
-
-            {filteredProfessionals.length === 0 &&
-              filteredGoogleProfessionals.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 dark:text-gray-400">
-                    No professionals found for the selected filters.
-                  </p>
-                </div>
-              )}
-          </div>
         </div>
       </div>
-
-      {/* Mobile Filter Dialog */}
-      <Dialog
-        open={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        className="fixed inset-0 z-50 overflow-y-auto"
-      >
-        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-        <div className="flex items-center justify-center min-h-screen">
-          <Dialog.Panel className="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full mx-4 p-6 shadow-xl">
-            <Dialog.Title className="text-lg font-bold mb-4">
-              Filter Professionals
-            </Dialog.Title>
-
-            <ServiceQuestion serviceId={slug} />
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setIsFilterOpen(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </Dialog.Panel>
-        </div>
-      </Dialog>
     </div>
   );
 }

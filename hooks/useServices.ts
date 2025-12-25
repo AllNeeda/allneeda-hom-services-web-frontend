@@ -3,6 +3,7 @@ import {
   DeleteServiceAPI,
   DeleteServiceLocationAPI,
   GetProfessionalServicesAPI,
+  getServiceById,
   GetServiceByIdAPI,
   GetServiceLocationByIdAPI,
   GetServicesAPI,
@@ -418,3 +419,14 @@ export const useDeleteServiceLocation = () => {
     },
   });
 };
+
+
+// ----------------Get Service By id-----------------
+export const useServiceById = (serviceId: string) => {
+  return useQuery({
+    queryKey: ['serviceData', serviceId],
+    queryFn: () => getServiceById(serviceId),
+    enabled: !!serviceId,
+    staleTime: 5*60*1000,
+  });
+}

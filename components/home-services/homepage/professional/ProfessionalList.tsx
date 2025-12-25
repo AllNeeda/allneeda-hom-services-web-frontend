@@ -1,24 +1,22 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Star,
   BadgeCheck,
-  PackageOpen,
-  IdCardLanyard,
-  MousePointerClick,
-  OctagonAlert,
-  Check,
-  MapPin,
-  Phone,
+  Sparkles,
+  Filter,
+  ChartLine,
+  Trophy,
+  CircleDollarSign,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Questioner from "../../question/Questioner";
-import { useEffect, useState } from "react";
-import { getPorfessionalsStaticURL } from "@/app/api/axios";
+import { getPorfessionalsStaticURL, getStaticURL } from "@/app/api/axios";
 import { Professional, GoogleProfessional } from "@/types/professional";
+import { useServiceById } from "@/hooks/useServices";
 
 interface ProfessionalListProps {
   professionals: Professional[];
@@ -28,7 +26,7 @@ interface ProfessionalListProps {
   loading?: boolean;
 }
 
-// Transform Google professional data to match the Professional interface
+// Transform Google professional data
 const transformGoogleProfessional = (
   googlePro: GoogleProfessional
 ): Professional => {
@@ -56,8 +54,8 @@ const transformGoogleProfessional = (
     employee_count:
       businessType === "Company" ? 10 : businessType === "Handyman" ? 1 : 3,
     total_hires: googlePro.user_ratings_total || 0,
-    founded: null, // Default year for Google businesses
-    background_check: true, // Assume verified by Google
+    founded: null,
+    background_check: true,
     status:
       googlePro.business_status === "OPERATIONAL"
         ? "Available"
@@ -66,9 +64,7 @@ const transformGoogleProfessional = (
       googlePro.name
     } is a ${businessType.toLowerCase()} providing ${
       googlePro.types?.join(", ") || "professional services"
-    } in the area. ${
-      googlePro.opening_hours?.open_now ? "Currently open for business." : ""
-    }`,
+    } in the area.`,
     imageUrl: googlePro.icon || "/assets/home-service/default-service.jpg",
     apiData: {
       maximum_price: googlePro.price_level ? googlePro.price_level * 100 : "",
@@ -77,38 +73,197 @@ const transformGoogleProfessional = (
       completed_tasks: googlePro.user_ratings_total || 0,
       professional_id: googlePro.place_id,
     },
-    // Store original Google data for display
     ...({ googleData: googlePro } as any),
   };
+};
+
+// Compact Filter Component
+interface CompactFilterProps {
+  professionals: Professional[];
+  googleProfessionals: Professional[];
+  /* eslint-disable no-unused-vars */
+  onFilterChange: (filters: FilterState) => void;
+  /* eslint-enable no-unused-vars */
+}
+
+interface FilterState {
+  type: string[];
+  rating: number;
+  priceRange: [number, number];
+  availability: string[];
+  verifiedOnly: boolean;
+  sortBy: string;
+}
+
+/* eslint-disable no-unused-vars */
+const CompactFilter: React.FC<CompactFilterProps> = ({
+/*eslint-enable no-unused-vars */
+  professionals,
+  googleProfessionals,
+  onFilterChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    type: [],
+    rating: 0,
+    priceRange: [0, 10000],
+    availability: [],
+    verifiedOnly: false,
+    sortBy: "rating",
+  });
+
+  const allProfessionals = [...professionals, ...googleProfessionals];
+  const maxPrice = Math.max(
+    ...allProfessionals.map((p) => p.apiData?.maximum_price || 0),
+    10000
+  );
+
+  const updateFilter = (key: keyof FilterState, value: any) => {
+    const newFilters = { ...filters, [key]: value };
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
+  const resetFilters = () => {
+    const defaultFilters: FilterState = {
+      type: [],
+      rating: 0,
+      priceRange: [0, maxPrice] as [number, number],
+      availability: [],
+      verifiedOnly: false,
+      sortBy: "rating",
+    };
+    setFilters(defaultFilters);
+    onFilterChange(defaultFilters);
+  };
+
+  return (
+    <div className="relative">
+      {/* Filter Button */}
+      <Button
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative overflow-hidden group bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg border-0 shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.5)]"
+      >
+        <div className="flex items-center gap-2 relative z-10">
+          <Filter className="w-4 h-4" />
+          <span>Filters</span>
+        </div>
+      </Button>
+
+      {/* Compact Filter Panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="absolute top-full left-0 mt-2 w-72 bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 rounded-xl p-4 shadow-xl z-50"
+          >
+            <div className="space-y-4">
+              {/* Quick Filters */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => updateFilter("rating", 4)}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                    filters.rating === 4
+                      ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
+                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  4+ Stars
+                </button>
+                <button
+                  onClick={() => updateFilter("availability", ["Available"])}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                    filters.availability.includes("Available")
+                      ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  Available
+                </button>
+                <button
+                  onClick={() => updateFilter("verifiedOnly", !filters.verifiedOnly)}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                    filters.verifiedOnly
+                      ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
+                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  Verified
+                </button>
+              </div>
+
+              {/* Sort Options */}
+              <div>
+                <label className="block text-xs font-medium text-gray-300 mb-2">
+                  Sort By
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "rating", label: "Rating" },
+                    { value: "reviews", label: "Reviews" },
+                    { value: "price-low", label: "Price Low" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => updateFilter("sortBy", option.value)}
+                      className={`px-3 py-1 text-xs rounded-lg transition-all ${
+                        filters.sortBy === option.value
+                          ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={resetFilters}
+                  size="sm"
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs"
+                >
+                  Reset
+                </Button>
+                <Button
+                  onClick={() => setIsOpen(false)}
+                  size="sm"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs"
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
 export default function ProfessionalList({
   professionals,
   googleProfessionals = [],
-  // selectedType,
   serviceId,
   loading = false,
 }: ProfessionalListProps) {
   const [BASEDIR, setBaseDir] = useState("");
+  /* eslint-disable no-unused-vars */
   const [showGoogleProfessionals, setShowGoogleProfessionals] = useState(true);
-
-  // console.log("The professionals: ", professionals);
-  // console.log("The google professionals: ", googleProfessionals);
-
-  // Format price range display
-  // const formatPriceRange = (min: number, max: number, pricingType: string) => {
-  //   if (min === 0 && max === 0) return "Contact for pricing";
-  //   if (pricingType === "fixed") {
-  //     return `$${min}`;
-  //   }
-  //   return `$${min} - $${max}`;
-  // };
-
-  // Calculate years in business (simplified)
-  // const calculateYearsInBusiness = (founded: number) => {
-  //   const currentYear = new Date().getFullYear();
-  //   return currentYear - founded;
-  // };
+  /* eslint-enable no-unused-vars */
+  const [isRatingExpanded, setIsRatingExpanded] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    type: [],
+    rating: 0,
+    priceRange: [0, 10000],
+    availability: [],
+    verifiedOnly: false,
+    sortBy: "rating",
+  });
 
   const selectedProfessionals: string[] = professionals.map((item) => item.id);
 
@@ -117,103 +272,462 @@ export default function ProfessionalList({
     setShowGoogleProfessionals(true);
   }, []);
 
-  // Transform Google professionals
   const transformedGooglePros = googleProfessionals.map(
     transformGoogleProfessional
   );
 
-  // Combine all professionals
   const allProfessionals = [...professionals, ...transformedGooglePros];
+  const maxPrice = Math.max(
+    ...allProfessionals.map((p) => p.apiData?.maximum_price || 0),
+    10000
+  );
+
+  // Apply filters
+  const filteredProfessionals = allProfessionals.filter((pro) => {
+    // Rating filter
+    if (pro.rating < filters.rating) {
+      return false;
+    }
+
+    // Price filter
+    const minPrice = pro.apiData?.minimum_price || 0;
+    const maxPrice = pro.apiData?.maximum_price || 0;
+    if (minPrice < filters.priceRange[0] || maxPrice > filters.priceRange[1]) {
+      return false;
+    }
+
+    // Availability filter
+    if (filters.availability.includes("Available") && pro.status !== "Available") {
+      return false;
+    }
+
+    // Verified filter
+    if (filters.verifiedOnly && !pro.guarantee) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Sort professionals
+  const sortedProfessionals = [...filteredProfessionals].sort((a, b) => {
+    switch (filters.sortBy) {
+      case "rating":
+        return b.rating - a.rating;
+      case "price-low":
+        return (a.apiData?.minimum_price || 0) - (b.apiData?.minimum_price || 0);
+      case "reviews":
+        return b.total_hires - a.total_hires;
+      default:
+        return 0;
+    }
+  });
+
+  const resetFilters = () => {
+    setFilters({
+      type: [],
+      rating: 0,
+      priceRange: [0, maxPrice] as [number, number],
+      availability: [],
+      verifiedOnly: false,
+      sortBy: "rating",
+    });
+  };
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md animate-pulse border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex gap-4">
-                <div className="w-24 h-24 bg-gray-300 dark:bg-gray-700 rounded"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
-                  <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 rounded-xl animate-pulse border border-gray-700"
+          >
+            <div className="flex gap-3">
+              <div className="w-16 h-16 bg-gray-700 rounded-lg"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-gray-700 rounded w-3/4"></div>
+                <div className="h-2 bg-gray-700 rounded w-1/2"></div>
+                <div className="h-2 bg-gray-700 rounded w-2/3"></div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     );
   }
-  const googleProDetails: { name: string; phone?: string }[] = [];
-  for (const pro of transformedGooglePros) {
-    googleProDetails.push({
-      name: pro.company,
-      phone: (pro as any).googleData?.formatted_phone_number,
-    });
-  }
+
+  const googleProDetails = transformedGooglePros.map((pro) => ({
+    name: pro.company,
+    phone: (pro as any).googleData?.formatted_phone_number,
+  }));
 
   return (
-    <div className="space-y-6">
-      {/* Regular Platform Professionals */}
-      {professionals.length > 0 && (
-        <div className="space-y-4">
-          {professionals.length > 0 && transformedGooglePros.length > 0 && (
-            <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">
-              Platform Professionals ({professionals.length})
+    <div className="flex gap-6">
+      {/* Sidebar - 30% - Rich Filter */}
+      <div className="w-[30%] sticky top-12 self-start">
+        <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-xl p-6 border border-gray-700/50 shadow-xl">
+          {/* Filter Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Filter & Sort
+            </h2>
+            <button
+              onClick={resetFilters}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Clear All
+            </button>
+          </div>
+
+          {/* Sort By Section */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              Sort By
             </h3>
-          )}
-          <div className="grid gap-4">
-            {professionals.map((professional) => (
-              <ProfessionalCard
-                key={professional.id}
-                professional={professional}
-                serviceId={serviceId}
-                selectedProfessionals={selectedProfessionals}
-                BASEDIR={BASEDIR}
-                isGoogleProfessional={false}
-              />
-            ))}
+            <div className="space-y-2">
+             {[
+                { value: "rating", label: "Highest Rating", icon: Star },
+                { value: "price-low", label: "Price: Low to High", icon: CircleDollarSign },
+                { value: "reviews", label: "Most Reviews", icon: ChartLine },
+                { value: "experience", label: "Most Experience", icon: Trophy },
+              ].map((option) => {
+                const IconComponent = option.icon;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setFilters({...filters, sortBy: option.value})}
+                    className={`flex items-center gap-3 w-full text-left p-3 rounded-lg transition-all ${
+                      filters.sortBy === option.value
+                        ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                        : "bg-gray-800/50 hover:bg-gray-800"
+                    }`}
+                  >
+                    <IconComponent className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-300">{option.label}</span>
+                    {filters.sortBy === option.value && (
+                      <span className="ml-auto text-purple-400">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Rating Filter - Expandable */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4 cursor-pointer rounded border border-gray-700 p-4" onClick={() => setIsRatingExpanded(!isRatingExpanded)}>
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4"/>
+                <h3 className="text-sm font-semibold text-gray-300">Rating sort</h3>
+              </div>
+              <svg 
+                className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isRatingExpanded ? 'rotate-180' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            
+            <AnimatePresence>
+              {isRatingExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-2 pt-2">
+                    {[4, 3, 2, 1, 0].map((rating) => (
+                      <button
+                        key={rating}
+                        onClick={() => setFilters({...filters, rating})}
+                        className={`flex items-center justify-between w-full p-3 rounded-lg transition-all ${
+                          filters.rating === rating
+                            ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30"
+                            : "bg-gray-800/50 hover:bg-gray-800"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <svg
+                                key={i}
+                                className={`w-4 h-4 ${i < rating ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}`}
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-sm text-gray-300">
+                            {rating === 0 ? "Any Rating" : `${rating}+ Stars`}
+                          </span>
+                        </div>
+                        {filters.rating === rating && (
+                          <span className="text-yellow-400">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Price Range */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Price Range
+            </h3>
+            <div className="space-y-4 px-2">
+              <div className="flex justify-between text-sm text-gray-400 mb-2">
+                <span>${filters.priceRange[0]}</span>
+                <span>${filters.priceRange[1]}</span>
+              </div>
+              <div className="relative h-2 bg-gray-700 rounded-full">
+                <div 
+                  className="absolute h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                  style={{
+                    left: `${(filters.priceRange[0] / maxPrice) * 100}%`,
+                    width: `${((filters.priceRange[1] - filters.priceRange[0]) / maxPrice) * 100}%`
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max={maxPrice}
+                  step="100"
+                  value={filters.priceRange[0]}
+                  onChange={(e) => setFilters({
+                    ...filters,
+                    priceRange: [parseInt(e.target.value), filters.priceRange[1]] as [number, number]
+                  })}
+                  className="absolute w-full h-2 appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer"
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max={maxPrice}
+                  step="100"
+                  value={filters.priceRange[1]}
+                  onChange={(e) => setFilters({
+                    ...filters,
+                    priceRange: [filters.priceRange[0], parseInt(e.target.value)] as [number, number]
+                  })}
+                  className="absolute w-full h-2 appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-pointer"
+                />
+              </div>
+              <div className="flex justify-center gap-4 mt-4">
+                {[500, 1000, 5000].map((price) => (
+                  <button
+                    key={price}
+                    onClick={() => setFilters({
+                      ...filters,
+                      priceRange: [0, price] as [number, number]
+                    })}
+                    className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+                  >
+                    Under ${price}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Business Type */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Business Type
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "Company", color: "from-blue-500 to-purple-500" },
+                { value: "Handyman", color: "from-orange-500 to-red-500" },
+                { value: "Individual", color: "from-green-500 to-emerald-500" },
+                { value: "Contractor", color: "from-purple-500 to-pink-500" },
+              ].map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => {
+                    const newTypes = filters.type.includes(type.value)
+                      ? filters.type.filter((t) => t !== type.value)
+                      : [...filters.type, type.value];
+                    setFilters({...filters, type: newTypes});
+                  }}
+                  className={`p-3 rounded-lg text-sm transition-all ${
+                    filters.type.includes(type.value)
+                      ? `bg-gradient-to-r ${type.color} text-white`
+                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  {type.value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Filters */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+              <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Quick Filters
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setFilters({
+                  ...filters,
+                  verifiedOnly: !filters.verifiedOnly
+                })}
+                className={`p-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
+                  filters.verifiedOnly
+                    ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Verified
+              </button>
+              <button
+                onClick={() => {
+                  const newAvailability = filters.availability.includes("Available")
+                    ? filters.availability.filter((a) => a !== "Available")
+                    : [...filters.availability, "Available"];
+                  setFilters({...filters, availability: newAvailability});
+                }}
+                className={`p-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
+                  filters.availability.includes("Available")
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Available Now
+              </button>
+              <button
+                onClick={() => setFilters({
+                  ...filters,
+                  rating: 4,
+                  verifiedOnly: true
+                })}
+                className="col-span-2 p-3 rounded-lg text-sm bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-gray-300 hover:from-purple-500/30 hover:to-pink-500/30 transition-all border border-purple-500/30"
+              >
+                ⭐ Premium Only (4+ stars & verified)
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Google Professionals */}
-      {showGoogleProfessionals && transformedGooglePros.length > 0 && (
-        <div className="space-y-4">
-          <div className="grid gap-4">
-            {transformedGooglePros.map((professional) => (
-              <ProfessionalCard
-                key={professional.id}
-                professional={professional}
-                serviceId={serviceId}
-                selectedProfessionals={selectedProfessionals}
-                BASEDIR={BASEDIR}
-                isGoogleProfessional={true}
-                googleProDatails={googleProDetails}
-                googleData={(professional as any).googleData}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {allProfessionals.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 dark:text-gray-400">
-            No professionals found for the selected filters.
+      {/* Main Content - 70% */}
+      <div className="w-[70%]">
+        {/* Header */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Professionals
+          </h2>
+          <p className="text-sm text-gray-400 mt-2">
+            Showing {sortedProfessionals.length} of {allProfessionals.length} professionals
           </p>
         </div>
-      )}
+
+        {/* Active Filters Badges */}
+        {Object.values(filters).some((filter) => 
+          Array.isArray(filter) ? filter.length > 0 : 
+          typeof filter === 'boolean' ? filter :
+          typeof filter === 'number' ? filter > 0 :
+          filter !== 'rating'
+        ) && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {filters.rating > 0 && (
+              <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 rounded-full text-sm border border-yellow-500/30 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                {filters.rating}+ Stars
+              </span>
+            )}
+            {filters.verifiedOnly && (
+              <span className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 rounded-full text-sm border border-green-500/30 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Verified Only
+              </span>
+            )}
+            {filters.availability.includes("Available") && (
+              <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Available Now
+              </span>
+            )}
+            {filters.type.map((type) => (
+              <span
+                key={type}
+                className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30"
+              >
+                {type}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Compact Professionals Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+          {sortedProfessionals.map((professional) => (
+            <CompactProfessionalCard
+              key={professional.id}
+              professional={professional}
+              serviceId={serviceId}
+              selectedProfessionals={selectedProfessionals}
+              BASEDIR={BASEDIR}
+              isGoogleProfessional={transformedGooglePros.some(gp => gp.id === professional.id)}
+              googleProDatails={googleProDetails}
+              googleData={(professional as any).googleData}
+            />
+          ))}
+        </div>
+
+        {sortedProfessionals.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-gray-800 to-gray-900 rounded-full flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-gray-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-300 mb-2">
+              No Professionals Found
+            </h3>
+            <p className="text-gray-500 text-sm">
+              Try adjusting your filters
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-// Professional Card Component
-interface ProfessionalCardProps {
+// Compact Professional Card Component
+interface CompactProfessionalCardProps {
   professional: Professional;
   serviceId: string;
   selectedProfessionals: string[];
@@ -223,7 +737,7 @@ interface ProfessionalCardProps {
   googleProDatails?: { name: string; phone?: string }[];
 }
 
-const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
+const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
   professional,
   serviceId,
   selectedProfessionals,
@@ -232,296 +746,257 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   googleData,
   googleProDatails,
 }) => {
-  const formatPriceRange = (min: number, max: number, pricingType: string) => {
-    if (min === 0 && max === 0) return "Contact for pricing";
-    if (pricingType === "fixed") {
-      return `$${min}`;
-    }
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  const formatPrice = (min: number, max: number) => {
+    if (min === 0 && max === 0) return "Contact for price";
+    if (min === max) return `$${min}`;
     return `$${min} - $${max}`;
   };
 
-  // const calculateYearsInBusiness = (founded: number) => {
-  //   return new Date().getFullYear() - founded;
-  // };
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Available":
+        return "bg-gradient-to-r from-green-500 to-emerald-500";
+      case "Open Now":
+        return "bg-gradient-to-r from-blue-500 to-cyan-500";
+      default:
+        return "bg-gradient-to-r from-gray-600 to-gray-700";
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "Company":
+        return "from-blue-500 to-purple-500";
+      case "Handyman":
+        return "from-orange-500 to-red-500";
+      default:
+        return "from-gray-500 to-gray-600";
+    }
+  };
+
+  const currentStatus = googleData?.opening_hours?.open_now 
+    ? "Open Now" 
+    : professional.status;
+
+  const {data: serviceData} = useServiceById(serviceId);
+  const service = serviceData?.data || [];
+  const serviceBaseUrl = getStaticURL();
+  const constructedImageUrl = `${serviceBaseUrl}/${service.image_url}`;
+
+  const getImageSrc = () => {
+    if (isGoogleProfessional) {
+      return constructedImageUrl;
+    }
+    return `${BASEDIR}/${professional.imageUrl}`;
+  };
+
+  // Handle image loading errors
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log("Image failed to load, using fallback");
+    setImageError(true);
+    const target = e.target as HTMLImageElement;
+    target.style.display = "none";
+  };
+
+  const handleImageLoad = () => {
+    console.log("Image loaded successfully");
+    setImageLoaded(true);
+  };
 
   return (
     <motion.div
-      key={professional.id}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
-      className={`bg-white p-4 dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border transition-all duration-300 ${
-        isGoogleProfessional
-          ? "border-blue-200 dark:border-blue-900"
-          : "border-gray-200 dark:border-gray-700"
-      }`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: -2 }}
+      className="relative group"
     >
-      {/* Top Row: Image + Basic Info */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Image */}
-        <div className="w-full h-32 sm:w-24 sm:h-24 relative flex-shrink-0">
-          {professional.imageUrl ? (
-            <Image
-              src={
-                isGoogleProfessional
-                  ? professional.imageUrl // Google images are already full URLs
-                  : `${BASEDIR}/${professional.imageUrl}` // Local images need BASEDIR
-              }
-              fill
-              alt={professional.company}
-              className="object-cover rounded"
-              sizes="(max-width: 640px) 100vw, 96px"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm rounded">
-              {isGoogleProfessional ? (
-                <div className="text-center p-2">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-1">
-                    <span className="text-blue-600 dark:text-blue-300 font-bold">
-                      G
-                    </span>
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+
+      <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700/50 overflow-hidden h-full">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+
+        <div className="flex flex-col h-full">
+          <div className="flex gap-6 mb-4 items-center justify-start flex-row">
+            <div className="relative w-25 h-25 flex-shrink-0">
+              {professional.imageUrl || (isGoogleProfessional && constructedImageUrl) ? (
+                <>
+                  <Image
+                    src={getImageSrc()}
+                    fill
+                    alt={professional.company}
+                    className="object-cover rounded-full ring-2 ring-sky-500 ring-offset-gray-900 ring-offset-4 transition-opacity duration-300"
+                    sizes="64px"
+                    onError={handleImageError}
+                    onLoad={handleImageLoad}
+                    style={{ 
+                      opacity: imageLoaded ? 1 : 0,
+                      transition: 'opacity 0.3s ease-in-out'
+                    }}
+                  />
+                  {!imageLoaded && !imageError && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg animate-pulse" />
+                  )}
+                </>
+              ) : null}
+              
+              {/* Fallback UI when no image loads */}
+              {(imageError || !professional.imageUrl) && (
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    {isGoogleProfessional ? (
+                      <>
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-1 shadow-lg">
+                          <span className="text-white text-lg font-bold">
+                            {professional.company
+                              .split(' ')
+                              .map(word => word.charAt(0))
+                              .slice(0, 2)
+                              .join('')
+                              .toUpperCase()}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-gray-700 to-gray-800 rounded-full flex items-center justify-center mx-auto mb-1">
+                          <span className="text-white text-lg font-bold">
+                            {professional.company.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-400">{professional.company}</span>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs">Google</span>
                 </div>
-              ) : (
-                "No Image"
+              )}
+              
+              {/* Verified Badge */}
+              {professional.guarantee && (
+                <div className="absolute bottom-2 -right-3">
+                  <BadgeCheck fill="white" className="w-6 h-6 text-sky-500 drop-shadow-lg" />
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Basic Info */}
-        <div className="flex-1 flex flex-col justify-between min-w-0">
-          <div className="flex justify-between items-start gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+            {/* Company Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col items-start justify-start gap-2">
+                <h3 className="font-bold text-white truncate text-sm">
+                  {professional.company}
+                </h3>
+                <div className="flex flex-row items-center gap-2">
+                  {/* Rating */}
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    <span className="text-xs font-bold text-white">
+                      {professional.rating > 0 ? professional.rating.toFixed(1) : "New"}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    ({professional.total_hires})
+                  </span>
+                </div>
+              </div>
+
+              {/* Type Badge */}
+              <div className="mt-2">
+                <span className={`inline-block px-2 py-0.5 text-xs font-medium bg-gradient-to-r ${getTypeColor(professional.type)} text-white rounded-full`}>
                   {professional.type}
                 </span>
-                {isGoogleProfessional && (
-                  <span className="text-xs font-medium px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full">
-                    Google Verified
-                  </span>
-                )}
-                <h2 className="text-md font-semibold truncate">
-                  {professional.company}
-                </h2>
               </div>
-
-              {/* Rating */}
-              <div className="flex items-center mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-3 h-3 ${
-                      i < Math.floor(professional.rating)
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-300 dark:text-gray-600"
-                    }`}
-                  />
-                ))}
-                <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">
-                  {professional.rating > 0
-                    ? professional.rating.toFixed(1)
-                    : "No ratings"}
-                </span>
-                <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {professional.total_hires}{" "}
-                  {isGoogleProfessional ? "reviews" : "hires"}
-                </span>
-                {isGoogleProfessional && googleData?.opening_hours && (
-                  <>
-                    <span className="mx-2 text-gray-300 dark:text-gray-600">
-                      •
-                    </span>
-                    <span
-                      className={`text-xs ${
-                        googleData.opening_hours.open_now
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {googleData.opening_hours.open_now
-                        ? "Open Now"
-                        : "Closed"}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Google-specific info */}
-              {isGoogleProfessional && googleData && (
-                <div className="space-y-1 mb-2">
-                  <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                    <MapPin className="w-3 h-3 mr-1" />
-                    {/* <span className="truncate">
-                      {googleData.formatted_address}
-                    </span> */}
-                    <span className="truncate">************************</span>
-                  </div>
-                  {googleData.formatted_phone_number && (
-                    <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                      <Phone className="w-3 h-3 mr-1" />
-                      {/* <span>{googleData.formatted_phone_number}</span> */}
-                      <span className="text-gray-500">*** ************</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Price Range */}
-              {professional.apiData && (
-                <div className="flex items-center text-sm font-medium text-green-600 dark:text-green-400">
-                  {formatPriceRange(
-                    professional.apiData.minimum_price ?? 0,
-                    professional.apiData.maximum_price ?? 0,
-                    professional.apiData.pricing_type ?? ""
-                  )}
-                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400 capitalize">
-                    ({professional.apiData.pricing_type.replace("_", " ")})
-                  </span>
-                </div>
-              )}
             </div>
-            <span
-              className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ${
-                professional.status === "Available"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-100"
-                  : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100"
-              }`}
-            >
-              {professional.status}
-            </span>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-1 mt-2 text-xs text-gray-600 dark:text-gray-300">
-            <div className="flex items-center truncate">
-              {professional.guarantee ? (
-                <BadgeCheck className="w-3 h-3 text-green-500 mr-1 flex-shrink-0" />
-              ) : (
-                <OctagonAlert className="w-3 h-3 text-red-500 mr-1 flex-shrink-0" />
-              )}
-              <span className="truncate">
-                {isGoogleProfessional ? "Google Verified" : "Guarantee"}
-              </span>
-            </div>
-            <div className="flex items-center truncate">
-              <IdCardLanyard className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span className="truncate">
-                {professional.employee_count}{" "}
-                {professional.employee_count === 1 ? "Employee" : "Employees"}
-              </span>
-            </div>
-            <div className="flex items-center truncate">
-              <PackageOpen className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span className="truncate">years of Experience</span>
-            </div>
-            <div className="flex items-center truncate">
-              <MousePointerClick className="w-3 h-3 mr-1 flex-shrink-0" />
-              <span className="truncate">
-                {professional.apiData?.completed_tasks || 0}{" "}
-                {isGoogleProfessional ? "reviews" : "tasks"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+          {/* Introduction / Description */}
+          <p className="text-xs text-gray-300 line-clamp-2 mb-3 flex-1">
+            {professional.description}
+          </p>
 
-      {/* Bottom Row: Description + Services + Button */}
-      <div className="dark:border-gray-700 pt-2 mt-2">
-        {/* Description */}
-        <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
-          {professional.description}
-        </p>
-
-        {/* Services */}
-        {professional.services?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
-            {professional.services.slice(0, 3).map((service, idx) => (
-              <span
-                key={idx}
-                className="flex items-center text-xs border border-green-200 bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-200 px-2 py-0.5 rounded-full flex-shrink-0"
-              >
-                <Check className="w-3 h-3 mr-1" />
-                <span className="truncate max-w-[100px] sm:max-w-none">
+          {/* Services */}
+          <div className="mb-3">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs font-medium text-gray-400">Services:</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {professional.services?.map((service, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 bg-gray-800 text-gray-300 rounded text-xs border border-gray-700"
+                >
                   {service}
                 </span>
-              </span>
-            ))}
-            {professional.services.length > 3 && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                +{professional.services.length - 3} more
-              </span>
-            )}
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* Button */}
-        <div className="flex justify-end gap-2 items-center">
-          {isGoogleProfessional ? (
-            <>
-              {/* {googleData?.website && (
-                <Button
-                  type="button"
-                  className="bg-green-600 dark:bg-green-500 dark:hover:bg-green-600 hover:bg-green-500 rounded-xs text-white font-semibold text-sm px-4 py-2 flex items-center gap-1"
-                  onClick={() => window.open(googleData.website, "_blank")}
-                >
-                  <Globe className="w-4 h-4" />
-                  Visit Website
-                </Button>
+          {/* Bottom Info */}
+          <div className="mt-auto">
+            {/* Status & Price */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 text-xs font-medium text-white rounded-full ${getStatusColor(currentStatus)}`}>
+                  {currentStatus}
+                </span>
+                {isGoogleProfessional && (
+                  <span className="text-xs px-2 py-0.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 rounded-full border border-blue-500/30">
+                    Google
+                  </span>
+                )}
+              </div>
+              
+              {professional.apiData && (
+                <div className="text-right">
+                  <div className="text-xs font-bold text-white">
+                    {formatPrice(
+                      professional.apiData.minimum_price ?? 0,
+                      professional.apiData.maximum_price ?? 0
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {professional.apiData.pricing_type === "fixed" ? "Fixed" : "Range"}
+                  </div>
+                </div>
               )}
-              <Button
-                type="button"
-                className="bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-600 hover:bg-blue-500 rounded-xs text-white font-semibold text-sm px-4 py-2 flex items-center gap-1"
-                onClick={() =>
-                  window.open(
-                    googleData?.url ||
-                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        professional.company
-                      )}&query_place_id=${professional.id}`,
-                    "_blank"
-                  )
-                }
-              >
-                <MapPin className="w-4 h-4" />
-                View on Maps
-              </Button> */}
-              <Questioner
-                className="bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 hover:bg-sky-500 px-4 py-2 rounded-xs text-white font-semibold text-sm flex items-center gap-1"
-                serviceId={serviceId}
-                professionalId={professional.id}
-                professionalIds={selectedProfessionals}
-                triggerText="Request Quote"
-                googleProDatails={googleProDatails}
-              />
-            </>
-          ) : (
-            <>
-              <Questioner
-                className="bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 hover:bg-sky-500 px-4 py-2 rounded-xs text-white font-semibold text-sm"
-                serviceId={serviceId}
-                professionalId={professional.id}
-                professionalIds={selectedProfessionals}
-                triggerText="Request Quotation"
-              />
-              <Button
-                type="button"
-                className="bg-sky-600 dark:bg-sky-500 dark:hover:bg-sky-600 hover:bg-sky-500 rounded-xs text-white font-semibold text-sm px-4 py-2"
-              >
-                <Link
-                  href={`/home-services/professional-profile/${professional.id}`}
-                >
-                  View Details
-                </Link>
-              </Button>
-            </>
-          )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              {isGoogleProfessional ? (
+                <Questioner
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-medium py-2 rounded transition-all duration-300 group"
+                  serviceId={serviceId}
+                  professionalId={professional.id}
+                  professionalIds={selectedProfessionals}
+                  triggerText={'Request Quotation'
+                  }
+                  googleProDatails={googleProDatails}
+                />
+              ) : (
+                <>
+                  <Questioner
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-medium py-2 rounded transition-all duration-300 group"
+                    serviceId={serviceId}
+                    professionalId={professional.id}
+                    professionalIds={selectedProfessionals}
+                    triggerText={'Request Quotation'
+                    }
+                  />
+                  <Button
+                    asChild
+                    size="sm"
+                    className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium py-2 h-auto rounded-lg border border-gray-700"
+                  >
+                    <Link href={`/home-services/professional-profile/${professional.id}`}>
+                      View
+                    </Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>
