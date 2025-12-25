@@ -1,32 +1,44 @@
 // src/components/marketing-hub/ProfileVisibility.tsx
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  XIcon,
+  SettingsIcon,
+  MonitorIcon,
+  UsersIcon,
+  CalendarIcon,
+  ClockIcon,
+  TrendingUpIcon
+} from "lucide-react";
 import { getAccessToken } from "@/app/api/axios";
-import GlobalLoader from "@/components/ui/global-loader";
 import {
   useUpdateAllVisibilitySettings,
   useVisibilityWithOptimisticUpdate
 } from "@/hooks/useMarketing";
 import { useGetServices } from "@/hooks/useServices";
-import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
+import ProfilePreview from "./ProfilePreview";
+import GlobalLoader from "@/components/ui/global-loader";
+
 interface VisibilitySettings {
   total_hire: boolean;
   last_hire: boolean;
   last_activity: boolean;
   last_seen: boolean;
 }
+
 const ProfileVisibility: React.FC = () => {
   const token = getAccessToken();
   const { data: profileData, isLoading, error, refetch } = useGetServices(token!);
   const { mutate: updateAllSettings, isPending: isUpdatingAll } = useUpdateAllVisibilitySettings();
   const { mutate: updateWithOptimistic, isPending: isUpdatingSingle } = useVisibilityWithOptimisticUpdate();
-
   const [activeTab, setActiveTab] = useState("settings");
   const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>({
     total_hire: true,
@@ -34,6 +46,7 @@ const ProfileVisibility: React.FC = () => {
     last_activity: true,
     last_seen: true,
   });
+  const [recentChanges, setRecentChanges] = useState<string[]>([]);
 
   useEffect(() => {
     if (profileData) {
@@ -49,13 +62,23 @@ const ProfileVisibility: React.FC = () => {
       });
     }
   }, [profileData]);
+
   const handleToggle = (settingType: keyof VisibilitySettings) => {
     if (!token) return;
     const newValue = !visibilitySettings[settingType];
+    const settingName = getSettingLabel(settingType);
+    
     setVisibilitySettings(prev => ({
       ...prev,
       [settingType]: newValue
     }));
+
+    // Track recent change
+    setRecentChanges(prev => [
+      `${settingName} ${newValue ? 'enabled' : 'disabled'}`,
+      ...prev.slice(0, 2)
+    ]);
+
     updateWithOptimistic(
       {
         setting_type: settingType,
@@ -64,14 +87,23 @@ const ProfileVisibility: React.FC = () => {
       },
       {
         onSuccess: () => {
-          toast.success(`Setting updated successfully`);
+          toast.success(`${settingName} ${newValue ? 'enabled' : 'disabled'}`);
           refetch();
         },
       }
     );
   };
 
-  // Apply to all settings
+  const getSettingLabel = (key: keyof VisibilitySettings): string => {
+    const labels = {
+      total_hire: "Total hires",
+      last_hire: "Last hire date",
+      last_activity: "Last activity",
+      last_seen: "Last seen"
+    };
+    return labels[key];
+  };
+
   const applyToAll = (value: boolean) => {
     if (!token) return;
     const updatedSettings: VisibilitySettings = {
@@ -81,6 +113,13 @@ const ProfileVisibility: React.FC = () => {
       last_seen: value,
     };
     setVisibilitySettings(updatedSettings);
+    
+    // Track bulk change
+    setRecentChanges(prev => [
+      `All settings ${value ? 'enabled' : 'disabled'}`,
+      ...prev.slice(0, 2)
+    ]);
+
     updateAllSettings(
       {
         settings: updatedSettings,
@@ -94,170 +133,240 @@ const ProfileVisibility: React.FC = () => {
       }
     );
   };
-
-  const settingLabels: Record<keyof VisibilitySettings, { label: string; description: string }> = {
+  const settingConfigs: Record<keyof VisibilitySettings, {
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+  }> = {
     total_hire: {
-      label: "Total Hire",
-      description: "Show your total number of hires"
+      label: "Total Hires",
+      description: "Show your total number of completed projects",
+      icon: <TrendingUpIcon className="h-4 w-4" />
     },
     last_hire: {
-      label: "Last Hire",
-      description: "Display information about your most recent hire"
+      label: "Recent Hire",
+      description: "Display your most recent customer engagement",
+      icon: <CalendarIcon className="h-4 w-4" />
     },
     last_seen: {
-      label: "Last Seen",
-      description: "Show when you were last seen online"
+      label: "Online Status",
+      description: "Show when you were last active",
+      icon: <ClockIcon className="h-4 w-4" />
     },
     last_activity: {
-      label: "Last Activity",
-      description: "Display when you were last active on the platform"
+      label: "Activity Timeline",
+      description: "Display your recent platform activity",
+      icon: <UsersIcon className="h-4 w-4" />
     }
   };
 
   const isPending = isUpdatingAll || isUpdatingSingle;
-
+  
   if (isLoading) {
-    return <GlobalLoader />;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-32 rounded-sm" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <Card className="shadow-none border-none rounded-sm border-gray-300">
-        <CardContent className="p-6 text-center">
-          <p className="text-red-500">Failed to load visibility settings</p>
+      <div className="w-full border rounded-sm bg-white dark:bg-gray-900">
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+            <XIcon className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Failed to load settings
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-sm">
+            We could not load your visibility settings. Please check your connection and try again.
+          </p>
           <Button
-            variant="outline"
-            className="mt-2"
+            variant="default"
             onClick={() => refetch()}
+            style={{ backgroundColor: '#0077B6' }}
+            className="hover:opacity-90"
           >
-            Retry
+            Try Again
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="shadow-none border-none rounded-sm border-gray-300 dark:border-gray-600 dark:bg-gray-900 bg-gray-50 overflow-hidden relative">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-2xl flex items-center gap-2 ">
-            <EyeIcon className="w-6 h-6 text-[#0077B6]" />
+    <div className="w-full space-y-6">
+      {/* Header with Visibility Score */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Profile Visibility
-          </CardTitle>
-          {isPending && (
-            <span className="text-xs text-blue-500 animate-pulse">
-              Updating...
-            </span>
-          )}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
+            Customize the visibility of your profile metrics and activity data
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground dark:text-gray-400">
-          Control what information is visible to potential clients
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-2 w-full max-w-md mb-6 bg-gray-100 dark:bg-gray-900 p-1">
-            <TabsTrigger
-              value="settings"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white"
-            >
-              Visibility Settings
-            </TabsTrigger>
-            <TabsTrigger
-              value="preview"
-              className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white"
-            >
-              Visibility Preview
-            </TabsTrigger>
-          </TabsList>
+        
+        <div className="flex items-center gap-4">
+          {isPending && <GlobalLoader />}
+        </div>
+      </div>
 
-          <TabsContent value="settings" className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-              <div className="space-y-1">
-                <h3 className="font-medium dark:text-white">Visibility Controls</h3>
-                <p className="text-sm text-muted-foreground dark:text-gray-400">
-                  Customize what others see when they visit your profile
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyToAll(true)}
-                  className="dark:border-gray-700 dark:text-gray-300"
-                  disabled={isPending}
-                >
-                  Show All
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyToAll(false)}
-                  className="dark:border-gray-700 dark:text-gray-300"
-                  disabled={isPending}
-                >
-                  Hide All
-                </Button>
-              </div>
+      {/* Recent Changes */}
+      {recentChanges.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-[#0077B6] rounded-sm p-3">
+          <div className="flex items-center gap-2">
+            <ClockIcon className="h-4 w-4" style={{ color: '#40A4FF' }} />
+            <span className="font-medium text-sm" style={{ color: '#0077B6' }}>Recent changes:</span>
+            <span className="text-gray-700 dark:text-gray-300 text-sm">
+              {recentChanges.join(", ")}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="inline-flex h-10 items-center justify-center rounded-sm bg-gray-100 dark:bg-gray-800 p-1">
+          <TabsTrigger
+            value="settings"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 text-sm"
+          >
+            <SettingsIcon className="w-4 h-4 mr-2" />
+            Settings
+          </TabsTrigger>
+          <TabsTrigger
+            value="preview"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 text-sm"
+          >
+            <MonitorIcon className="w-4 h-4 mr-2" />
+            Preview
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="settings" className="space-y-6 mt-6">
+          {/* Quick Actions */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4  dark:bg-gray-900 rounded-sm border dark:border-[#0077B6]">
+            <div>
+              <h3 className="font-normal text-gray-900 dark:text-white">
+                Quick Actions
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                Apply settings to all sections
+              </p>
             </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => applyToAll(true)}
+                className="text-white"
+                disabled={isPending}
+                size="sm"
+                style={{ backgroundColor: '#0077B6' }}
+              >
+                <EyeIcon className="w-4 h-4 mr-2" />
+                Show All
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => applyToAll(false)}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                disabled={isPending}
+                size="sm"
+              >
+                <EyeOffIcon className="w-4 h-4 mr-2" />
+                Hide All
+              </Button>
+            </div>
+          </div>
 
-            <div className="grid gap-4">
-              {Object.entries(visibilitySettings).map(([key, value]) => {
-                const settingKey = key as keyof VisibilitySettings;
-                return (
-                  <div key={key} className="flex items-center justify-between p-4 border rounded-lg dark:border-gray-900 dark:bg-gray-900/50 hover:shadow-sm transition-shadow">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={`p-2 rounded-full ${value ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                        {value ? (
-                          <EyeIcon className={`h-4 w-4 ${value ? 'text-[#0077B6] dark:text-blue-400' : 'text-gray-500'}`} />
-                        ) : (
-                          <EyeOffIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                        )}
+          {/* Settings Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Object.entries(visibilitySettings).map(([key, value]) => {
+              const settingKey = key as keyof VisibilitySettings;
+              const config = settingConfigs[settingKey];
+              
+              return (
+                <div
+                  key={key}
+                  className={`p-4 border rounded-sm transition-all hover:shadow-md ${
+                    value
+                      ? 'border-blue-200 dark:border-[#0077B6] bg-blue-50 dark:bg-blue-900/10'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className={`p-2 rounded-sm ${
+                        value 
+                          ? 'bg-blue-100 dark:bg-blue-900/30'
+                          : 'bg-gray-100 dark:bg-gray-700'
+                      }`}
+                      style={value ? { color: '#0077B6' } : { color: '#6B7280' }}>
+                        {config.icon}
                       </div>
                       <div className="space-y-1 flex-1">
-                        <Label htmlFor={key} className="flex items-center gap-2 dark:text-gray-300">
-                          {settingLabels[settingKey]?.label}
-                          <span className={`text-xs px-2 py-1 rounded-full ${value ? 'bg-blue-100 dark:bg-blue-900/30 text-[#0077B6] dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
-                            Status: {value ? "Visible" : "Hidden"}
-                          </span>
+                        <Label
+                          htmlFor={key}
+                          className="font-medium text-gray-900 dark:text-white cursor-pointer text-sm"
+                        >
+                          {config.label}
                         </Label>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400">
-                          {settingLabels[settingKey]?.description}
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          {config.description}
                         </p>
                       </div>
-                      <Switch
-                        id={key}
-                        checked={value}
-                        onCheckedChange={() => handleToggle(settingKey)}
-                        className="dark:data-[state=checked]:bg-[#0077B6]"
-                        disabled={isPending}
-                      />
                     </div>
+                    <Switch
+                      id={key}
+                      checked={value}
+                      onCheckedChange={() => handleToggle(settingKey)}
+                      className="ml-2"
+                      disabled={isPending}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="preview" className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <div className="space-y-1">
-                  <h3 className="font-medium dark:text-white">Profile Preview</h3>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    See how your profile appears to potential clients based on your visibility settings
-                  </p>
+                  
+                  {/* Status indicator */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <span className={`${value ? 'text-[#0077B6] dark:text-[#0077B6]' : 'text-gray-500'} text-sm`}>
+                      {value ? 'Visible to customers' : 'Hidden from customers'}
+                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${
+                              value ? 'bg-[#0077B6]' : 'bg-gray-400'
+                            }`} />
+                            <span className="text-gray-500 text-sm">
+                              {value ? 'On' : 'Off'}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-sm">{value ? 'customers can see this' : 'Only you can see this'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Live Preview
-                </Badge>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+        <TabsContent value="preview" className="mt-6">
+          <ProfilePreview
+            visibilitySettings={visibilitySettings}
+            isPending={isPending}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
