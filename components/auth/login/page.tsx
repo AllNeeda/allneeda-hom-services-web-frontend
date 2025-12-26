@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { phoneLoginSchema, PhoneLoginFormData } from "@/schemas/auth/login";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -9,23 +13,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Phone, Shield, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { phoneLoginSchema, PhoneLoginFormData } from "@/schemas/auth/login";
-import Image from "next/image";
-
 interface LoginFormProps extends React.ComponentProps<"div"> {
   className?: string;
 }
-
 const OTP_RESEND_COOLDOWN = 60; // 60 seconds
-
 export default function LoginForm({ className, ...props }: LoginFormProps) {
   const { sendOTP, verifyOTP, isLoading, error, clearError } = useAuth();
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const errorShownTimeRef = useRef<number>(0);
+  const prevFormValuesRef = useRef({ phone: "", otp: "" });
 
   const {
     register,
@@ -34,6 +33,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
     watch,
     reset,
     setValue,
+    getValues,
   } = useForm<PhoneLoginFormData>({
     resolver: zodResolver(phoneLoginSchema),
     defaultValues: {
@@ -44,107 +44,67 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
 
   const phoneValue = watch("phone");
   const otpValue = watch("otp");
-  const errorShownTimeRef = useRef<number>(0);
-  const prevPhoneRef = useRef<string>("");
-  const prevOtpRef = useRef<string>("");
 
-  // Cleanup countdown interval on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Handle countdown timer
-  useEffect(() => {
-    if (countdown > 0) {
+  // Start or stop countdown timer based on countdown value
+  const manageCountdown = useCallback((seconds: number) => {
+    setCountdown(seconds);
+    // Clear any existing interval
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    // Start new countdown if seconds > 0
+    if (seconds > 0) {
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
             if (countdownIntervalRef.current) {
               clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
             }
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-    } else {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
     }
+  }, []);
 
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, [countdown]);
-
-  // Clear error when user types
-  useEffect(() => {
-    if (error) {
-      errorShownTimeRef.current = Date.now();
-      prevPhoneRef.current = phoneValue || "";
-      prevOtpRef.current = otpValue || "";
-    }
-  }, [error, phoneValue, otpValue]);
-
-  useEffect(() => {
-    if (!error) {
-      prevPhoneRef.current = phoneValue || "";
-      prevOtpRef.current = otpValue || "";
-      return;
-    }
-
-    const timeSinceError = Date.now() - errorShownTimeRef.current;
-    if (timeSinceError < 3000) return;
-
-    const phoneChanged = (phoneValue || "") !== prevPhoneRef.current;
-    const otpChanged = (otpValue || "") !== prevOtpRef.current;
-
-    if (phoneChanged || otpChanged) {
-      clearError();
-    }
-  }, [phoneValue, otpValue, error, clearError]);
-
-  const handleSendOTP = async () => {
-    if (!phoneValue || errors.phone) {
-      return;
-    }
+  // Handle OTP sending
+  const handleSendOTP = useCallback(async () => {
+    const phone = getValues("phone");
+    if (!phone || errors.phone) return;
 
     setIsSendingOTP(true);
     clearError();
 
     try {
-      await sendOTP(phoneValue);
+      await sendOTP(phone);
       setOtpSent(true);
-      setCountdown(OTP_RESEND_COOLDOWN);
+      manageCountdown(OTP_RESEND_COOLDOWN);
       setValue("otp", "");
     } catch {
       // Error is handled by auth context
     } finally {
       setIsSendingOTP(false);
     }
-  };
+  }, [sendOTP, clearError, getValues, errors.phone, setValue, manageCountdown]);
 
-  const handleResendOTP = async () => {
+  // Handle OTP resend
+  const handleResendOTP = useCallback(async () => {
     if (countdown > 0) return;
     await handleSendOTP();
-  };
+  }, [countdown, handleSendOTP]);
 
-  const onSubmit = async (data: PhoneLoginFormData) => {
+  // Handle form submission
+  const onSubmit = useCallback(async (data: PhoneLoginFormData) => {
     if (!otpSent) {
       await handleSendOTP();
       return;
     }
 
+    clearError();
     try {
-      clearError();
       await verifyOTP(data.phone, data.otp);
     } catch {
       reset({
@@ -154,7 +114,98 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
         keepErrors: false,
       });
     }
-  };
+  }, [otpSent, handleSendOTP, verifyOTP, clearError, reset]);
+  const handleInputChange = useCallback((field: keyof PhoneLoginFormData, value: string) => {
+    if (error) {
+      const currentTime = Date.now();
+      if (currentTime - errorShownTimeRef.current < 3000) return;
+      const fieldChanged = prevFormValuesRef.current[field] !== value;
+      if (fieldChanged) {
+        clearError();
+      }
+    }
+    prevFormValuesRef.current[field] = value;
+  }, [error, clearError]);
+  if (error && errorShownTimeRef.current === 0) {
+    errorShownTimeRef.current = Date.now();
+    prevFormValuesRef.current = { phone: phoneValue, otp: otpValue };
+  }
+  React.useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
+  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setValue("phone", value);
+    handleInputChange("phone", value);
+  }, [setValue, handleInputChange]);
+  const handleOtpChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setValue("otp", value, { shouldValidate: true });
+    handleInputChange("otp", value);
+  }, [setValue, handleInputChange]);
+  const isSendOtpDisabled = useMemo(() => 
+    isLoading || isSendingOTP || !phoneValue || !!errors.phone,
+    [isLoading, isSendingOTP, phoneValue, errors.phone]
+  );
+
+  const isVerifyOtpDisabled = useMemo(() => 
+    isLoading || !otpValue || otpValue.length !== 6,
+    [isLoading, otpValue]
+  );
+
+  // Memoize the OTP input field
+  const otpInputField = useMemo(() => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="otp" className="text-gray-700 dark:text-gray-300 font-medium">
+          Enter OTP
+        </Label>
+        {countdown > 0 ? (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Resend OTP in {countdown}s
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResendOTP}
+            disabled={isSendingOTP || isLoading}
+            className="text-sm font-medium text-[#0077B6] dark:text-blue-400 hover:underline disabled:opacity-50"
+          >
+            Resend OTP
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Input
+          id="otp"
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={otpValue}
+          onChange={handleOtpChange}
+          placeholder="123456"
+          disabled={isLoading}
+          className={cn(
+            "pl-10 h-12 rounded-sm border-gray-300 dark:border-gray-700",
+            "focus:border-[#0077B6] focus:ring-1 focus:ring-[#0077B6]",
+            "text-center text-2xl tracking-widest font-mono",
+            errors.otp && "border-red-500 focus:ring-red-500"
+          )}
+        />
+      </div>
+      {errors.otp && (
+        <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
+          <AlertCircle className="w-4 h-4" />
+          {errors.otp.message}
+        </p>
+      )}
+    </div>
+  ), [countdown, handleResendOTP, isSendingOTP, isLoading, otpValue, handleOtpChange, errors.otp]);
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -177,7 +228,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
             <div
               className={cn(
                 "bg-red-50 dark:bg-red-900/20",
-                "text-red-600 dark:text-red-400 text-sm p-4 rounded-lg mb-6",
+                "text-red-600 dark:text-red-400 text-sm p-4 rounded-sm mb-6",
                 "border border-red-200 dark:border-red-800",
                 "flex items-center gap-3"
               )}
@@ -200,10 +251,11 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                     id="phone"
                     type="tel"
                     {...register("phone")}
+                    onChange={handlePhoneChange}
                     placeholder="+1 (555) 123-4567"
                     disabled={isLoading || isSendingOTP || otpSent}
                     className={cn(
-                      "pl-10 h-12 rounded-lg border-gray-300 dark:border-gray-700",
+                      "pl-10 h-12 rounded-sm border-gray-300 dark:border-gray-700",
                       "focus:border-[#0077B6] focus:ring-1 focus:ring-[#0077B6]",
                       errors.phone && "border-red-500 focus:ring-red-500"
                     )}
@@ -222,9 +274,9 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                 <Button
                   type="button"
                   onClick={handleSendOTP}
-                  disabled={isLoading || isSendingOTP || !phoneValue || !!errors.phone}
+                  disabled={isSendOtpDisabled}
                   className={cn(
-                    "w-full h-12 rounded-lg font-semibold",
+                    "w-full h-12 rounded-sm font-semibold",
                     "bg-[#0077B6] hover:bg-[#03669b]",
                     "text-white shadow-md hover:shadow-lg transition-all duration-200",
                     "transform hover:-translate-y-0.5",
@@ -245,66 +297,17 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                 </Button>
               )}
 
-              {/* OTP Input (shown after OTP is sent) */}
+              {/* OTP Input and Verify Button (shown after OTP is sent) */}
               {otpSent && (
                 <>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="otp" className="text-gray-700 dark:text-gray-300 font-medium">
-                        Enter OTP
-                      </Label>
-                      {countdown > 0 ? (
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Resend OTP in {countdown}s
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleResendOTP}
-                          disabled={isSendingOTP || isLoading}
-                          className="text-sm font-medium text-[#0077B6] dark:text-blue-400 hover:underline disabled:opacity-50"
-                        >
-                          Resend OTP
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <Input
-                        id="otp"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        {...register("otp")}
-                        placeholder="123456"
-                        disabled={isLoading}
-                        className={cn(
-                          "pl-10 h-12 rounded-lg border-gray-300 dark:border-gray-700",
-                          "focus:border-[#0077B6] focus:ring-1 focus:ring-[#0077B6]",
-                          "text-center text-2xl tracking-widest font-mono",
-                          errors.otp && "border-red-500 focus:ring-red-500"
-                        )}
-                        onChange={(e) => {
-                          // Only allow numeric input
-                          const value = e.target.value.replace(/\D/g, "");
-                          setValue("otp", value.slice(0, 6), { shouldValidate: true });
-                        }}
-                      />
-                    </div>
-                    {errors.otp && (
-                      <p className="text-red-500 text-sm mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-4 h-4" />
-                        {errors.otp.message}
-                      </p>
-                    )}
-                  </div>
+                  {otpInputField}
 
                   {/* Verify OTP Button */}
                   <Button
                     type="submit"
-                    disabled={isLoading || !otpValue || otpValue.length !== 6}
+                    disabled={isVerifyOtpDisabled}
                     className={cn(
-                      "w-full h-12 rounded-lg font-semibold",
+                      "w-full h-12 rounded-sm font-semibold",
                       "bg-[#0077B6] hover:bg-[#03669b]",
                       "text-white shadow-md hover:shadow-lg transition-all duration-200",
                       "transform hover:-translate-y-0.5",
@@ -330,7 +333,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                     variant="outline"
                     onClick={() => {
                       setOtpSent(false);
-                      setCountdown(0);
+                      manageCountdown(0);
                       setValue("otp", "");
                       clearError();
                     }}
