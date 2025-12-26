@@ -1,5 +1,6 @@
 // app/api/auth.ts
 import { api, tokenManager } from "@/app/api/axios";
+import axios from "axios";
 
 export interface User {
   _id: string;
@@ -40,18 +41,11 @@ class AuthService {
       }
       
       const { user } = response.data;
-
-      // Tokens should be set as HttpOnly cookies by the backend
-      // If backend doesn't set cookies, we need to set them client-side as fallback
-      // Note: For maximum security, backend should set HttpOnly cookies
       if (typeof window !== "undefined") {
         const isProduction = process.env.NODE_ENV === "production";
         const secureFlag = isProduction ? "secure" : "";
         const sameSite = "SameSite=Strict";
-        
-        // Set access token (30 minutes)
         document.cookie = `auth-token=${tokens.accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
-        // Set refresh token (30 days)
         document.cookie = `refresh-token=${tokens.refreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
       }
 
@@ -66,7 +60,6 @@ class AuthService {
       if (error.response) {
         const status = error.response.status;
         const responseData = error.response.data;
-        
         if (status === 422 && responseData?.errors) {
           throw {
             message: "Validation failed",
@@ -211,6 +204,213 @@ class AuthService {
     const token = tokenManager.getAccessToken();
     if (!token) return true;
     return tokenManager.isTokenExpiringSoon(token, minutes);
+  }
+
+  /**
+   * Send OTP to phone number
+   * @param phone - Phone number in international format
+   * @returns Promise that resolves when OTP is sent successfully
+   */
+  async sendOTP(phone: string): Promise<void> {
+    try {
+      // Normalize phone number (remove spaces, dashes, etc.)
+      const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+      // Use external OTP API endpoint with direct axios call
+      const response = await axios.post(
+        "https://generaluser-web-latest.onrender.com/api/v2/authentication/sendOtp/",
+        { phone: normalizedPhone },
+        {
+          timeout: 15000,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Check if response indicates success
+      if (response.status >= 200 && response.status < 300) {
+        return;
+      }
+
+      throw new Error("Failed to send OTP");
+    } catch (error: any) {
+      if (error.response) {
+        const status = error.response.status;
+        const responseData = error.response.data;
+        
+        let message = "Failed to send OTP. Please try again.";
+        
+        if (responseData) {
+          if (responseData.message) {
+            message = responseData.message;
+          } else if (responseData.error) {
+            message = responseData.error;
+          } else if (responseData.detail) {
+            message = responseData.detail;
+          } else if (typeof responseData === "string") {
+            message = responseData;
+          }
+        }
+        
+        // Status-specific error messages
+        if (message === "Failed to send OTP. Please try again.") {
+          switch (status) {
+            case 400:
+              message = "Invalid phone number format";
+              break;
+            case 429:
+              message = "Too many OTP requests. Please wait before requesting again";
+              break;
+            case 500:
+              message = "Server error. Please try again later";
+              break;
+          }
+        }
+        
+        throw new Error(message);
+      } else if (error.request) {
+        throw new Error(
+          "Network error. Please check your internet connection."
+        );
+      } else {
+        throw new Error(
+          error.message || "An unexpected error occurred while sending OTP."
+        );
+      }
+    }
+  }
+
+  /**
+   * Verify OTP and complete phone login
+   * @param phone - Phone number in international format
+   * @param otp - 6-digit OTP code
+   * @returns LoginResponse with user data and tokens
+   */
+  async verifyOTP(phone: string, otp: string): Promise<LoginResponse> {
+    try {
+      // Normalize phone number
+      const normalizedPhone = phone.replace(/[\s\-()]/g, "");
+      
+      // Verify OTP using external API with direct axios call
+      const response = await axios.post(
+        "https://generaluser-web-latest.onrender.com/api/v2/authentication/verify_otp/",
+        { 
+          phone: normalizedPhone,
+          otp: otp.trim()
+        },
+        {
+          timeout: 15000,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const responseData = response.data;
+      
+      // Extract tokens and user data from response
+      // The response structure may vary, so we handle multiple formats
+      const tokens = responseData.tokens || responseData.data?.tokens || responseData;
+      const user = responseData.user || responseData.data?.user || responseData.data;
+      
+      if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
+        throw new Error("Invalid OTP or authentication failed");
+      }
+
+      // Set tokens as cookies (same as regular login)
+      if (typeof window !== "undefined") {
+        const isProduction = process.env.NODE_ENV === "production";
+        const secureFlag = isProduction ? "secure" : "";
+        const sameSite = "SameSite=Strict";
+        
+        // Set access token (30 minutes)
+        document.cookie = `auth-token=${tokens.accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
+        // Set refresh token (30 days)
+        document.cookie = `refresh-token=${tokens.refreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
+      }
+
+      // If user data is not in response, fetch it using the token
+      let userData = user;
+      if (!userData || !userData._id) {
+        // Try to get user data from the main API using the new token
+        try {
+          const apiBaseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1/";
+          const userResponse = await axios.get(`${apiBaseURL}/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${tokens.accessToken}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 15000,
+          });
+          userData = userResponse.data;
+        } catch {
+          // If fetching user fails, construct a minimal user object
+          userData = {
+            _id: responseData.userId || responseData.id || "unknown",
+            email: responseData.email || normalizedPhone,
+            username: responseData.username || normalizedPhone,
+          };
+        }
+      }
+
+      return {
+        user: userData as User,
+        tokens: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
+      };
+    } catch (error: any) {
+      if (error.response) {
+        const status = error.response.status;
+        const responseData = error.response.data;
+        
+        let message = "Invalid OTP. Please try again.";
+        
+        if (responseData) {
+          if (responseData.message) {
+            message = responseData.message;
+          } else if (responseData.error) {
+            message = responseData.error;
+          } else if (responseData.detail) {
+            message = responseData.detail;
+          } else if (typeof responseData === "string") {
+            message = responseData;
+          }
+        }
+        
+        // Status-specific error messages
+        if (message === "Invalid OTP. Please try again.") {
+          switch (status) {
+            case 400:
+              message = "Invalid OTP format";
+              break;
+            case 401:
+              message = "Invalid or expired OTP. Please request a new one";
+              break;
+            case 404:
+              message = "Phone number not found";
+              break;
+            case 429:
+              message = "Too many verification attempts. Please wait before trying again";
+              break;
+            case 500:
+              message = "Server error. Please try again later";
+              break;
+          }
+        }
+        
+        throw new Error(message);
+      } else if (error.request) {
+        throw new Error(
+          "Network error. Please check your internet connection."
+        );
+      } else {
+        throw new Error(
+          error.message || "An unexpected error occurred while verifying OTP."
+        );
+      }
+    }
   }
 }
 

@@ -43,6 +43,10 @@ interface AuthContextType extends AuthState {
     checkAuth: () => Promise<void>;
     refreshTokens: () => Promise<void>;
     getAccessToken: () => string | null;
+    // eslint-disable-next-line no-unused-vars
+    sendOTP: (phone: string) => Promise<void>;
+    // eslint-disable-next-line no-unused-vars
+    verifyOTP: (phone: string, otp: string, redirectUrl?: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -278,6 +282,139 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [pathname, router, logout]);
 
     /** ─────────────────────────────────────────────
+     * SEND OTP
+     * ───────────────────────────────────────────── */
+    const sendOTP = useCallback(async (phone: string) => {
+        dispatch({ type: "SET_LOADING", payload: true });
+        clearError();
+
+        try {
+            await authAPI.sendOTP(phone);
+            // OTP sent successfully - no state change needed, just clear loading
+            dispatch({ type: "SET_LOADING", payload: false });
+        } catch (error: unknown) {
+            dispatch({ type: "SET_LOADING", payload: false });
+            let errorMessage = "Failed to send OTP. Please try again.";
+            
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            }
+            
+            dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
+            throw error; // Re-throw to allow UI to handle
+        }
+    }, [clearError]);
+
+    /** ─────────────────────────────────────────────
+     * VERIFY OTP
+     * ───────────────────────────────────────────── */
+    const verifyOTP = useCallback(async (phone: string, otp: string, customRedirect?: string | null) => {
+        if (isLoggingInRef.current) {
+            console.warn("OTP verification already in progress - resetting");
+            isLoggingInRef.current = false;
+            dispatch({ type: "SET_LOADING", payload: false });
+        }
+
+        isLoggingInRef.current = true;
+        dispatch({ type: "AUTH_START" });
+        clearError();
+
+        // Safety timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+            if (isLoggingInRef.current) {
+                isLoggingInRef.current = false;
+                dispatch({ type: "SET_LOADING", payload: false });
+                dispatch({ type: "AUTH_FAILURE", payload: "Verification request timed out. Please check your connection and try again." });
+            }
+        }, 20000);
+
+        try {
+            const response = await authAPI.verifyOTP(phone, otp);
+            clearTimeout(timeoutId);
+
+            if (!response?.user) {
+                throw new Error("Invalid response from server");
+            }
+
+            isLoggingInRef.current = false;
+            dispatch({ type: "AUTH_SUCCESS", payload: response.user });
+
+            // Invalidate queries (non-blocking)
+            queryClient.invalidateQueries().catch((err) => {
+                console.warn("Failed to invalidate queries:", err);
+            });
+
+            // Get redirect URL from query params or default
+            const redirect =
+                customRedirect ??
+                new URLSearchParams(window.location.search).get("redirect") ??
+                "/home-services/dashboard";
+
+            // Ensure redirect is safe (same origin, no external URLs)
+            const redirectUrl = redirect.startsWith("/") && !redirect.startsWith("//")
+                ? redirect
+                : "/home-services/dashboard";
+            
+            setTimeout(() => {
+                try {
+                    router.push(redirectUrl);
+                } catch {
+                    if (typeof window !== "undefined") {
+                        router.push(redirectUrl);
+                    }
+                }
+            }, 100);
+        } catch (error: unknown) {
+            clearTimeout(timeoutId);
+            isLoggingInRef.current = false;
+            dispatch({ type: "SET_LOADING", payload: false });
+            
+            let errorMessage = "OTP verification failed. Please try again.";
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "object" && error !== null) {
+                if ("response" in error) {
+                    const axiosError = error as {
+                        response?: {
+                            status?: number;
+                            data?: {
+                                message?: string;
+                                error?: string;
+                                detail?: string;
+                                errors?: Array<string | { message?: string }>;
+                            }
+                        }
+                    };
+
+                    const responseData = axiosError.response?.data;
+                    if (responseData) {
+                        if (responseData.message) {
+                            errorMessage = responseData.message;
+                        } else if (responseData.error) {
+                            errorMessage = responseData.error;
+                        } else if (responseData.detail) {
+                            errorMessage = responseData.detail;
+                        } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+                            errorMessage = responseData.errors
+                                .map((err: any) => err.message || err.msg || err.error || String(err))
+                                .join(", ");
+                        }
+                    }
+                } else if ("message" in error) {
+                    errorMessage = String((error as { message: unknown }).message);
+                }
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            }
+
+            dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
+            throw error; // Allows UI to show errors
+        }
+    }, [queryClient, router, clearError]);
+
+    /** ─────────────────────────────────────────────
      * LOGIN
      * ───────────────────────────────────────────── */
     const login = useCallback(async (email: string, password: string, customRedirect?: string | null) => {
@@ -394,6 +531,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 checkAuth,
                 refreshTokens,
                 getAccessToken,
+                sendOTP,
+                verifyOTP,
             }}
         >
             {children}
