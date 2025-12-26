@@ -102,7 +102,6 @@ export const RankingCampaignAPI = async (
   token: string
 ): Promise<RankingCampaignResponse> => {
   try {
-    console.log("the ranking data is", data);
     const response = await api.post("/marketing/ranking", data, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -115,15 +114,13 @@ export const RankingCampaignAPI = async (
   }
 };
 
-
-
 export const GetRankingCampaignAPI = async (
   professional_id: string,
   token: string
 ) => {
   try {
     const response = await api.get("/marketing/get_ranking", {
-      params: { professional_id }, 
+      params: { professional_id },
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -135,4 +132,109 @@ export const GetRankingCampaignAPI = async (
   }
 };
 
+export const ActiveRankingStatusAPI = async (data: {
+  campaign_id: string;
+  status: string;
+  token: string;
+}) => {
+  const { campaign_id, status, token } = data;
 
+  try {
+    const response = await api.put(
+      `/marketing/campaign_status`,
+      {
+        campaign_id: campaign_id,
+        status: status,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const DeleteActivateRankingAPI = async (
+  campaign_id: string,
+  token: string
+) => {
+  try {
+    const response = await api.delete("/marketing/delete_campaign", {
+      data: {
+        campaign_id,
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export interface VisibilitySettings {
+  total_hire: boolean;
+  last_hire: boolean;
+  last_seen: boolean;
+  last_activity: boolean;
+}
+
+export interface ProfileVisibilityData {
+  visibility_settings: VisibilitySettings;
+  total_hire: number;
+  last_hire_date: string;
+  last_seen: string;
+  last_activity: string;
+  profile_views: number;
+}
+
+// Update all visibility settings at once
+export const UpdateAllVisibilitySettingsAPI = async (data: {
+  settings: VisibilitySettings;
+  token: string;
+}) => {
+  const { settings, token } = data;
+
+  try {
+    const response = await api.put("/marketing/visibility_setting", settings, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+// Update single visibility setting
+export const UpdateSingleVisibilitySettingAPI = async (data: {
+  setting_type: keyof VisibilitySettings;
+  value: boolean;
+  token: string;
+}) => {
+  const { setting_type, value, token } = data;
+
+  try {
+    const response = await api.put(
+      `/marketing/visibility/${setting_type}`,
+      { value },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};

@@ -399,13 +399,13 @@ const GetMoreLeads: React.FC = () => {
           <TabsList className="grid grid-cols-2 mb-6">
             <TabsTrigger value="boost" className="flex items-center gap-2 text-xs sm:text-sm">
               <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Boost Ranking</span>
-              <span className="xs:hidden">Boost</span>
+              <span className="hidden xs:inline">Boost Service</span>
+              <span className="xs:hidden">Boost Service</span>
             </TabsTrigger>
             <TabsTrigger value="manage" className="flex items-center gap-2 text-xs sm:text-sm">
               <BadgeCheck className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline"> Manage</span>
-              <span className="xs:hidden">Manage</span>
+              <span className="hidden xs:inline"> Manage Boost</span>
+              <span className="xs:hidden">Manage Boost</span>
             </TabsTrigger>
           </TabsList>
 

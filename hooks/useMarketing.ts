@@ -2,11 +2,16 @@
 import {
   ActivateGuaranteeAPI,
   ActiveGuaranteeStatusAPI,
+  ActiveRankingStatusAPI,
   DeleteActivateGuarantee,
+  DeleteActivateRankingAPI,
   GetRankingCampaignAPI,
   RankingCampaignAPI,
   RankingCampaignPayload,
   RankingCampaignResponse,
+  UpdateAllVisibilitySettingsAPI,
+  UpdateSingleVisibilitySettingAPI,
+  VisibilitySettings,
 } from "@/app/api/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -85,7 +90,7 @@ export function useRankingCampaign() {
 
 export function useGetRankingCampaign(
   professional_id: string,
-  token: string | null,
+  token: string | null
 ) {
   return useQuery({
     queryKey: ["GetRankingCampaign"],
@@ -94,5 +99,49 @@ export function useGetRankingCampaign(
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     refetchOnReconnect: true,
+  });
+}
+
+export function useRankingStatus() {
+  return useMutation({
+    mutationKey: ["update-statusRanking"],
+    mutationFn: (data: {
+      campaign_id: string;
+      status: string;
+      token: string;
+    }) => ActiveRankingStatusAPI(data),
+  });
+}
+
+export const useDeleteActivateRanking = () => {
+  return useMutation({
+    mutationKey: ["DeleteActivateBoost"],
+    mutationFn: ({
+      campaign_id,
+      token,
+    }: {
+      campaign_id: string;
+      token: string;
+    }) => DeleteActivateRankingAPI(campaign_id, token),
+  });
+};
+
+export function useUpdateAllVisibilitySettings() {
+  return useMutation({
+    mutationKey: ["update-all-visibility-settings"],
+    mutationFn: (data: { settings: VisibilitySettings; token: string }) =>
+      UpdateAllVisibilitySettingsAPI(data),
+  });
+}
+
+// Hook to update visibility with optimistic updates
+export function useVisibilityWithOptimisticUpdate() {
+  return useMutation({
+    mutationKey: ["update-visibility-optimistic"],
+    mutationFn: (data: {
+      setting_type: keyof VisibilitySettings;
+      value: boolean;
+      token: string;
+    }) => UpdateSingleVisibilitySettingAPI(data),
   });
 }

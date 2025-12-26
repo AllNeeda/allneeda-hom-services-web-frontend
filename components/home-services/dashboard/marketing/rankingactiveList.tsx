@@ -1,6 +1,6 @@
 "use client";
 import { getAccessToken } from "@/app/api/axios";
-import { useGetRankingCampaign } from "@/hooks/useMarketing";
+import { useDeleteActivateRanking, useGetRankingCampaign, useRankingStatus } from "@/hooks/useMarketing";
 import React, { useState } from "react";
 import {
     Card,
@@ -50,6 +50,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import GlobalLoader from "@/components/ui/global-loader";
+import toast from "react-hot-toast";
+import Link from "next/link";
 
 interface RankingCampaign {
     _id: string;
@@ -81,6 +83,8 @@ interface RankingCampaign {
 export const RankingactiveList = ({ professionalId }: { professionalId: string }) => {
     const token = getAccessToken();
     const { data, error, isLoading, refetch } = useGetRankingCampaign(professionalId, token || "");
+    const { mutate: updateStatus } = useRankingStatus();
+    const { mutate: deleteRanking } = useDeleteActivateRanking();
     const campaignsData = data?.data || [];
     const campaignsArray: RankingCampaign[] = Array.isArray(campaignsData) ? campaignsData : campaignsData ? [campaignsData] : [];
     const [sortField] = useState("start_date");
@@ -161,27 +165,49 @@ export const RankingactiveList = ({ professionalId }: { professionalId: string }
 
     // Handle delete campaign
     const handleDeleteCampaign = async () => {
-        if (!selectedCampaign) return;
+        if (!selectedCampaign || !token) return;
 
         setActionLoading(true);
         try {
-            refetch();
-            setDeleteDialogOpen(false);
-            setActionLoading(false);
-            setSelectedCampaign(null);
+            deleteRanking(
+                { campaign_id: selectedCampaign._id, token },
+                {
+                    onSuccess: () => {
+                        toast.success("Campaign deleted successfully");
+                        refetch();
+                        setDeleteDialogOpen(false);
+                        setActionLoading(false);
+                        setSelectedCampaign(null);
+                    },
+                }
+            );
         } catch {
             setActionLoading(false);
         }
     };
     const handleDeactivateCampaign = async () => {
-        if (!selectedCampaign) return;
+        if (!selectedCampaign || !token) return;
 
         setActionLoading(true);
         try {
-            refetch();
-            setDeactivateDialogOpen(false);
-            setActionLoading(false);
-            setSelectedCampaign(null);
+            const newStatus = selectedCampaign.status === "active" ? "inactive" : "active";
+
+            await updateStatus(
+                {
+                    campaign_id: selectedCampaign._id,
+                    status: newStatus,
+                    token
+                },
+                {
+                    onSuccess: () => {
+                        toast.success(`Campaign ${newStatus === "active" ? "activated" : "deactivated"} successfully`);
+                        refetch();
+                        setDeactivateDialogOpen(false);
+                        setActionLoading(false);
+                        setSelectedCampaign(null);
+                    },
+                }
+            );
         } catch {
             setActionLoading(false);
         }
@@ -360,14 +386,16 @@ export const RankingactiveList = ({ professionalId }: { professionalId: string }
                                                             <div className="w-10 h-10 from-[#0077B6] to-[#40A4FF] rounded-sm flex items-center justify-center">
                                                                 <TrendingUp className="w-5 h-5 text-[#0077B6]" />
                                                             </div>
-                                                            <div className="min-w-0">
-                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-[13px]">
-                                                                    {campaign.package_id?.name || "Ranking Boost"}
-                                                                </h3>
-                                                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
-                                                                    {campaign.credits_used} Credits
-                                                                </p>
-                                                            </div>
+                                                            <Link href={`/home-services/dashboard/marketing/campaignDetails/${campaign._id}`}>
+                                                                <div className="min-w-0">
+                                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px]">
+                                                                        {campaign.package_id?.name || "Ranking Boost"}
+                                                                    </h3>
+                                                                    <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
+                                                                        {campaign.credits_used} Credits
+                                                                    </p>
+                                                                </div>
+                                                            </Link>
                                                         </div>
                                                     </div>
 
