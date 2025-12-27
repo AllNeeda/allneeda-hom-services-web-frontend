@@ -5,14 +5,15 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import PopularLocation from "@/components/home-services/homepage/PopularLocation";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/components/providers/context/auth-context";
+// import { useAuth } from "@/components/providers/context/auth-context";
 import {
   usePopularServices,
   useSubcategoryServices,
   useFeaturedServices,
 } from "@/hooks/useHomeServices";
-import LocationPermissionModal from "@/components/home-services/LocationPermissionModal";
-import { getLocationInfo } from "@/lib/getLocationInfo";
+// import LocationPermissionModal from "@/components/home-services/LocationPermissionModal";
+// import { getLocationInfo } from "@/lib/getLocationInfo";
+import { LeadDialog } from "@/components/home-services/LeadAlert";
 
 // Skeletons (same as before)
 const TitlePageSkeleton = () => (
@@ -111,54 +112,58 @@ const CategoryServices = dynamic(
 // );
 
 const HomeServicesPage = () => {
-  const { isAuthenticated, user, getAccessToken } = useAuth();
-  const token = getAccessToken();
+  // const { isAuthenticated, user, getAccessToken } = useAuth();
+  // const token = getAccessToken();
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+
 
   // LOCATION STATE
-  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  // const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<any>(null);
 
   // --- Ask for location on mount if not stored
   useEffect(() => {
+    setIsDialogOpen(true);
     const stored = localStorage.getItem("user_location");
     if (!stored) {
-      setLocationModalOpen(true);
+      // setLocationModalOpen(true);
     } else {
       setUserLocation(JSON.parse(stored));
     }
   }, []);
 
-  const handleAcceptLocation = async () => {
-    try {
-      const loc = await getLocationInfo();
-      setUserLocation(loc);
-      setLocationModalOpen(false);
+  // const handleAcceptLocation = async () => {
+  //   try {
+  //     const loc = await getLocationInfo();
+  //     setUserLocation(loc);
+  //     setLocationModalOpen(false);
 
-      if (isAuthenticated && user) {
-        // Send to backend (example)
-        await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/users/${user._id}/location`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(loc),
-          }
-        );
-      } else {
-        localStorage.setItem("user_location", JSON.stringify(loc));
-      }
-    } catch (err) {
-      console.error("Failed to get location:", err);
-      setLocationModalOpen(false);
-    }
-  };
+  //     if (isAuthenticated && user) {
+  //       // Send to backend (example)
+  //       await fetch(
+  //         `${process.env.NEXT_PUBLIC_API_URL}/users/${user._id}/location`,
+  //         {
+  //           method: "POST",
+  //           headers: {
+  //             "Content-Type": "application/json",
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //           body: JSON.stringify(loc),
+  //         }
+  //       );
+  //     } else {
+  //       localStorage.setItem("user_location", JSON.stringify(loc));
+  //     }
+  //   } catch (err) {
+  //     console.error("Failed to get location:", err);
+  //     setLocationModalOpen(false);
+  //   }
+  // };
 
-  const handleDeclineLocation = () => {
-    setLocationModalOpen(false);
-  };
+  // const handleDeclineLocation = () => {
+  //   setLocationModalOpen(false);
+  // };
 
   // Service hooks
   const { data: popularServicesData, isLoading: popularLoading } =
@@ -171,14 +176,25 @@ const HomeServicesPage = () => {
   const popularServices = popularServicesData?.data || [];
   const subcategoryServices = subcategoryServicesData || [];
   const featuredServices = featuredServicesData?.data || [];
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false)
+    // Optional: You could store in localStorage that user dismissed the dialog
+    localStorage.setItem('leadDialogDismissed', 'true')
+  }
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border border-white dark:border-gray-900">
-      <LocationPermissionModal
+      {/* <LocationPermissionModal
         open={locationModalOpen}
         onAccept={handleAcceptLocation}
         onDecline={handleDeclineLocation}
-      />
+      /> */}
+      <LeadDialog
+          isOpen={isDialogOpen}
+          onClose={handleCloseDialog}
+          leadCount={2}
+          userEmail={'esmat@gmail.com'}
+        />
 
       <Breadcrumbs
         paths={[{ name: "Home", href: "/" }, { name: "Home Services" }]}
