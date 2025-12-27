@@ -1,4 +1,3 @@
-// contexts/auth-context.tsx
 "use client";
 
 import React, {
@@ -14,9 +13,6 @@ import { tokenManager } from "@/app/api/axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "next/navigation";
 
-/** ─────────────────────────────────────────────
- * TYPES
- * ───────────────────────────────────────────── */
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
@@ -35,25 +31,21 @@ type AuthAction =
     | { type: "SET_TOKEN_EXPIRING"; payload: boolean };
 
 interface AuthContextType extends AuthState {
-    // eslint-disable-next-line no-unused-vars
+    /* eslint-disable */
     login: (email: string, password: string, redirectUrl?: string | null) => Promise<void>;
-    // eslint-enable-next-line no-unused-vars
+    sendOTP: (phone: string) => Promise<void>;
+    verifyOTP: (phone: string, otp: string, redirectUrl?: string | null) => Promise<void>;
+    /* eslint-enable */
     logout: () => Promise<void>;
     clearError: () => void;
     checkAuth: () => Promise<void>;
     refreshTokens: () => Promise<void>;
     getAccessToken: () => string | null;
-    // eslint-disable-next-line no-unused-vars
-    sendOTP: (phone: string) => Promise<void>;
-    // eslint-disable-next-line no-unused-vars
-    verifyOTP: (phone: string, otp: string, redirectUrl?: string | null) => Promise<void>;
+
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** ─────────────────────────────────────────────
- * REDUCER
- * ───────────────────────────────────────────── */
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     switch (action.type) {
         case "AUTH_START":
@@ -104,14 +96,11 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 const initialState: AuthState = {
     user: null,
     isAuthenticated: false,
-    isLoading: false, // Start as false, will be set by checkAuth if needed
+    isLoading: true, // Start with true to show loading
     error: null,
     tokenExpiringSoon: false,
 };
 
-/** ─────────────────────────────────────────────
- * PROVIDER
- * ───────────────────────────────────────────── */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(authReducer, initialState);
     const queryClient = useQueryClient();
@@ -121,9 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isRefreshingRef = useRef(false);
     const isLoggingInRef = useRef(false);
 
-    /** ─────────────────────────────────────────────
-     * UTILS
-     * ───────────────────────────────────────────── */
     const clearError = useCallback(() => {
         dispatch({ type: "CLEAR_ERROR" });
     }, []);
@@ -132,11 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return tokenManager.getAccessToken();
     }, []);
 
-    /** ─────────────────────────────────────────────
-     * REFRESH TOKENS
-     * ───────────────────────────────────────────── */
     const refreshTokens = useCallback(async () => {
-        // Prevent multiple simultaneous refresh attempts
         if (isRefreshingRef.current) {
             return;
         }
@@ -145,7 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         try {
             await authAPI.refreshTokens();
-            // Re-validate auth after refresh
             if (authAPI.isAuthenticated()) {
                 const user = await authAPI.getCurrentUser();
                 dispatch({ type: "AUTH_SUCCESS", payload: user });
@@ -158,9 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [queryClient]);
 
-    /** ─────────────────────────────────────────────
-     * TOKEN EXPIRATION CHECKER & PROACTIVE REFRESH
-     * ───────────────────────────────────────────── */
     useEffect(() => {
         if (!state.isAuthenticated) return;
 
@@ -176,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const interval = setInterval(checkTokenExpiration, 60000);
         return () => clearInterval(interval);
     }, [state.isAuthenticated, state.isLoading, refreshTokens]);
+
     const checkAuth = useCallback(async () => {
         if (isLoggingInRef.current) {
             return;
@@ -184,9 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
         isCheckingAuthRef.current = true;
-        if (!isLoggingInRef.current) {
-            dispatch({ type: "SET_LOADING", payload: true });
-        }
+
         try {
             if (!authAPI.isAuthenticated()) {
                 dispatch({ type: "AUTH_LOGOUT" });
@@ -195,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const user = await authAPI.getCurrentUser();
+
             if (user) {
                 dispatch({ type: "AUTH_SUCCESS", payload: user });
             } else {
@@ -208,16 +186,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: "AUTH_LOGOUT" });
             queryClient.clear();
 
-            // Only redirect if not already on auth page
             if (!pathname.startsWith("/auth/")) {
                 const reason = isExpired ? "session_expired" : "authentication_required";
-
                 router.push(
                     `/auth/login?redirect=${encodeURIComponent(pathname)}&reason=${reason}`
                 );
             }
         } finally {
-            // Only reset loading if login is not in progress
             if (!isLoggingInRef.current) {
                 dispatch({ type: "SET_LOADING", payload: false });
             }
@@ -225,9 +200,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [pathname, queryClient, router]);
 
-    /** ─────────────────────────────────────────────
-     * LOGOUT
-     * ───────────────────────────────────────────── */
     const logout = useCallback(async () => {
         dispatch({ type: "SET_LOADING", payload: true });
 
@@ -240,26 +212,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "AUTH_LOGOUT" });
         queryClient.clear();
 
-        // Only redirect if not already on auth page
         if (!pathname.startsWith("/auth/")) {
             router.push("/auth/login?reason=logged_out");
         }
     }, [pathname, queryClient, router]);
 
-    // Run on first mount only, but skip on auth pages
+    // Run on first mount and when pathname changes
     useEffect(() => {
-        // Don't check auth on login/register pages
         if (pathname.startsWith("/auth/")) {
             dispatch({ type: "SET_LOADING", payload: false });
             return;
         }
         checkAuth();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run once on mount
+    }, [pathname, checkAuth]);
 
-    /** ─────────────────────────────────────────────
-     * LISTEN FOR LOGOUT EVENTS FROM AXIOS INTERCEPTOR
-     * ───────────────────────────────────────────── */
     useEffect(() => {
         const handleLogout = (event: Event) => {
             const customEvent = event as CustomEvent<{ reason?: string }>;
@@ -281,35 +247,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [pathname, router, logout]);
 
-    /** ─────────────────────────────────────────────
-     * SEND OTP
-     * ───────────────────────────────────────────── */
     const sendOTP = useCallback(async (phone: string) => {
         dispatch({ type: "SET_LOADING", payload: true });
         clearError();
 
         try {
             await authAPI.sendOTP(phone);
-            // OTP sent successfully - no state change needed, just clear loading
             dispatch({ type: "SET_LOADING", payload: false });
         } catch (error: unknown) {
             dispatch({ type: "SET_LOADING", payload: false });
             let errorMessage = "Failed to send OTP. Please try again.";
-            
+
             if (error instanceof Error) {
                 errorMessage = error.message;
             } else if (typeof error === "string") {
                 errorMessage = error;
             }
-            
+
             dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-            throw error; // Re-throw to allow UI to handle
+            throw error;
         }
     }, [clearError]);
 
-    /** ─────────────────────────────────────────────
-     * VERIFY OTP
-     * ───────────────────────────────────────────── */
     const verifyOTP = useCallback(async (phone: string, otp: string, customRedirect?: string | null) => {
         if (isLoggingInRef.current) {
             console.warn("OTP verification already in progress - resetting");
@@ -321,7 +280,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "AUTH_START" });
         clearError();
 
-        // Safety timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
             if (isLoggingInRef.current) {
                 isLoggingInRef.current = false;
@@ -329,34 +287,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 dispatch({ type: "AUTH_FAILURE", payload: "Verification request timed out. Please check your connection and try again." });
             }
         }, 20000);
-
         try {
             const response = await authAPI.verifyOTP(phone, otp);
             clearTimeout(timeoutId);
-
             if (!response?.user) {
                 throw new Error("Invalid response from server");
             }
-
             isLoggingInRef.current = false;
             dispatch({ type: "AUTH_SUCCESS", payload: response.user });
-
-            // Invalidate queries (non-blocking)
             queryClient.invalidateQueries().catch((err) => {
                 console.warn("Failed to invalidate queries:", err);
             });
 
-            // Get redirect URL from query params or default
             const redirect =
                 customRedirect ??
                 new URLSearchParams(window.location.search).get("redirect") ??
                 "/home-services/dashboard";
 
-            // Ensure redirect is safe (same origin, no external URLs)
             const redirectUrl = redirect.startsWith("/") && !redirect.startsWith("//")
                 ? redirect
                 : "/home-services/dashboard";
-            
             setTimeout(() => {
                 try {
                     router.push(redirectUrl);
@@ -370,7 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(timeoutId);
             isLoggingInRef.current = false;
             dispatch({ type: "SET_LOADING", payload: false });
-            
+
             let errorMessage = "OTP verification failed. Please try again.";
             if (error instanceof Error) {
                 errorMessage = error.message;
@@ -408,17 +358,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else if (typeof error === "string") {
                 errorMessage = error;
             }
-
             dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-            throw error; // Allows UI to show errors
+            throw error;
         }
     }, [queryClient, router, clearError]);
 
-    /** ─────────────────────────────────────────────
-     * LOGIN
-     * ───────────────────────────────────────────── */
     const login = useCallback(async (email: string, password: string, customRedirect?: string | null) => {
-        // If login is already in progress, reset it first (safety measure)
         if (isLoggingInRef.current) {
             console.warn("Login already in progress - resetting");
             isLoggingInRef.current = false;
@@ -428,7 +373,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggingInRef.current = true;
         dispatch({ type: "AUTH_START" });
 
-        // Safety timeout to prevent infinite loading (20 seconds - slightly longer than axios timeout)
         const timeoutId = setTimeout(() => {
             if (isLoggingInRef.current) {
                 isLoggingInRef.current = false;
@@ -448,21 +392,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isLoggingInRef.current = false;
             dispatch({ type: "AUTH_SUCCESS", payload: response.user });
 
-            // Invalidate queries (non-blocking, don't await)
             queryClient.invalidateQueries().catch((err) => {
                 console.warn("Failed to invalidate queries:", err);
             });
 
-            // Get redirect URL from query params or default
             const redirect =
                 customRedirect ??
                 new URLSearchParams(window.location.search).get("redirect") ??
-                "/home-services/dashboard"; // 3️⃣ default
+                "/home-services/dashboard";
 
-            // Ensure redirect is safe (same origin, no external URLs)
             const redirectUrl = redirect.startsWith("/") && !redirect.startsWith("//")
                 ? redirect
                 : "/home-services/dashboard";
+
             setTimeout(() => {
                 try {
                     router.push(redirectUrl);
@@ -495,7 +437,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     const responseData = axiosError.response?.data;
                     if (responseData) {
-                        // Try multiple error message fields
                         if (responseData.message) {
                             errorMessage = responseData.message;
                         } else if (responseData.error) {
@@ -516,10 +457,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-            throw error; // Allows UI to show errors
+            throw error;
         }
     }, [queryClient, router]);
-
 
     return (
         <AuthContext.Provider
@@ -540,9 +480,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
-/** ─────────────────────────────────────────────
- * HOOK
- * ───────────────────────────────────────────── */
 export const useAuth = (): AuthContextType => {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");

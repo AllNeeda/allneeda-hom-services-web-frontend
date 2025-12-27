@@ -6,37 +6,36 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { DropdownItem } from "@/components/ui/dropdownitems";
 import { useAuth } from "@/components/providers/context/auth-context";
 export default function UserDropdown() {
-
-  const { logout, user: authData, isLoading } = useAuth();
+  const { logout, user, isLoading, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const authContextData = authData as any;
-  const user = authContextData?.user || authContextData;
-  const userName = user?.username || "";
-  const userEmail = user?.email || "";
-
+  // Use firstName and lastName instead of username
+  const userName = user?.firstName
+    ? `${user.firstName} ${user.lastName || ""}`.trim()
+    : "User";
+  const userEmail = user?.phoneNo || "";
+  const hasUserData = user && user._id;
   function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     e.stopPropagation();
     setIsOpen((prev) => !prev);
   }
-
   function closeDropdown() {
     setIsOpen(false);
   }
-
   const handleImageError = () => {
     setImageError(true);
   };
 
-const handleLogout = async () => {
-  closeDropdown();
-  await logout(); 
-};
-
-  const getUserInitial = userName ? userName.charAt(0).toUpperCase() : "U";
+  const handleLogout = async () => {
+    closeDropdown();
+    await logout();
+  };
+  const getUserInitial = user?.firstName
+    ? user.firstName.charAt(0).toUpperCase()
+    : "U";
 
   // Don't render the dropdown if no user data is available
-  if (!userName) {
+  if (!isAuthenticated || isLoading || !hasUserData) {
     return (
       <div className="flex items-center text-gray-700 dark:text-gray-400">
         <span className="mr-3 overflow-hidden rounded-full h-8 w-8">
@@ -44,7 +43,9 @@ const handleLogout = async () => {
             U
           </span>
         </span>
-        <span className="block mr-1 font-medium text-theme-sm">Loading...</span>
+        <span className="block mr-1 font-medium text-theme-sm">
+          {isLoading ? "Loading..." : "User"}
+        </span>
       </div>
     );
   }
@@ -68,6 +69,7 @@ const handleLogout = async () => {
               src="/images/user/owner.jpg"
               alt="User"
               onError={handleImageError}
+              className="object-cover w-full h-full"
             />
           )}
         </span>
@@ -75,8 +77,9 @@ const handleLogout = async () => {
         <span className="block mr-1 font-medium text-theme-sm">{userName}</span>
 
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
-            }`}
+          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
           width="18"
           height="20"
           viewBox="0 0 18 20"
@@ -98,12 +101,12 @@ const handleLogout = async () => {
         onClose={closeDropdown}
         className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
       >
-        <div>
+        <div className="px-3 py-2">
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
             {userName}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {userEmail}
+            {userEmail || "No contact info"}
           </span>
         </div>
 
@@ -165,10 +168,11 @@ const handleLogout = async () => {
               href="/home-services/dashboard/profile-settings"
               className="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
             >
-              Setting
+              Settings
             </DropdownItem>
           </li>
         </ul>
+
 
         <Link
           href="/signin"

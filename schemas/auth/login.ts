@@ -9,7 +9,7 @@ export const phoneLoginSchema = z.object({
     .max(20, "Phone number is too long")
     .regex(phoneRegex, "Please enter a valid phone number"),
   otp: z.string()
-    .length(6, "OTP must be exactly 6 digits")
+    .length(4, "OTP must be exactly 4 digits")
     .regex(/^\d+$/, "OTP must contain only numbers"),
 });
 

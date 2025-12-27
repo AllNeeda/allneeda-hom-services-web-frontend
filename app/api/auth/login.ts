@@ -1,15 +1,32 @@
-// app/api/auth.ts
 import { api, tokenManager } from "@/app/api/axios";
 import axios from "axios";
-
 export interface User {
   _id: string;
-  email: string;
-  username: string;
-  role?: string;
-  permissions?: string[];
-  createdAt?: string;
-  updatedAt?: string;
+  firstName: string;
+  lastName: string;
+  phoneNo: string;
+  email?: string;
+  username?: string;
+  ReferralCode?: string;
+  dob?: string;
+  isAgreeTermsConditions?: boolean;
+  role_id?: string;
+  status?: boolean;
+  Islogin_permissions?: boolean;
+  Permissions_DeviceLocation?: boolean;
+  hobby?: any[];
+  RegistrationType?: string;
+  invitedBy?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string | null;
+  freeTrialPlan?: boolean;
+  language_id?: string | null;
+  country_id?: string | null;
+  state_id?: string | null;
+  city_id?: string | null;
 }
 
 export interface LoginResponse {
@@ -27,6 +44,36 @@ export interface ApiError {
   code?: string;
 }
 
+// Helper functions for cookies
+const setCookie = (name: string, value: string, days: number = 30) => {
+  if (typeof window === "undefined") return;
+  
+  const isProduction = process.env.NODE_ENV === "production";
+  const secureFlag = isProduction ? "; secure" : "";
+  const sameSite = "; SameSite=Strict";
+  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires.toUTCString()}${secureFlag}${sameSite}`;
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof window === "undefined") return null;
+  
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [cookieName, cookieValue] = cookie.trim().split('=');
+    if (cookieName === name && cookieValue) {
+      return decodeURIComponent(cookieValue);
+    }
+  }
+  return null;
+};
+
+const removeCookie = (name: string) => {
+  if (typeof window === "undefined") return;
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+};
+
 class AuthService {
   async login(credentials: {
     email: string;
@@ -35,19 +82,18 @@ class AuthService {
     try {
       const response = await api.post("/auth/login", credentials);
       const tokens = response.data.tokens;
-      
       if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
         throw new Error("Invalid email or password");
       }
       
       const { user } = response.data;
-      if (typeof window !== "undefined") {
-        const isProduction = process.env.NODE_ENV === "production";
-        const secureFlag = isProduction ? "secure" : "";
-        const sameSite = "SameSite=Strict";
-        document.cookie = `auth-token=${tokens.accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
-        document.cookie = `refresh-token=${tokens.refreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
-      }
+      
+      // Store tokens in cookies
+      setCookie('auth-token', tokens.accessToken, 0.5); // 30 minutes
+      setCookie('refresh-token', tokens.refreshToken, 30); // 30 days
+      
+      // Store user data in cookie (serialized)
+      setCookie('user-data', JSON.stringify(user), 1); // 1 day
 
       return {
         user,
@@ -67,10 +113,8 @@ class AuthService {
           };
         }
         
-        // Extract backend error message from various possible formats
         let message = "Login failed";
         if (responseData) {
-          // Try different error message fields
           if (responseData.message) {
             message = responseData.message;
           } else if (responseData.error) {
@@ -80,7 +124,6 @@ class AuthService {
           } else if (responseData.title) {
             message = responseData.title;
           } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-            // Handle array of errors
             message = responseData.errors
               .map((err: any) => err.message || err.msg || err.error || String(err))
               .join(", ");
@@ -89,7 +132,6 @@ class AuthService {
           }
         }
         
-        // Override with status-specific messages only if no backend message was found
         if (message === "Login failed") {
           switch (status) {
             case 400:
@@ -128,38 +170,84 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
+      // Clear all cookies
+      removeCookie('auth-token');
+      removeCookie('refresh-token');
+      removeCookie('user-data');
       await tokenManager.clearTokens();
     } catch {
-      // Even if logout API fails, clear local tokens
-      console.warn("Logout API call failed, clearing local tokens");
-      if (typeof window !== "undefined") {
-        document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
-        document.cookie = "refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict";
-      }
+      console.warn("Logout API call failed, clearing cookies anyway");
+      removeCookie('auth-token');
+      removeCookie('refresh-token');
+      removeCookie('user-data');
     }
   }
+
   async getCurrentUser(): Promise<User> {
     try {
-      if (!tokenManager.isAuthenticated()) {
+      // First try to get user from cookie
+      const userDataCookie = getCookie('user-data');
+      if (userDataCookie) {
+      
+        const user = JSON.parse(userDataCookie) as User;
+          return user;
+    
+      }
+      
+      // If no user cookie but authenticated, try to get from token/API
+      if (!this.isAuthenticated()) {
         throw new Error("No valid authentication token found");
       }
-      const response = await api.get("/auth/me");
+      
+      const token = tokenManager.getAccessToken();
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+      
+      // Decode token to get user ID
+      const decoded = this.decodeToken(token);
+      const userId = decoded?.sub || decoded?.userId || decoded?.user_id;
+      
+      if (!userId) {
+        throw new Error("User ID not found in token");
+      }
+      const response = await api.get(`/user/getById/${userId}`);
+      
       if (!response.data) {
         throw new Error("No user data returned from server");
       }
-      return response.data as User;
+      
+      const userData = response.data.data?.user || response.data.user || response.data;
+      
+      if (!userData || !userData._id) {
+        throw new Error("Invalid user data received");
+      }
+      
+      // Store the fetched user in cookie for future use
+      setCookie('user-data', JSON.stringify(userData), 1);
+      
+      return userData as User;
+      
     } catch (error: any) {
-      if (error.response?.status === 401) {
-        await this.logout();
-        throw new Error("Session expired. Please log in again.");
-      }
-      if (error.response?.status === 403) {
-        throw new Error("Access denied. Insufficient permissions.");
-      }
       throw new Error(error.message || "Failed to fetch user information.");
     }
   }
 
+  private decodeToken(token: string): any {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch {
+      return null;
+    }
+  }
   isAuthenticated(): boolean {
     return tokenManager.isAuthenticated();
   }
@@ -173,7 +261,6 @@ class AuthService {
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
-
       const response = await api.post("/auth/refresh", { refreshToken });
       const { accessToken, refreshToken: newRefreshToken } =
         response.data.tokens || {};
@@ -182,15 +269,9 @@ class AuthService {
         throw new Error("Invalid token response from server");
       }
 
-      // Update cookies if backend doesn't set them automatically
-      if (typeof window !== "undefined") {
-        const isProduction = process.env.NODE_ENV === "production";
-        const secureFlag = isProduction ? "secure" : "";
-        const sameSite = "SameSite=Strict";
-        
-        document.cookie = `auth-token=${accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
-        document.cookie = `refresh-token=${newRefreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
-      }
+      // Update cookies
+      setCookie('auth-token', accessToken, 0.5);
+      setCookie('refresh-token', newRefreshToken, 30);
 
       return { accessToken, refreshToken: newRefreshToken };
     } catch {
@@ -198,27 +279,18 @@ class AuthService {
       throw new Error("Token refresh failed. Please log in again.");
     }
   }
-
-  // Check if token is about to expire (for proactive refresh)
   isTokenExpiringSoon(minutes: number = 5): boolean {
     const token = tokenManager.getAccessToken();
     if (!token) return true;
     return tokenManager.isTokenExpiringSoon(token, minutes);
   }
 
-  /**
-   * Send OTP to phone number
-   * @param phone - Phone number in international format
-   * @returns Promise that resolves when OTP is sent successfully
-   */
   async sendOTP(phone: string): Promise<void> {
     try {
-      // Normalize phone number (remove spaces, dashes, etc.)
       const normalizedPhone = phone.replace(/[\s\-()]/g, "");
-      // Use external OTP API endpoint with direct axios call
       const response = await axios.post(
         "https://generaluser-web-latest.onrender.com/api/v2/authentication/sendOtp/",
-        { phone: normalizedPhone },
+        { phoneNo: normalizedPhone },
         {
           timeout: 15000,
           headers: {
@@ -227,7 +299,6 @@ class AuthService {
         }
       );
 
-      // Check if response indicates success
       if (response.status >= 200 && response.status < 300) {
         return;
       }
@@ -252,7 +323,6 @@ class AuthService {
           }
         }
         
-        // Status-specific error messages
         if (message === "Failed to send OTP. Please try again.") {
           switch (status) {
             case 400:
@@ -280,22 +350,13 @@ class AuthService {
     }
   }
 
-  /**
-   * Verify OTP and complete phone login
-   * @param phone - Phone number in international format
-   * @param otp - 6-digit OTP code
-   * @returns LoginResponse with user data and tokens
-   */
   async verifyOTP(phone: string, otp: string): Promise<LoginResponse> {
     try {
-      // Normalize phone number
       const normalizedPhone = phone.replace(/[\s\-()]/g, "");
-      
-      // Verify OTP using external API with direct axios call
       const response = await axios.post(
         "https://generaluser-web-latest.onrender.com/api/v2/authentication/verify_otp/",
         { 
-          phone: normalizedPhone,
+          phoneNo: normalizedPhone,
           otp: otp.trim()
         },
         {
@@ -305,59 +366,25 @@ class AuthService {
           },
         }
       );
-
       const responseData = response.data;
-      
-      // Extract tokens and user data from response
-      // The response structure may vary, so we handle multiple formats
-      const tokens = responseData.tokens || responseData.data?.tokens || responseData;
-      const user = responseData.user || responseData.data?.user || responseData.data;
-      
-      if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
-        throw new Error("Invalid OTP or authentication failed");
+      const data = responseData.data || responseData;
+      const user = data?.user;
+      const accessToken = data?.accessToken;
+      const refreshToken = data?.refreshToken;
+      if (!accessToken || !refreshToken) {
+        throw new Error("Invalid OTP or authentication failed - no tokens received");
       }
-
-      // Set tokens as cookies (same as regular login)
-      if (typeof window !== "undefined") {
-        const isProduction = process.env.NODE_ENV === "production";
-        const secureFlag = isProduction ? "secure" : "";
-        const sameSite = "SameSite=Strict";
-        
-        // Set access token (30 minutes)
-        document.cookie = `auth-token=${tokens.accessToken}; path=/; max-age=1800; ${sameSite}; ${secureFlag}`;
-        // Set refresh token (30 days)
-        document.cookie = `refresh-token=${tokens.refreshToken}; path=/; max-age=2592000; ${sameSite}; ${secureFlag}`;
+      if (!user || !user._id) {
+        throw new Error("Invalid OTP or authentication failed - no user data received");
       }
-
-      // If user data is not in response, fetch it using the token
-      let userData = user;
-      if (!userData || !userData._id) {
-        // Try to get user data from the main API using the new token
-        try {
-          const apiBaseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1/";
-          const userResponse = await axios.get(`${apiBaseURL}/auth/me`, {
-            headers: {
-              Authorization: `Bearer ${tokens.accessToken}`,
-              "Content-Type": "application/json",
-            },
-            timeout: 15000,
-          });
-          userData = userResponse.data;
-        } catch {
-          // If fetching user fails, construct a minimal user object
-          userData = {
-            _id: responseData.userId || responseData.id || "unknown",
-            email: responseData.email || normalizedPhone,
-            username: responseData.username || normalizedPhone,
-          };
-        }
-      }
-
+      setCookie('auth-token', accessToken, 0.5); // 30 minutes
+      setCookie('refresh-token', refreshToken, 30); // 30 days
+      setCookie('user-data', JSON.stringify(user), 1); // 1 day
       return {
-        user: userData as User,
+        user: user as User,
         tokens: {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
         },
       };
     } catch (error: any) {
@@ -379,7 +406,6 @@ class AuthService {
           }
         }
         
-        // Status-specific error messages
         if (message === "Invalid OTP. Please try again.") {
           switch (status) {
             case 400:

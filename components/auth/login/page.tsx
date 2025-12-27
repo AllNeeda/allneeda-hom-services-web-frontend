@@ -153,7 +153,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
   );
 
   const isVerifyOtpDisabled = useMemo(() => 
-    isLoading || !otpValue || otpValue.length !== 6,
+    isLoading || !otpValue || otpValue.length !== 4,
     [isLoading, otpValue]
   );
 
@@ -188,7 +188,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
           maxLength={6}
           value={otpValue}
           onChange={handleOtpChange}
-          placeholder="123456"
+          placeholder="1234"
           disabled={isLoading}
           className={cn(
             "pl-10 h-12 rounded-sm border-gray-300 dark:border-gray-700",
