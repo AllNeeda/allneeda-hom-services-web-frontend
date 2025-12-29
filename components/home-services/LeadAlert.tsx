@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { BadgeCheck, Shield, MessageSquare, TrendingUp, Sparkles, X } from "lucide-react"
+import { BadgeCheck, Shield, MessageSquare, TrendingUp, Sparkles} from "lucide-react"
 import Link from "next/link"
 
 interface LeadDialogProps {
@@ -30,8 +30,8 @@ export function LeadDialog({
       <DialogContent className="sm:max-w-lg  border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-0 text-gray-900 dark:text-gray-100 overflow-hidden shadow-2xl dark:shadow-gray-900/50 max-h-[90vh] overflow-y-auto">
         
         {/* Close Button */}
-        <DialogClose className="absolute right-3 top-3 z-10 rounded-sm opacity-70 ring-offset-white dark:ring-offset-gray-900 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
+        <DialogClose className="">
+          
           <span className="sr-only">Close</span>
         </DialogClose>
 
