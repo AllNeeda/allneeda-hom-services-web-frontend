@@ -15,9 +15,8 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Questioner from "../../question/Questioner";
-import { getPorfessionalsStaticURL} from "@/app/api/axios";
+import { getPorfessionalsStaticURL } from "@/app/api/axios";
 import { Professional, GoogleProfessional } from "@/types/professional";
-
 
 interface ProfessionalListProps {
   professionals: Professional[];
@@ -174,21 +173,20 @@ export default function ProfessionalList({
     });
   };
 
-
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
-            className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 rounded-xl animate-pulse border border-gray-700"
+            className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 p-4 rounded-xl animate-pulse border border-gray-300 dark:border-gray-700"
           >
             <div className="flex gap-3">
-              <div className="w-16 h-16 bg-gray-700 rounded-lg"></div>
+              <div className="w-16 h-16 bg-gray-300 dark:bg-gray-700 rounded-lg"></div>
               <div className="flex-1 space-y-2">
-                <div className="h-3 bg-gray-700 rounded w-3/4"></div>
-                <div className="h-2 bg-gray-700 rounded w-1/2"></div>
-                <div className="h-2 bg-gray-700 rounded w-2/3"></div>
+                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                <div className="h-2 bg-gray-300 dark:bg-gray-700 rounded w-2/3"></div>
               </div>
             </div>
           </div>
@@ -206,12 +204,12 @@ export default function ProfessionalList({
     <div className="flex flex-col lg:flex-row gap-6">
       {/* Mobile Filter Button */}
       <div className="lg:hidden flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
           Professionals
         </h2>
         <Button
           onClick={() => setShowFilterSidebar(true)}
-          className="relative overflow-hidden group bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg border-0 shadow-[0_0_15px_rgba(99,102,241,0.3)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.5)]"
+          className="relative overflow-hidden group bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg border-0 shadow-[0_0_15px_rgba(99,102,241,0.3)] dark:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(99,102,241,0.5)]"
         >
           <div className="flex items-center gap-2 relative z-10">
             <Filter className="w-4 h-4" />
@@ -236,17 +234,17 @@ export default function ProfessionalList({
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25 }}
-              className="fixed left-0 top-0 h-full w-[85%] max-w-sm bg-gray-900 border-r border-gray-700 z-50 overflow-y-auto lg:hidden"
+              className="fixed left-0 top-0 h-full w-[85%] max-w-sm bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 z-50 overflow-y-auto lg:hidden"
             >
-              <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
                   Filter & Sort
                 </h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowFilterSidebar(false)}
-                  className="text-gray-400 hover:text-white"
+                  className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </Button>
@@ -269,7 +267,7 @@ export default function ProfessionalList({
 
       {/* Desktop Sidebar - 30% - Rich Filter */}
       <div className="hidden lg:block w-full lg:w-[30%] xl:w-[25%] sticky top-24 self-start">
-        <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-xl p-6 border border-gray-700/50 shadow-xl">
+        <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-lg dark:shadow-xl">
           <FilterSidebarContent
             filters={filters}
             setFilters={setFilters}
@@ -284,11 +282,11 @@ export default function ProfessionalList({
       {/* Main Content - 70% */}
       <div className="w-full lg:w-[70%] xl:w-[75%]">
         {/* Desktop Header */}
-        <div className="hidden lg:block">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <div className="hidden lg:block mb-6">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
             Professionals
           </h2>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
             Showing {sortedProfessionals.length} of {allProfessionals.length} professionals
           </p>
         </div>
@@ -302,13 +300,13 @@ export default function ProfessionalList({
         )) && (
           <div className="flex flex-wrap gap-2 mb-6">
             {filters.rating > 0 && (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 rounded-full text-sm border border-yellow-500/30 flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-500/20 dark:to-orange-500/20 text-yellow-800 dark:text-yellow-300 rounded-full text-sm border border-yellow-300 dark:border-yellow-500/30 flex items-center gap-2">
                 <Star className="w-4 h-4" fill="currentColor" />
                 {filters.rating}+ Stars
               </span>
             )}
             {filters.verifiedOnly && (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 rounded-full text-sm border border-green-500/30 flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-500/20 dark:to-emerald-500/20 text-green-800 dark:text-green-300 rounded-full text-sm border border-green-300 dark:border-green-500/30 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
@@ -316,7 +314,7 @@ export default function ProfessionalList({
               </span>
             )}
             {filters.availability.includes("Available") && (
-              <span className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30 flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 text-blue-800 dark:text-blue-300 rounded-full text-sm border border-blue-300 dark:border-blue-500/30 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -326,7 +324,7 @@ export default function ProfessionalList({
             {filters.type.map((type) => (
               <span
                 key={type}
-                className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 rounded-full text-sm border border-blue-500/30"
+                className="px-3 py-1.5 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-500/20 dark:to-purple-500/20 text-blue-800 dark:text-blue-300 rounded-full text-sm border border-blue-300 dark:border-blue-500/30"
               >
                 {type}
               </span>
@@ -346,20 +344,19 @@ export default function ProfessionalList({
               isGoogleProfessional={transformedGooglePros.some(gp => gp.id === professional.id)}
               googleProDatails={googleProDetails}
               googleData={(professional as any).googleData}
-              
             />
           ))}
         </div>
 
         {sortedProfessionals.length === 0 && !loading && (
           <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-gray-800 to-gray-900 rounded-full flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-gray-600" />
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-gray-400 dark:text-gray-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-300 mb-2">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-2">
               No Professionals Found
             </h3>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-600 dark:text-gray-500 text-sm">
               Try adjusting your filters
             </p>
           </div>
@@ -391,12 +388,12 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
     <>
       {/* Filter Header */}
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
           Filter & Sort
         </h2>
         <button
           onClick={resetFilters}
-          className="text-sm text-gray-400 hover:text-white transition-colors"
+          className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           Clear All
         </button>
@@ -404,8 +401,8 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
 
       {/* Sort By Section */}
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
           </svg>
           Sort By
@@ -424,14 +421,14 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
                 onClick={() => setFilters({...filters, sortBy: option.value})}
                 className={`flex items-center gap-3 w-full text-left p-3 rounded-lg transition-all ${
                   filters.sortBy === option.value
-                    ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
-                    : "bg-gray-800/50 hover:bg-gray-800"
+                    ? "bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 border border-purple-300 dark:border-purple-500/30"
+                    : "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800"
                 }`}
               >
-                <IconComponent className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-300">{option.label}</span>
+                <IconComponent className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
                 {filters.sortBy === option.value && (
-                  <span className="ml-auto text-purple-400">✓</span>
+                  <span className="ml-auto text-purple-600 dark:text-purple-400">✓</span>
                 )}
               </button>
             );
@@ -441,13 +438,16 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
 
       {/* Rating Filter - Expandable */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4 cursor-pointer rounded border border-gray-700 p-4" onClick={() => setIsRatingExpanded(!isRatingExpanded)}>
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer rounded border border-gray-300 dark:border-gray-700 p-4 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
+          onClick={() => setIsRatingExpanded(!isRatingExpanded)}
+        >
           <div className="flex items-center gap-2">
-            <Star className="w-4 h-4 text-yellow-400" fill="currentColor" />
-            <h3 className="text-sm font-semibold text-gray-300">Rating sort</h3>
+            <Star className="w-4 h-4 text-yellow-500 dark:text-yellow-400" fill="currentColor" />
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Rating sort</h3>
           </div>
           <svg 
-            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isRatingExpanded ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isRatingExpanded ? 'rotate-180' : ''}`}
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -472,8 +472,8 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
                     onClick={() => setFilters({...filters, rating})}
                     className={`flex items-center justify-between w-full p-3 rounded-lg transition-all ${
                       filters.rating === rating
-                        ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30"
-                        : "bg-gray-800/50 hover:bg-gray-800"
+                        ? "bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-500/20 dark:to-orange-500/20 border border-yellow-300 dark:border-yellow-500/30"
+                        : "bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -481,7 +481,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
                         {[...Array(5)].map((_, i) => (
                           <svg
                             key={i}
-                            className={`w-4 h-4 ${i < rating ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}`}
+                            className={`w-4 h-4 ${i < rating ? "text-yellow-500 fill-yellow-500 dark:text-yellow-400 dark:fill-yellow-400" : "text-gray-300 dark:text-gray-600"}`}
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -489,12 +489,12 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
                           </svg>
                         ))}
                       </div>
-                      <span className="text-sm text-gray-300">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
                         {rating === 0 ? "Any Rating" : `${rating}+ Stars`}
                       </span>
                     </div>
                     {filters.rating === rating && (
-                      <span className="text-yellow-400">✓</span>
+                      <span className="text-yellow-500 dark:text-yellow-400">✓</span>
                     )}
                   </button>
                 ))}
@@ -506,18 +506,18 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
 
       {/* Price Range */}
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Price Range
         </h3>
         <div className="space-y-4 px-2">
-          <div className="flex justify-between text-sm text-gray-400 mb-2">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
             <span>${filters.priceRange[0]}</span>
             <span>${filters.priceRange[1]}</span>
           </div>
-          <div className="relative h-2 bg-gray-700 rounded-full">
+          <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
             <div 
               className="absolute h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
               style={{
@@ -558,7 +558,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
                   ...filters,
                   priceRange: [0, price] as [number, number]
                 })}
-                className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
               >
                 Under ${price}
               </button>
@@ -569,8 +569,8 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
 
       {/* Business Type */}
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
           Business Type
@@ -593,7 +593,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
               className={`p-3 rounded-lg text-sm transition-all ${
                 filters.type.includes(type.value)
                   ? `bg-gradient-to-r ${type.color} text-white`
-                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                  : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
               }`}
             >
               {type.value}
@@ -604,8 +604,8 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
 
       {/* Quick Filters */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          <svg className="w-4 h-4 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           Quick Filters
@@ -619,7 +619,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
             className={`p-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
               filters.verifiedOnly
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
             }`}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -637,7 +637,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
             className={`p-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2 ${
               filters.availability.includes("Available")
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
-                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -651,7 +651,7 @@ const FilterSidebarContent: React.FC<FilterSidebarContentProps> = ({
               rating: 4,
               verifiedOnly: true
             })}
-            className="col-span-2 p-3 rounded-lg text-sm bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-gray-300 hover:from-purple-500/30 hover:to-pink-500/30 transition-all border border-purple-500/30"
+            className="col-span-2 p-3 rounded-lg text-sm bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 text-purple-800 dark:text-gray-300 hover:from-purple-200 hover:to-pink-200 dark:hover:from-purple-500/30 dark:hover:to-pink-500/30 transition-all border border-purple-300 dark:border-purple-500/30"
           >
             ⭐ Premium Only (4+ stars & verified)
           </button>
@@ -670,14 +670,13 @@ interface CompactProfessionalCardProps {
   isGoogleProfessional: boolean;
   googleData?: GoogleProfessional;
   googleProDatails?: { name: string; phone?: string }[];
-  constructedImageUrl?: string;
 }
 
 const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
   professional,
   serviceId,
   selectedProfessionals,
-
+  BASEDIR,
   isGoogleProfessional,
   googleData,
   googleProDatails,
@@ -686,11 +685,11 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [baseURL, setBaseURL] = useState('');
 
-  useEffect(()=>{
+  useEffect(() => {
     const url = getPorfessionalsStaticURL();
     setBaseURL(url);
-  })
-  
+  }, []);
+
   const formatPrice = (min: number, max: number) => {
     if (min === 0 && max === 0) return "Contact for price";
     if (min === max) return `$${min}`;
@@ -704,7 +703,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
       case "Open Now":
         return "bg-gradient-to-r from-blue-500 to-cyan-500";
       default:
-        return "bg-gradient-to-r from-gray-600 to-gray-700";
+        return "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700";
     }
   };
 
@@ -715,7 +714,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
       case "Handyman":
         return "from-orange-500 to-red-500";
       default:
-        return "from-gray-500 to-gray-600";
+        return "from-gray-500 to-gray-600 dark:from-gray-600 dark:to-gray-700";
     }
   };
 
@@ -736,8 +735,6 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
     setImageLoaded(true);
   };
 
-  
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -745,21 +742,21 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
       whileHover={{ y: -2 }}
       className="relative group"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 rounded-xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
 
-      <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 border border-gray-700/50 overflow-hidden h-full">
+      <div className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700/50 overflow-hidden h-full shadow-sm hover:shadow-md dark:shadow-none transition-shadow">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
 
         <div className="flex flex-col h-full">
           <div className="flex flex-col sm:flex-row gap-4 mb-4 items-start sm:items-center justify-start">
             <div className="relative w-16 h-16 flex-shrink-0 mx-auto sm:mx-0">
-              {professional.imageUrl && !isGoogleProfessional? (
+              {professional.imageUrl && !isGoogleProfessional ? (
                 <>
                   <Image
                     src={`${baseURL}/${professional.imageUrl}`}
                     fill
                     alt={professional.company}
-                    className="object-cover rounded-full ring-2 ring-sky-500 ring-offset-gray-900 ring-offset-4 transition-opacity duration-300"
+                    className="object-cover rounded-full ring-2 ring-sky-500 ring-offset-white dark:ring-offset-gray-900 ring-offset-4 transition-opacity duration-300"
                     sizes="64px"
                     onError={handleImageError}
                     onLoad={handleImageLoad}
@@ -769,15 +766,14 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                     }}
                   />
                   {!imageLoaded && !imageError && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full animate-pulse" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 rounded-full animate-pulse" />
                   )}
-                
-                 </>
+                </>
               ) : null}
               
               {/* Fallback UI when no image loads */}
               {(isGoogleProfessional || !professional.imageUrl) && (
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-full flex items-center justify-center ring-2 ring-sky-500 ring-offset-gray-900 ring-offset-4 transition-opacity duration-300">
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center ring-2 ring-sky-500 ring-offset-white dark:ring-offset-gray-900 ring-offset-4 transition-opacity duration-300">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
                       <span className="text-white text-lg font-bold">
@@ -804,18 +800,18 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
             {/* Company Info */}
             <div className="flex-1 min-w-0 text-center sm:text-left">
               <div className="flex flex-col items-center sm:items-start justify-start gap-2">
-                <h3 className="font-bold text-white truncate text-sm w-full">
+                <h3 className="font-bold text-gray-900 dark:text-white truncate text-sm w-full">
                   {professional.company}
                 </h3>
                 <div className="flex flex-row items-center gap-2">
                   {/* Rating */}
                   <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs font-bold text-white">
+                    <Star className="w-3 h-3 fill-yellow-500 text-yellow-500 dark:fill-yellow-400 dark:text-yellow-400" />
+                    <span className="text-xs font-bold text-gray-900 dark:text-white">
                       {professional.rating > 0 ? professional.rating.toFixed(1) : "New"}
                     </span>
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
                     ({professional.total_hires || 0} reviews)
                   </span>
                 </div>
@@ -830,7 +826,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                   {currentStatus}
                 </span>
                 {isGoogleProfessional && (
-                  <span className="px-2 py-0.5 text-xs bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 rounded-full border border-blue-500/30">
+                  <span className="px-2 py-0.5 text-xs bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-500/20 dark:to-purple-500/20 text-blue-800 dark:text-blue-300 rounded-full border border-blue-300 dark:border-blue-500/30">
                     Google
                   </span>
                 )}
@@ -839,26 +835,26 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
           </div>
 
           {/* Introduction / Description */}
-          <p className="text-xs text-gray-300 line-clamp-2 mb-3 flex-1">
+          <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 mb-3 flex-1">
             {professional.description}
           </p>
 
           {/* Services */}
           <div className="mb-3">
             <div className="flex items-center gap-1 mb-1">
-              <span className="text-xs font-medium text-gray-400">Services:</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Services:</span>
             </div>
             <div className="flex flex-wrap gap-1">
               {professional.services?.slice(0, 3).map((service, idx) => (
                 <span
                   key={idx}
-                  className="px-2 py-0.5 bg-gray-800 text-gray-300 rounded text-xs border border-gray-700"
+                  className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded text-xs border border-gray-300 dark:border-gray-700"
                 >
                   {service}
                 </span>
               ))}
               {professional.services && professional.services.length > 3 && (
-                <span className="px-2 py-0.5 bg-gray-800 text-gray-400 rounded text-xs border border-gray-700">
+                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs border border-gray-300 dark:border-gray-700">
                   +{professional.services.length - 3} more
                 </span>
               )}
@@ -870,13 +866,13 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
             {/* Price */}
             {professional.apiData && (
               <div className="mb-3 text-center sm:text-right">
-                <div className="text-sm font-bold text-white">
+                <div className="text-sm font-bold text-gray-900 dark:text-white">
                   {formatPrice(
                     professional.apiData.minimum_price ?? 0,
                     professional.apiData.maximum_price ?? 0
                   )}
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-xs text-gray-600 dark:text-gray-400">
                   {professional.apiData.pricing_type === "fixed" ? "Fixed price" : "Price range"}
                 </div>
               </div>
@@ -905,7 +901,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                   <Button
                     asChild
                     size="sm"
-                    className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium py-2 h-auto rounded-lg border border-gray-700"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-white text-xs font-medium py-2 h-auto rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
                   >
                     <Link href={`/home-services/professional-profile/${professional.id}`}>
                       View Profile
