@@ -676,7 +676,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
   professional,
   serviceId,
   selectedProfessionals,
-  BASEDIR,
+
   isGoogleProfessional,
   googleData,
   googleProDatails,

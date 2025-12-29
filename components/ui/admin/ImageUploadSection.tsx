@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Upload, Image as ImageIcon, X, Sparkles } from "lucide-react";
+import Image from "next/image";
 
 interface ImageUploadSectionProps {
   /* eslint-disable no-unused-vars */
@@ -113,9 +114,11 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
                 {/* Image Preview Thumbnail */}
                 <div className="relative flex-shrink-0">
                   <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-300/50 dark:border-gray-700/50 bg-gray-100 dark:bg-gray-800">
-                    <img
+                    <Image
                       src={previewUrl}
                       alt="Preview"
+                      width={100}
+                      height={100}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
@@ -240,9 +243,11 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
                   compact ? "w-12 h-12" : "w-16 h-16"
                 )}
               >
-                <img
+                <Image
                   src={previewUrl}
                   alt="Preview"
+                  width={100}
+                  height={100}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
