@@ -9,7 +9,7 @@ import {
     SelectContent,
     SelectItem
 } from "@/components/ui/select";
-import { Loader2 } from 'lucide-react';
+import { Loader2, Building2, User, MapPin, Shield, ChevronDown, Calendar, Mail, Key, Search, Home, Briefcase, Map, Globe2, UserCircle, PhoneCall, Lock, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,9 +22,7 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
-    CommandEmpty
 } from '@/components/ui/command';
-import { useRegister } from '@/hooks/RegisterPro/useRegister';
 import {
     ProfessionalStepOne,
     ProfessionalStepOneSchemaType
@@ -37,6 +35,8 @@ import {
 import toast from "react-hot-toast";
 import GlobalLoader from "@/components/ui/global-loader";
 import Link from "next/link";
+import OTPVerification from "./verification";
+import { useSendOTP, useVerifyOTP, useCompleteRegistration, useCreateUser, OTPRegisterData } from "@/hooks/RegisterPro/useUserRegister";
 
 // Define types
 interface Category {
@@ -63,28 +63,43 @@ interface Service {
     description: string;
 }
 
+type SignupStep = 'form' | 'otp';
+
 export default function Register() {
-    // API data hooks
-    const { data: categoriesData, isLoading: isLoadingCategories } = useCategoryServiceCount();
-    const { data: subCategoriesData, isLoading: isLoadingSubCategories } = useSubcategoryServiceCount();
-    const { data: servicesData, isLoading: isLoadingServices } = useServices();
+    // State
+    const [currentStep, setCurrentStep] = useState<SignupStep>('form');
+    const [tempRegistrationData, setTempRegistrationData] = useState<OTPRegisterData | null>(null);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
     const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [businessTypeValue, setBusinessTypeValue] = useState<string>('');
-    const { registerUser, isPending } = useRegister();
+
+    // API data hooks
+    const { data: categoriesData, isLoading: isLoadingCategories } = useCategoryServiceCount();
+    const { data: subCategoriesData, isLoading: isLoadingSubCategories } = useSubcategoryServiceCount();
+    const { data: servicesData, isLoading: isLoadingServices } = useServices();
+
+    // OTP Hooks
+    const sendOTPMutation = useSendOTP();
+    const verifyOTPMutation = useVerifyOTP();
+    const completeRegistrationMutation = useCompleteRegistration();
+    const createUserMutation = useCreateUser();
+
+    // Form Hook
     const {
         register,
         handleSubmit,
         setValue,
-        formState: { errors },
+        formState: { errors, isValid },
         clearErrors,
-        watch,
         trigger,
-    } = useForm<ProfessionalStepOneSchemaType>({
+    } = useForm({
         resolver: zodResolver(ProfessionalStepOne),
         mode: 'onChange',
         defaultValues: {
+            firstName: '',
+            lastName: '',
+            dateOfBirth: '',
             categories: [],
             subCategories: [],
             services_id: [],
@@ -98,25 +113,24 @@ export default function Register() {
             postalCode: '',
             username: '',
             email: '',
-            phone: '',
-            password: '',
-            repassword: '',
+            phoneNo: '',
             terms: false,
         }
     });
 
-    const password = watch('password');
     const filteredSubCategories = useMemo(() => {
         return (subCategoriesData?.data?.data || []).filter((sub: SubCategory) =>
             selectedCategories.includes(sub.category_id)
         );
     }, [subCategoriesData, selectedCategories]);
+
     const filteredServices = useMemo(() => {
         return (servicesData?.data?.data || []).filter((service: Service) =>
             selectedSubCategories.includes(service.subcategory_id)
         );
     }, [servicesData, selectedSubCategories]);
 
+    // Selection handlers
     const toggleCategory = (id: string) => {
         const newCategories = selectedCategories.includes(id) ? [] : [id];
         setSelectedCategories(newCategories);
@@ -131,6 +145,7 @@ export default function Register() {
         clearErrors('subCategories');
         clearErrors('services_id');
     };
+
     const toggleSubCategory = (id: string) => {
         const newSubCategories = selectedSubCategories.includes(id) ? [] : [id];
         setSelectedSubCategories(newSubCategories);
@@ -142,6 +157,7 @@ export default function Register() {
         setValue('services_id', [], { shouldValidate: true });
         clearErrors('services_id');
     };
+
     const toggleService = (id: string) => {
         const newServices = selectedServices.includes(id)
             ? selectedServices.filter(item => item !== id)
@@ -149,7 +165,6 @@ export default function Register() {
         setSelectedServices(newServices);
         setValue('services_id', newServices, { shouldValidate: true });
 
-        // Clear services error if at least one selected
         if (newServices.length > 0) {
             clearErrors('services_id');
         }
@@ -163,628 +178,679 @@ export default function Register() {
         }
     };
 
-    const checkPasswordStrength = (pass: string) => {
-        if (!pass) return { score: 0, message: '' };
+    // Step 1: Handle form submission and send OTP
+    const handleFormSubmit = async (data: ProfessionalStepOneSchemaType) => {
+        const isValidForm = await trigger();
 
-        let score = 0;
-        if (pass.length >= 8) score++;
-        if (/[A-Z]/.test(pass)) score++;
-        if (/[0-9]/.test(pass)) score++;
-        if (/[^A-Za-z0-9]/.test(pass)) score++;
-
-        const messages = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-        const colors = [
-            'text-red-600',
-            'text-orange-600',
-            'text-yellow-600',
-            'text-green-600',
-            'text-green-600'
-        ];
-
-        return {
-            score,
-            message: messages[score],
-            color: colors[score]
-        };
-    };
-
-    const onSubmit = async (data: ProfessionalStepOneSchemaType) => {
-        if (isPending) {
-            toast.error("Please wait while we process your registration");
-            return;
-        }
-        const isValid = await trigger();
-
-        if (!isValid) {
+        if (!isValidForm) {
             toast.error("Please fill in all required fields correctly");
             return;
         }
 
-        if (data.password !== data.repassword) {
-            toast.error("Passwords do not match");
-            return;
-        }
-
-        const submitData = {
+        // Store form data temporarily
+        const registrationData: OTPRegisterData = {
             ...data,
             categories: selectedCategories,
             subCategories: selectedSubCategories,
             services_id: selectedServices
         };
 
-        registerUser(submitData);
+        setTempRegistrationData(registrationData);
+
+        // First create the external user (auth service)
+        const createUserResult = await createUserMutation.mutateAsync({
+            firstName: registrationData.firstName,
+            lastName: registrationData.lastName,
+            phoneNo: registrationData.phoneNo,
+            dob: registrationData.dateOfBirth,
+            isAgreeTermsConditions: registrationData.terms,
+        });
+
+        const createdUserId = createUserResult?.data?.id || createUserResult?.id || null;
+
+        const registrationWithUserId = {
+            ...registrationData,
+            user_id: createdUserId || undefined,
+            website: registrationData.website ?? "",
+        };
+
+        setTempRegistrationData(registrationWithUserId);
+
+        // Then send OTP and move to OTP step
+        await sendOTPMutation.mutateAsync({ phoneNo: data.phoneNo });
+        setCurrentStep('otp');
+    };
+
+    // Step 2: Handle OTP verification
+    const handleOTPVerify = async (otp: string) => {
+        if (!tempRegistrationData) {
+            toast.error("Registration data not found. Please start over.");
+            return;
+        }
+
+        try {
+            // Verify OTP first
+            await verifyOTPMutation.mutateAsync({
+                phoneNo: tempRegistrationData.phoneNo,
+                otp,
+            });
+
+            // On success, send remaining professional data to internal API
+            await completeRegistrationMutation.mutateAsync(tempRegistrationData);
+        } catch {
+            // Error handled by mutation
+        }
+    };
+
+    // Step 2: Handle OTP resend
+    const handleResendOTP = async () => {
+        if (!tempRegistrationData) return;
+
+        try {
+            // resend OTP
+            await sendOTPMutation.mutateAsync({ phoneNo: tempRegistrationData.phoneNo });
+        } catch {
+            // Error handled by mutation
+        }
+    };
+
+    // Reset form
+    const handleReset = () => {
+        setSelectedCategories([]);
+        setSelectedSubCategories([]);
+        setSelectedServices([]);
+        setBusinessTypeValue('');
+        setValue('businessType', '');
+        setValue('businessName', '');
+        setValue('streetAddress', '');
+        setValue('city', '');
+        setValue('region', '');
+        setValue('postalCode', '');
+        setValue('website', '');
+        setValue('firstName', '');
+        setValue('lastName', '');
+        setValue('dateOfBirth', '');
+        setValue('username', '');
+        setValue('email', '');
+        setValue('phoneNo', '');
+        setValue('terms', false);
+        setCurrentStep('form');
+        setTempRegistrationData(null);
+    };
+
+    const handleBackToForm = () => {
+        setCurrentStep('form');
     };
 
     const isLoading = isLoadingCategories || isLoadingSubCategories || isLoadingServices;
-    const passwordStrength = checkPasswordStrength(password);
 
     if (isLoading) {
         return <GlobalLoader />;
     }
 
+    // Render OTP verification step
+    if (currentStep === 'otp' && tempRegistrationData) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+                <div className="w-full max-w-md">
+                    <OTPVerification
+                        phoneNo={tempRegistrationData.phoneNo}
+                        onVerify={handleOTPVerify}
+                        onResend={handleResendOTP}
+                        onBack={handleBackToForm}
+                        isLoading={verifyOTPMutation.isPending || completeRegistrationMutation.isPending}
+                        isResending={sendOTPMutation.isPending}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Enhanced registration form with Nexus professional design
     return (
-        <div className="flex items-center justify-center dark:bg-gray-900 px-8 sm:px-6 lg:px-4">
-            <div className="max-w-3xl w-full">
-                <div className="flex justify-center">
-                    <div className="w-full max-w-3xl">
-                        <form
-                            onSubmit={handleSubmit(onSubmit)}
-                            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-sm shadow-lg p-8 space-y-8"
-                        >
-                            <div className="space-y-8">
-                                <section className="border-b border-gray-200 dark:border-gray-700 pb-8">
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                        Business Information
-                                    </h2>
-                                    <p className="mb-6 text-gray-600 dark:text-gray-300 text-[13px]">
-                                        This information will be displayed publicly so be careful what you share.
-                                    </p>
+        <div className=" dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-1xl mx-auto"> {/* 60-80% width */}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Business Name */}
-                                        <div>
-                                            <label htmlFor="businessName" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Business Name
-                                            </label>
-                                            <input
-                                                id="businessName"
-                                                type="text"
-                                                placeholder="Enter your business name"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-[13px]"
-                                                {...register('businessName')}
-                                            />
-                                            {errors.businessName && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.businessName.message}
-                                                </p>
-                                            )}
+                {/* Compact Header */}
+                <div className="mb-8 text-center">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-[#0077B6] rounded-sm flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="text-left">
+                            <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                                Allneeda Professional
+                            </h1>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                Business Registration
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* Main Form Card - Compact */}
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm shadow-sm">
+                    <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-6">
+
+                        {/* Business Section - Compact */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Briefcase className="w-4 h-4 text-[#0077B6]" />
+                                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Business Information
+                                </h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Business Name with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Business Name *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <Building2 className="w-4 h-4 text-gray-400" />
                                         </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Your Business Name"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#0077B6] focus:border-[#0077B6]"
+                                            {...register('businessName')}
+                                        />
+                                    </div>
+                                    {errors.businessName && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.businessName.message}
+                                        </p>
+                                    )}
+                                </div>
 
-                                        {/* Business Type */}
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Business Type *
-                                            </label>
-                                            <Select
-                                                onValueChange={handleBusinessTypeChange}
-                                                value={businessTypeValue}
-                                            >
-                                                <SelectTrigger className="w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-[13px]">
-                                                    <SelectValue placeholder="Select business type" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="home-services" className="text-[13px]">Home Services</SelectItem>
-                                                    <SelectItem value="it-services" className="text-[13px]">IT Services</SelectItem>
-                                                    <SelectItem value="food-delivery" className="text-[13px]">Food Delivery</SelectItem>
-                                                    <SelectItem value="shopping" className="text-[13px]">Shopping</SelectItem>
-                                                    <SelectItem value="grocery" className="text-[13px]">Grocery</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {errors.businessType && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.businessType.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Category Selection */}
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Select Category *
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="w-full justify-between border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[13px]"
-                                                    >
-                                                        {selectedCategories.length > 0
-                                                            ? `1 selected`
-                                                            : 'Select Category'}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-full p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search Categories..." className="text-[13px]" />
-                                                        <CommandEmpty className="text-[13px]">No category found.</CommandEmpty>
-                                                        <CommandList className="max-h-60">
-                                                            {(categoriesData?.data?.data || []).map((category: Category) => (
-                                                                <CommandItem
-                                                                    key={category._id}
-                                                                    onSelect={() => toggleCategory(category._id)}
-                                                                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-[13px]"
-                                                                >
-                                                                    <div className="flex items-center justify-between w-full">
-                                                                        <span>{category.name}</span>
-                                                                        {selectedCategories.includes(category._id) && (
-                                                                            <span className="text-green-500">✓</span>
-                                                                        )}
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {selectedCategories.map((id) => {
-                                                    const category = (categoriesData?.data?.data || []).find((c: Category) => c._id === id);
-                                                    return (
-                                                        <Badge key={id} className="bg-[#0077B6] rounded-[4px] text-white text-[13px]">
-                                                            {category?.name}
-                                                        </Badge>
-                                                    );
-                                                })}
+                                {/* Business Type with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Business Type *
+                                    </label>
+                                    <Select onValueChange={handleBusinessTypeChange} value={businessTypeValue}>
+                                        <SelectTrigger className="w-full text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 pl-10">
+                                            <div className="absolute left-3">
                                             </div>
-                                            {errors.categories && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.categories.message}
-                                                </p>
-                                            )}
-                                        </div>
+                                            <SelectValue placeholder="Select type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-sm border border-gray-200 dark:border-gray-800">
+                                            <SelectItem value="home-services" className="text-sm">Home Services</SelectItem>
+                                            <SelectItem value="it-services" className="text-sm">IT Services</SelectItem>
+                                            <SelectItem value="food-delivery" className="text-sm">Food Delivery</SelectItem>
+                                            <SelectItem value="shopping" className="text-sm">Shopping</SelectItem>
+                                            <SelectItem value="grocery" className="text-sm">Grocery</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.businessType && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.businessType.message}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
 
-                                        {/* Sub-Category Selection */}
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Select Sub-Category *
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="w-full justify-between border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[13px]"
-                                                        disabled={filteredSubCategories.length === 0}
-                                                    >
-                                                        {selectedSubCategories.length > 0
-                                                            ? `1 selected`
-                                                            : filteredSubCategories.length === 0
-                                                                ? 'No sub-categories available'
-                                                                : 'Select sub-category'}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-full p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search sub-categories..." className="text-[13px]" />
-                                                        <CommandEmpty className="text-[13px]">No sub-category found.</CommandEmpty>
-                                                        <CommandList className="max-h-60">
-                                                            {filteredSubCategories.map((subCategory: SubCategory) => (
-                                                                <CommandItem
-                                                                    key={subCategory._id}
-                                                                    onSelect={() => toggleSubCategory(subCategory._id)}
-                                                                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-[13px]"
-                                                                >
-                                                                    <div className="flex items-center justify-between w-full">
-                                                                        <span>{subCategory.name}</span>
-                                                                        {selectedSubCategories.includes(subCategory._id) && (
-                                                                            <span className="text-green-500">✓</span>
-                                                                        )}
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {selectedSubCategories.map((id) => {
-                                                    const subCategory = filteredSubCategories.find((s: SubCategory) => s._id === id);
-                                                    return (
-                                                        <Badge key={id} className="bg-[#0077B6] text-white text-[13px]">
-                                                            {subCategory?.name}
-                                                        </Badge>
-                                                    );
-                                                })}
-                                            </div>
-                                            {errors.subCategories && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.subCategories.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Services Selection */}
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Select Services *
-                                            </label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="w-full justify-between border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[13px]"
-                                                        disabled={filteredServices.length === 0}
-                                                    >
-                                                        {selectedServices.length > 0
-                                                            ? `${selectedServices.length} selected`
-                                                            : filteredServices.length === 0
-                                                                ? 'No services available'
-                                                                : 'Select services'}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-full p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search services..." className="text-[13px]" />
-                                                        <CommandEmpty className="text-[13px]">No service found.</CommandEmpty>
-                                                        <CommandList className="max-h-60">
-                                                            {filteredServices.map((service: Service) => (
-                                                                <CommandItem
-                                                                    key={service._id}
-                                                                    onSelect={() => toggleService(service._id)}
-                                                                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 text-[13px]"
-                                                                >
-                                                                    <div className="flex items-center justify-between w-full">
-                                                                        <span>{service.name}</span>
-                                                                        {selectedServices.includes(service._id) && (
-                                                                            <span className="text-green-500">✓</span>
-                                                                        )}
-                                                                    </div>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                {selectedServices.map((id) => {
-                                                    const service = filteredServices.find((s: Service) => s._id === id);
-                                                    return (
-                                                        <Badge key={id} className="bg-[#0077B6] text-white text-[13px]">
-                                                            {service?.name}
-                                                        </Badge>
-                                                    );
-                                                })}
-                                            </div>
-                                            {errors.services_id && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.services_id.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Country */}
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Country
-                                            </label>
-                                            <input
-                                                id="country"
-                                                type="text"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('country')}
-                                                readOnly
-                                            />
-                                            <p className="mt-1 text-[12px] text-gray-500 dark:text-gray-400">
-                                                Currently available only in United States
-                                            </p>
-                                            {errors.country && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.country.message}
-                                                </p>
-                                            )}
-                                        </div>
+                            {/* Category Selection - Stacked */}
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {/* Category */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            Category *
+                                        </label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                >
+                                                    <div className="flex items-center">
+                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
+                                                        <span>{selectedCategories.length > 0 ? 'Selected' : 'Select'}</span>
+                                                    </div>
+                                                    <ChevronDown className="w-4 h-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                                <Command className="rounded-sm">
+                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandList className="max-h-48">
+                                                        {(categoriesData?.data?.data || []).map((category: Category) => (
+                                                            <CommandItem
+                                                                key={category._id}
+                                                                onSelect={() => toggleCategory(category._id)}
+                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <span>{category.name}</span>
+                                                                    {selectedCategories.includes(category._id) && (
+                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                    )}
+                                                                </div>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                     </div>
 
-                                    {/* Address Section */}
-                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="md:col-span-3">
-                                            <label htmlFor="streetAddress" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Street Address
-                                            </label>
+                                    {/* Sub-Category */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            Sub-Category *
+                                        </label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                    disabled={filteredSubCategories.length === 0}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
+                                                        <span>{selectedSubCategories.length > 0 ? 'Selected' : filteredSubCategories.length === 0 ? 'N/A' : 'Select'}</span>
+                                                    </div>
+                                                    <ChevronDown className="w-4 h-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                                <Command className="rounded-sm">
+                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandList className="max-h-48">
+                                                        {filteredSubCategories.map((subCategory: SubCategory) => (
+                                                            <CommandItem
+                                                                key={subCategory._id}
+                                                                onSelect={() => toggleSubCategory(subCategory._id)}
+                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <span>{subCategory.name}</span>
+                                                                    {selectedSubCategories.includes(subCategory._id) && (
+                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                    )}
+                                                                </div>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+
+                                    {/* Services */}
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            Services *
+                                        </label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                    disabled={filteredServices.length === 0}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
+                                                        <span>{selectedServices.length > 0 ? `${selectedServices.length}` : filteredServices.length === 0 ? 'N/A' : 'Select'}</span>
+                                                    </div>
+                                                    <ChevronDown className="w-4 h-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                                <Command className="rounded-sm">
+                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandList className="max-h-48">
+                                                        {filteredServices.map((service: Service) => (
+                                                            <CommandItem
+                                                                key={service._id}
+                                                                onSelect={() => toggleService(service._id)}
+                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <span>{service.name}</span>
+                                                                    {selectedServices.includes(service._id) && (
+                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                    )}
+                                                                </div>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </div>
+
+                                {/* Selected Badges - Compact */}
+                                {(selectedCategories.length > 0 || selectedSubCategories.length > 0 || selectedServices.length > 0) && (
+                                    <div className="flex flex-wrap gap-1.5 pt-2">
+                                        {selectedCategories.map((id) => {
+                                            const category = (categoriesData?.data?.data || []).find((c: Category) => c._id === id);
+                                            return (
+                                                <Badge key={id} variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-sm px-2 py-0.5 text-xs">
+                                                    {category?.name}
+                                                </Badge>
+                                            );
+                                        })}
+                                        {selectedSubCategories.map((id) => {
+                                            const subCategory = filteredSubCategories.find((s: SubCategory) => s._id === id);
+                                            return (
+                                                <Badge key={id} variant="secondary" className="bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-sm px-2 py-0.5 text-xs">
+                                                    {subCategory?.name}
+                                                </Badge>
+                                            );
+                                        })}
+                                        {selectedServices.map((id) => {
+                                            const service = filteredServices.find((s: Service) => s._id === id);
+                                            return (
+                                                <Badge key={id} variant="secondary" className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-sm px-2 py-0.5 text-xs">
+                                                    {service?.name}
+                                                </Badge>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Address Section - Compact */}
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MapPin className="w-4 h-4 text-[#0077B6]" />
+                                    <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase">
+                                        Business Address
+                                    </h3>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            Street Address *
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <Home className="w-4 h-4 text-gray-400" />
+                                            </div>
                                             <input
-                                                id="streetAddress"
                                                 type="text"
                                                 placeholder="123 Main St"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
+                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
                                                 {...register('streetAddress')}
                                             />
-                                            {errors.streetAddress && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.streetAddress.message}
-                                                </p>
-                                            )}
                                         </div>
+                                    </div>
 
-                                        <div>
-                                            <label htmlFor="city" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                City
-                                            </label>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            City *
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <Map className="w-4 h-4 text-gray-400" />
+                                            </div>
                                             <input
-                                                id="city"
                                                 type="text"
                                                 placeholder="New York"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
+                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
                                                 {...register('city')}
                                             />
-                                            {errors.city && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.city.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="region" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                State / Province
-                                            </label>
-                                            <input
-                                                id="region"
-                                                type="text"
-                                                placeholder="NY"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('region')}
-                                            />
-                                            {errors.region && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.region.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="postalCode" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                ZIP / Postal Code
-                                            </label>
-                                            <input
-                                                id="postalCode"
-                                                type="text"
-                                                placeholder="10001"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('postalCode')}
-                                            />
-                                            {errors.postalCode && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.postalCode.message}
-                                                </p>
-                                            )}
                                         </div>
                                     </div>
 
-                                    {/* Website */}
-                                    <div className="mt-6">
-                                        <label htmlFor="website" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                            Website or Social Media
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            State / ZIP *
                                         </label>
-                                        <input
-                                            id="website"
-                                            type="text"
-                                            placeholder="https://yourbusiness.com or @yourbusiness"
-                                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                            {...register('website')}
-                                        />
-                                        <p className="mt-2 text-[13px] text-gray-500 dark:text-gray-400">
-                                            Add your business website or social media profile
-                                        </p>
-                                    </div>
-                                </section>
-
-                                {/* Personal Information Section */}
-                                <section>
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                                        Personal Information
-                                    </h2>
-                                    <p className="mb-6 text-gray-600 dark:text-gray-300 text-[13px]">
-                                        Please enter your personal details and contact information
-                                    </p>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label htmlFor="username" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Username
-                                            </label>
-                                            <input
-                                                id="username"
-                                                type="text"
-                                                placeholder="johndoe"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('username')}
-                                            />
-                                            {errors.username && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.username.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="email" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Email Address
-                                            </label>
-                                            <input
-                                                id="email"
-                                                type="email"
-                                                placeholder="john@example.com"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('email')}
-                                            />
-                                            {errors.email && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.email.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="phone" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Phone Number
-                                            </label>
-                                            <input
-                                                id="phone"
-                                                type="text"
-                                                placeholder="+1 (555) 123-4567"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('phone')}
-                                            />
-                                            {errors.phone && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.phone.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="password" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Password
-                                            </label>
-                                            <input
-                                                id="password"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('password')}
-                                            />
-                                            {password && (
-                                                <div className="mt-3">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className={`text-[12px] font-medium ${passwordStrength.color}`}>
-                                                            {passwordStrength.message}
-                                                        </span>
-                                                        <span className="text-[12px] text-gray-500">
-                                                            {password.length}/8+ characters
-                                                        </span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full transition-all duration-300 ${passwordStrength.score <= 1 ? 'bg-red-500 w-1/4' :
-                                                                passwordStrength.score <= 2 ? 'bg-orange-500 w-1/2' :
-                                                                    passwordStrength.score <= 3 ? 'bg-yellow-500 w-3/4' : 'bg-green-500 w-full'
-                                                                }`}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <p className="mt-2 text-[12px] text-gray-500 dark:text-gray-400">
-                                                Must be at least 8 characters with uppercase, lowercase, number, and special character
-                                            </p>
-                                            {errors.password && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.password.message}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label htmlFor="repassword" className="block text-[13px] font-medium text-gray-900 dark:text-white mb-2">
-                                                Confirm Password
-                                            </label>
-                                            <input
-                                                id="repassword"
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-[13px]"
-                                                {...register('repassword')}
-                                            />
-                                            {errors.repassword && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.repassword.message}
-                                                </p>
-                                            )}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="NY"
+                                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                    {...register('region')}
+                                                />
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="10001"
+                                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                    {...register('postalCode')}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                </section>
 
-                                {/* Terms and Privacy Section */}
-                                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <div className="flex items-start gap-3">
-                                        <input
-                                            type="checkbox"
-                                            id="terms"
-                                            className="mt-1 h-4 w-4 rounded border-gray-300 text-[#0077B6] focus:ring-[#0077B6]"
-                                            {...register('terms', {
-                                                required: 'You must accept the terms and conditions'
-                                            })}
-                                        />
-                                        <div className="text-sm text-gray-600 dark:text-gray-300">
-                                            <label htmlFor="terms" className="font-medium cursor-pointer">
-                                                I agree to the{' '}
-                                                <Link
-                                                    href="/terms"
-                                                    className="text-[#0077B6] dark:text-blue-400 hover:underline"
-                                                    target="_blank"
-                                                >
-                                                    Terms of Service
-                                                </Link>
-                                                {' '}and{' '}
-                                                <Link
-                                                    href="/privacy"
-                                                    className="text-[#0077B6] dark:text-blue-400 hover:underline"
-                                                    target="_blank"
-                                                >
-                                                    Privacy Policy
-                                                </Link>
-                                            </label>
-                                            {errors.terms && (
-                                                <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">
-                                                    {errors.terms.message}
-                                                </p>
-                                            )}
-                                            <p className="mt-1 text-[12px] text-gray-500 dark:text-gray-400">
-                                                By creating an account, you agree to our terms and acknowledge that you have read our privacy policy.
-                                            </p>
+                                    <div className="space-y-1.5">
+                                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                            Website
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <Globe2 className="w-4 h-4 text-gray-400" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="yourbusiness.com"
+                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                {...register('website')}
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Form Actions */}
-                            <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                <div className="text-center sm:text-left">
-                                    <span className="text-gray-600 dark:text-gray-300 text-[13px]">
-                                        Already have an account?{' '}
-                                    </span>
-                                    <Link
-                                        href="/login"
-                                        className="text-[#0077B6] dark:text-blue-400 hover:underline font-medium text-[13px]"
-                                    >
-                                        Back to Login
-                                    </Link>
+                        {/* Personal Section - Compact */}
+                        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="flex items-center gap-2 mb-3">
+                                <UserCircle className="w-4 h-4 text-[#0077B6]" />
+                                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    Personal Information
+                                </h2>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {/* First Name with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        First Name *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <User className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="John"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('firstName')}
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-end">
-                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto justify-end">
+                                {/* Last Name with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Last Name *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <User className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Doe"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('lastName')}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Date of Birth with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Date of Birth *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <Calendar className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="date"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('dateOfBirth')}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Username with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Username *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <Key className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="johndoe"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('username')}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Email with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Email (Optional)
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <Mail className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            placeholder="john@example.com"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('email')}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Phone Number with Icon */}
+                                <div className="space-y-1.5">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Phone Number *
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                            <PhoneCall className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="+1 (555) 123-4567"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            {...register('phoneNo')}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        4-digit OTP will be sent
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Terms & Submit - Compact */}
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="space-y-4">
+                                {/* Terms Checkbox */}
+                                <div className="flex items-start gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="terms"
+                                        className="mt-0.5 h-4 w-4 rounded-sm border-gray-300 dark:border-gray-700 text-[#0077B6] focus:ring-1 focus:ring-[#0077B6]"
+                                        {...register('terms')}
+                                    />
+                                    <label htmlFor="terms" className="text-xs text-gray-700 dark:text-gray-300">
+                                        I agree to the{' '}
+                                        <Link href="/terms" className="text-[#0077B6] dark:text-blue-400 hover:underline">
+                                            Terms
+                                        </Link>{' '}
+                                        and{' '}
+                                        <Link href="/privacy" className="text-[#0077B6] dark:text-blue-400 hover:underline">
+                                            Privacy Policy
+                                        </Link>
+                                    </label>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex-1">
                                         <button
                                             type="button"
-                                            className="px-4 py-2.5 sm:px-6 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto text-sm sm:text-[13px] font-medium"
-                                            onClick={() => {
-                                                setSelectedCategories([]);
-                                                setSelectedSubCategories([]);
-                                                setSelectedServices([]);
-                                                setBusinessTypeValue('');
-                                            }}
+                                            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-700 rounded-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            onClick={handleReset}
                                         >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="px-4 py-2.5 sm:px-6 sm:py-2 bg-[#0077B6] hover:bg-[#016194] text-white font-medium rounded-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-sm sm:text-[13px]"
-                                            disabled={isPending}
-                                        >
-                                            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                                            {isPending ? "Creating Account..." : "Create Account"}
+                                            Reset All
                                         </button>
                                     </div>
+                                    <div className="flex-1">
+                                        <button
+                                            type="submit"
+                                            aria-busy={sendOTPMutation.isPending}
+                                            disabled={sendOTPMutation.isPending || !isValid}
+                                            className="w-full px-4 py-2.5 bg-[#0077B6] hover:bg-[#016194] text-white text-sm font-medium rounded-sm transition-colors
+             disabled:opacity-50 disabled:cursor-not-allowed
+             flex items-center justify-center gap-2"
+                                        >
+                                            {sendOTPMutation.isPending ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <span>Sending OTP...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Lock className="w-4 h-4" />
+                                                    <span>Continue</span>
+                                                </>
+                                            )}
+                                        </button>
+
+                                    </div>
+                                </div>
+
+                                {/* Login Link */}
+                                <div className="text-center pt-2">
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        Already registered?{' '}
+                                        <Link
+                                            href="/login"
+                                            className="text-[#0077B6] dark:text-blue-400 font-medium hover:underline"
+                                        >
+                                            Sign in here
+                                        </Link>
+                                    </p>
                                 </div>
                             </div>
-                        </form>
+                        </div>
+                    </form>
+                </div>
+
+                {/* Security Note - Compact */}
+                <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-sm p-3">
+                    <div className="flex items-start gap-2">
+                        <Shield className="w-4 h-4 text-[#0077B6] mt-0.5 " />
+                        <div>
+                            <p className="text-xs text-gray-700 dark:text-gray-300">
+                                <span className="font-medium">Secure registration:</span> You will receive a 4-digit OTP via SMS for verification. No password required.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
