@@ -112,3 +112,14 @@ export const loadUserLocation = async (): Promise<LocationData> => {
 
   return defaultLocation;
 };
+
+// ----------Detect the logged-in user is professional or not--------------
+export const professionalDetection = async (token: string | null, phone: string) => {
+  const response = await api.get(`lead/${phone}/detection`,{
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  console.log("The api response: ", response);
+  return response;
+}

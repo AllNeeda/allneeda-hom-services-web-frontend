@@ -14,6 +14,8 @@ import {
 // import LocationPermissionModal from "@/components/home-services/LocationPermissionModal";
 // import { getLocationInfo } from "@/lib/getLocationInfo";
 import { LeadDialog } from "@/components/home-services/LeadAlert";
+import { useAuth } from "@/components/providers/context/auth-context";
+import { useProfessionalDetection } from "@/hooks/useProfessionalLeads";
 
 // Skeletons (same as before)
 const TitlePageSkeleton = () => (
@@ -112,9 +114,15 @@ const CategoryServices = dynamic(
 // );
 
 const HomeServicesPage = () => {
-  // const { isAuthenticated, user, getAccessToken } = useAuth();
-  // const token = getAccessToken();
+  const { user, getAccessToken } = useAuth();
+  const token = getAccessToken();
+  const userPhone = user?.phoneNo || '';
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const {data:detectionResult, isError, isLoading} = useProfessionalDetection(token, userPhone)
+  const apiResult = detectionResult?.data;
+
+  const leads = apiResult?.data ?? [];
+  const isSuccess = apiResult?.success ?? false;
 
 
 
@@ -122,16 +130,17 @@ const HomeServicesPage = () => {
   // const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<any>(null);
 
-  // --- Ask for location on mount if not stored
+
   useEffect(() => {
+  if (isSuccess && leads.length > 0) {
     setIsDialogOpen(true);
-    const stored = localStorage.getItem("user_location");
-    if (!stored) {
-      // setLocationModalOpen(true);
-    } else {
-      setUserLocation(JSON.parse(stored));
-    }
-  }, []);
+  }
+
+  const stored = localStorage.getItem("user_location");
+  if (stored) {
+    setUserLocation(JSON.parse(stored));
+  }
+}, [isSuccess, leads]);
 
   // const handleAcceptLocation = async () => {
   //   try {
@@ -181,6 +190,9 @@ const HomeServicesPage = () => {
     // Optional: You could store in localStorage that user dismissed the dialog
     localStorage.setItem('leadDialogDismissed', 'true')
   }
+ 
+  
+
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border border-white dark:border-gray-900">
@@ -189,12 +201,15 @@ const HomeServicesPage = () => {
         onAccept={handleAcceptLocation}
         onDecline={handleDeclineLocation}
       /> */}
-      <LeadDialog
-          isOpen={isDialogOpen}
-          onClose={handleCloseDialog}
-          leadCount={2}
-          userEmail={'esmat@gmail.com'}
-        />
+      {!isLoading && !isError && isDialogOpen && (
+          <LeadDialog
+            isOpen={isDialogOpen}
+            onClose={handleCloseDialog}
+            leadCount={leads.length ||5}
+            userEmail={leads[0]?.phone}
+            userName={leads[0]?.businessName}
+          />
+        )}
 
       <Breadcrumbs
         paths={[{ name: "Home", href: "/" }, { name: "Home Services" }]}
