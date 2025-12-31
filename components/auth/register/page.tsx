@@ -36,7 +36,8 @@ import toast from "react-hot-toast";
 import GlobalLoader from "@/components/ui/global-loader";
 import Link from "next/link";
 import OTPVerification from "./verification";
-import { useSendOTP, useVerifyOTP, useCompleteRegistration, useCreateUser, OTPRegisterData } from "@/hooks/RegisterPro/useUserRegister";
+import { useSendOTP, useVerifyOTP, useCompleteRegistration, useCreateUser } from "@/hooks/RegisterPro/useRegister";
+import { OTPRegisterData } from "@/types/auth/register";
 
 // Define types
 interface Category {
@@ -73,6 +74,7 @@ export default function Register() {
     const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
     const [selectedServices, setSelectedServices] = useState<string[]>([]);
     const [businessTypeValue, setBusinessTypeValue] = useState<string>('');
+    const [isFormSubmitting, setIsFormSubmitting] = useState(false);
 
     // API data hooks
     const { data: categoriesData, isLoading: isLoadingCategories } = useCategoryServiceCount();
@@ -117,6 +119,7 @@ export default function Register() {
             terms: false,
         }
     });
+
 
     const filteredSubCategories = useMemo(() => {
         return (subCategoriesData?.data?.data || []).filter((sub: SubCategory) =>
@@ -180,45 +183,56 @@ export default function Register() {
 
     // Step 1: Handle form submission and send OTP
     const handleFormSubmit = async (data: ProfessionalStepOneSchemaType) => {
+        setIsFormSubmitting(true);
+
         const isValidForm = await trigger();
 
         if (!isValidForm) {
             toast.error("Please fill in all required fields correctly");
+            setIsFormSubmitting(false);
             return;
         }
 
-        // Store form data temporarily
-        const registrationData: OTPRegisterData = {
-            ...data,
-            categories: selectedCategories,
-            subCategories: selectedSubCategories,
-            services_id: selectedServices
-        };
+        try {
+            // Store form data temporarily
+            const registrationData: OTPRegisterData = {
+                ...data,
+                categories: selectedCategories,
+                subCategories: selectedSubCategories,
+                services_id: selectedServices
+            };
 
-        setTempRegistrationData(registrationData);
+            setTempRegistrationData(registrationData);
 
-        // First create the external user (auth service)
-        const createUserResult = await createUserMutation.mutateAsync({
-            firstName: registrationData.firstName,
-            lastName: registrationData.lastName,
-            phoneNo: registrationData.phoneNo,
-            dob: registrationData.dateOfBirth,
-            isAgreeTermsConditions: registrationData.terms,
-        });
+            // First create the external user (auth service)
+            const createUserResult = await createUserMutation.mutateAsync({
+                firstName: registrationData.firstName,
+                lastName: registrationData.lastName,
+                phoneNo: registrationData.phoneNo,
+                businessType: registrationData.businessType,
+                dob: registrationData.dateOfBirth,
+                isAgreeTermsConditions: registrationData.terms,
+            });
 
-        const createdUserId = createUserResult?.data?.id || createUserResult?.id || null;
+            const createdUserId = createUserResult?.data?.id || createUserResult?.id || null;
 
-        const registrationWithUserId = {
-            ...registrationData,
-            user_id: createdUserId || undefined,
-            website: registrationData.website ?? "",
-        };
+            const registrationWithUserId = {
+                ...registrationData,
+                user_id: createdUserId || undefined,
+                website: registrationData.website ?? "",
+            };
 
-        setTempRegistrationData(registrationWithUserId);
+            setTempRegistrationData(registrationWithUserId);
 
-        // Then send OTP and move to OTP step
-        await sendOTPMutation.mutateAsync({ phoneNo: data.phoneNo });
-        setCurrentStep('otp');
+            // Then send OTP and move to OTP step
+            await sendOTPMutation.mutateAsync({ phoneNo: data.phoneNo });
+            setCurrentStep('otp');
+        } catch (error) {
+            // Error handled by mutation, but we need to reset form submitting state
+            console.error("Form submission error:", error);
+        } finally {
+            setIsFormSubmitting(false);
+        }
     };
 
     // Step 2: Handle OTP verification
@@ -276,6 +290,7 @@ export default function Register() {
         setValue('terms', false);
         setCurrentStep('form');
         setTempRegistrationData(null);
+        setIsFormSubmitting(false);
     };
 
     const handleBackToForm = () => {
@@ -309,8 +324,7 @@ export default function Register() {
     // Enhanced registration form with Nexus professional design
     return (
         <div className=" dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-1xl mx-auto"> {/* 60-80% width */}
-
+            <div className="w-full max-w-4xl mx-auto">
                 {/* Compact Header */}
                 <div className="mb-8 text-center">
                     <div className="flex items-center justify-center gap-3 mb-4">
@@ -326,13 +340,11 @@ export default function Register() {
                             </p>
                         </div>
                     </div>
-
                 </div>
 
                 {/* Main Form Card - Compact */}
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm shadow-sm">
                     <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-6">
-
                         {/* Business Section - Compact */}
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 mb-4">
@@ -350,12 +362,12 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <Building2 className="w-4 h-4 text-gray-400" />
+                                            <Building2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="Your Business Name"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-[#0077B6] focus:border-[#0077B6]"
+                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors"
                                             {...register('businessName')}
                                         />
                                     </div>
@@ -372,17 +384,17 @@ export default function Register() {
                                         Business Type *
                                     </label>
                                     <Select onValueChange={handleBusinessTypeChange} value={businessTypeValue}>
-                                        <SelectTrigger className="w-full text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 pl-10">
+                                        <SelectTrigger className={`w-full text-sm border ${errors.businessType ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-900 rounded-sm py-2 pl-4 text-gray-900 dark:text-white`}>
                                             <div className="absolute left-3">
                                             </div>
-                                            <SelectValue placeholder="Select type" />
+                                            <SelectValue placeholder="Select business type" className="placeholder-gray-500 dark:placeholder-gray-400" />
                                         </SelectTrigger>
-                                        <SelectContent className="rounded-sm border border-gray-200 dark:border-gray-800">
-                                            <SelectItem value="home-services" className="text-sm">Home Services</SelectItem>
-                                            <SelectItem value="it-services" className="text-sm">IT Services</SelectItem>
-                                            <SelectItem value="food-delivery" className="text-sm">Food Delivery</SelectItem>
-                                            <SelectItem value="shopping" className="text-sm">Shopping</SelectItem>
-                                            <SelectItem value="grocery" className="text-sm">Grocery</SelectItem>
+                                        <SelectContent className="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                                            <SelectItem value="home-services" className="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">Home Services</SelectItem>
+                                            <SelectItem value="it-services" className="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">IT Services</SelectItem>
+                                            <SelectItem value="food-delivery" className="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">Food Delivery</SelectItem>
+                                            <SelectItem value="shopping" className="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">Shopping</SelectItem>
+                                            <SelectItem value="grocery" className="text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">Grocery</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     {errors.businessType && (
@@ -405,29 +417,32 @@ export default function Register() {
                                             <PopoverTrigger asChild>
                                                 <Button
                                                     variant="outline"
-                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                    className={`w-full justify-between text-sm border ${errors.categories ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-900 rounded-sm py-2 h-auto text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600`}
                                                 >
                                                     <div className="flex items-center">
-                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                                        <span>{selectedCategories.length > 0 ? 'Selected' : 'Select'}</span>
+                                                        <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
+                                                        <span>{selectedCategories.length > 0 ? 'Selected' : 'Select category'}</span>
                                                     </div>
-                                                    <ChevronDown className="w-4 h-4" />
+                                                    <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" align="start">
                                                 <Command className="rounded-sm">
-                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandInput
+                                                        placeholder="Search categories..."
+                                                        className="text-sm h-9 border-0 focus:ring-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-900"
+                                                    />
                                                     <CommandList className="max-h-48">
                                                         {(categoriesData?.data?.data || []).map((category: Category) => (
                                                             <CommandItem
                                                                 key={category._id}
                                                                 onSelect={() => toggleCategory(category._id)}
-                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                                className="cursor-pointer text-sm py-2 px-3 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-700"
                                                             >
                                                                 <div className="flex items-center justify-between w-full">
                                                                     <span>{category.name}</span>
                                                                     {selectedCategories.includes(category._id) && (
-                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                        <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                                                                     )}
                                                                 </div>
                                                             </CommandItem>
@@ -436,6 +451,11 @@ export default function Register() {
                                                 </Command>
                                             </PopoverContent>
                                         </Popover>
+                                        {errors.categories && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.categories.message}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Sub-Category */}
@@ -447,30 +467,33 @@ export default function Register() {
                                             <PopoverTrigger asChild>
                                                 <Button
                                                     variant="outline"
-                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                    className={`w-full justify-between text-sm border ${errors.subCategories ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-900 rounded-sm py-2 h-auto text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600`}
                                                     disabled={filteredSubCategories.length === 0}
                                                 >
                                                     <div className="flex items-center">
-                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                                        <span>{selectedSubCategories.length > 0 ? 'Selected' : filteredSubCategories.length === 0 ? 'N/A' : 'Select'}</span>
+                                                        <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
+                                                        <span>{selectedSubCategories.length > 0 ? 'Selected' : filteredSubCategories.length === 0 ? 'N/A' : 'Select sub-category'}</span>
                                                     </div>
-                                                    <ChevronDown className="w-4 h-4" />
+                                                    <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" align="start">
                                                 <Command className="rounded-sm">
-                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandInput
+                                                        placeholder="Search sub-categories..."
+                                                        className="text-sm h-9 border-0 focus:ring-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-900"
+                                                    />
                                                     <CommandList className="max-h-48">
                                                         {filteredSubCategories.map((subCategory: SubCategory) => (
                                                             <CommandItem
                                                                 key={subCategory._id}
                                                                 onSelect={() => toggleSubCategory(subCategory._id)}
-                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                                className="cursor-pointer text-sm py-2 px-3 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-700"
                                                             >
                                                                 <div className="flex items-center justify-between w-full">
                                                                     <span>{subCategory.name}</span>
                                                                     {selectedSubCategories.includes(subCategory._id) && (
-                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                        <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                                                                     )}
                                                                 </div>
                                                             </CommandItem>
@@ -479,6 +502,11 @@ export default function Register() {
                                                 </Command>
                                             </PopoverContent>
                                         </Popover>
+                                        {errors.subCategories && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.subCategories.message}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Services */}
@@ -490,30 +518,33 @@ export default function Register() {
                                             <PopoverTrigger asChild>
                                                 <Button
                                                     variant="outline"
-                                                    className="w-full justify-between text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-sm py-2 h-auto"
+                                                    className={`w-full justify-between text-sm border ${errors.services_id ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-900 rounded-sm py-2 h-auto text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600`}
                                                     disabled={filteredServices.length === 0}
                                                 >
                                                     <div className="flex items-center">
-                                                        <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                                        <span>{selectedServices.length > 0 ? `${selectedServices.length}` : filteredServices.length === 0 ? 'N/A' : 'Select'}</span>
+                                                        <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 mr-2" />
+                                                        <span>{selectedServices.length > 0 ? `${selectedServices.length} selected` : filteredServices.length === 0 ? 'N/A' : 'Select services'}</span>
                                                     </div>
-                                                    <ChevronDown className="w-4 h-4" />
+                                                    <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-800" align="start">
+                                            <PopoverContent className="w-[280px] p-0 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900" align="start">
                                                 <Command className="rounded-sm">
-                                                    <CommandInput placeholder="Search..." className="text-sm h-9" />
+                                                    <CommandInput
+                                                        placeholder="Search services..."
+                                                        className="text-sm h-9 border-0 focus:ring-0 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-900"
+                                                    />
                                                     <CommandList className="max-h-48">
                                                         {filteredServices.map((service: Service) => (
                                                             <CommandItem
                                                                 key={service._id}
                                                                 onSelect={() => toggleService(service._id)}
-                                                                className="cursor-pointer text-sm py-2 px-3"
+                                                                className="cursor-pointer text-sm py-2 px-3 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-700"
                                                             >
                                                                 <div className="flex items-center justify-between w-full">
                                                                     <span>{service.name}</span>
                                                                     {selectedServices.includes(service._id) && (
-                                                                        <Check className="w-4 h-4 text-green-500" />
+                                                                        <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
                                                                     )}
                                                                 </div>
                                                             </CommandItem>
@@ -522,6 +553,11 @@ export default function Register() {
                                                 </Command>
                                             </PopoverContent>
                                         </Popover>
+                                        {errors.services_id && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.services_id.message}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -557,7 +593,7 @@ export default function Register() {
                             </div>
 
                             {/* Address Section - Compact */}
-                            <div className="pt-3 border-t border-gray-200 dark:border-gray-800">
+                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                                 <div className="flex items-center gap-2 mb-3">
                                     <MapPin className="w-4 h-4 text-[#0077B6]" />
                                     <h3 className="text-xs font-semibold text-gray-900 dark:text-white uppercase">
@@ -572,15 +608,20 @@ export default function Register() {
                                         </label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                                <Home className="w-4 h-4 text-gray-400" />
+                                                <Home className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                             </div>
                                             <input
                                                 type="text"
                                                 placeholder="123 Main St"
-                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.streetAddress ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                                 {...register('streetAddress')}
                                             />
                                         </div>
+                                        {errors.streetAddress && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.streetAddress.message}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-1.5">
@@ -589,15 +630,20 @@ export default function Register() {
                                         </label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                                <Map className="w-4 h-4 text-gray-400" />
+                                                <Map className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                             </div>
                                             <input
                                                 type="text"
                                                 placeholder="New York"
-                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.city ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                                 {...register('city')}
                                             />
                                         </div>
+                                        {errors.city && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.city.message}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-1.5">
@@ -609,17 +655,27 @@ export default function Register() {
                                                 <input
                                                     type="text"
                                                     placeholder="NY"
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                    className={`w-full px-3 py-2 text-sm border ${errors.region ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                                     {...register('region')}
                                                 />
+                                                {errors.region && (
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                        {errors.region.message}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="relative">
                                                 <input
                                                     type="text"
                                                     placeholder="10001"
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                    className={`w-full px-3 py-2 text-sm border ${errors.postalCode ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                                     {...register('postalCode')}
                                                 />
+                                                {errors.postalCode && (
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                        {errors.postalCode.message}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -630,22 +686,27 @@ export default function Register() {
                                         </label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                                <Globe2 className="w-4 h-4 text-gray-400" />
+                                                <Globe2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                             </div>
                                             <input
                                                 type="text"
                                                 placeholder="yourbusiness.com"
-                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors"
                                                 {...register('website')}
                                             />
                                         </div>
+                                        {errors.website && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                                {errors.website.message}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Personal Section - Compact */}
-                        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                             <div className="flex items-center gap-2 mb-3">
                                 <UserCircle className="w-4 h-4 text-[#0077B6]" />
                                 <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -661,15 +722,20 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <User className="w-4 h-4 text-gray-400" />
+                                            <User className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="John"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.firstName ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('firstName')}
                                         />
                                     </div>
+                                    {errors.firstName && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.firstName.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Last Name with Icon */}
@@ -679,15 +745,20 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <User className="w-4 h-4 text-gray-400" />
+                                            <User className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="Doe"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.lastName ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('lastName')}
                                         />
                                     </div>
+                                    {errors.lastName && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.lastName.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Date of Birth with Icon */}
@@ -697,14 +768,19 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <Calendar className="w-4 h-4 text-gray-400" />
+                                            <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="date"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.dateOfBirth ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('dateOfBirth')}
                                         />
                                     </div>
+                                    {errors.dateOfBirth && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.dateOfBirth.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Username with Icon */}
@@ -714,33 +790,43 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <Key className="w-4 h-4 text-gray-400" />
+                                            <Key className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="johndoe"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.username ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('username')}
                                         />
                                     </div>
+                                    {errors.username && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.username.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Email with Icon */}
                                 <div className="space-y-1.5">
                                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                        Email (Optional)
+                                        Email
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <Mail className="w-4 h-4 text-gray-400" />
+                                            <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="email"
                                             placeholder="john@example.com"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('email')}
                                         />
                                     </div>
+                                    {errors.email && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.email.message}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Phone Number with Icon */}
@@ -750,15 +836,20 @@ export default function Register() {
                                     </label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <PhoneCall className="w-4 h-4 text-gray-400" />
+                                            <PhoneCall className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="+1 (555) 123-4567"
-                                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-sm bg-white dark:bg-gray-800"
+                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.phoneNo ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                             {...register('phoneNo')}
                                         />
                                     </div>
+                                    {errors.phoneNo && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                            {errors.phoneNo.message}
+                                        </p>
+                                    )}
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                         4-digit OTP will be sent
                                     </p>
@@ -767,26 +858,33 @@ export default function Register() {
                         </div>
 
                         {/* Terms & Submit - Compact */}
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                             <div className="space-y-4">
                                 {/* Terms Checkbox */}
                                 <div className="flex items-start gap-2">
                                     <input
                                         type="checkbox"
                                         id="terms"
-                                        className="mt-0.5 h-4 w-4 rounded-sm border-gray-300 dark:border-gray-700 text-[#0077B6] focus:ring-1 focus:ring-[#0077B6]"
+                                        className={`mt-0.5 h-4 w-4 rounded border ${errors.terms ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} text-[#0077B6] focus:ring-2 focus:ring-[#0077B6] bg-white dark:bg-gray-700 checked:bg-[#0077B6] checked:border-[#0077B6]`}
                                         {...register('terms')}
                                     />
-                                    <label htmlFor="terms" className="text-xs text-gray-700 dark:text-gray-300">
-                                        I agree to the{' '}
-                                        <Link href="/terms" className="text-[#0077B6] dark:text-blue-400 hover:underline">
-                                            Terms
-                                        </Link>{' '}
-                                        and{' '}
-                                        <Link href="/privacy" className="text-[#0077B6] dark:text-blue-400 hover:underline">
-                                            Privacy Policy
-                                        </Link>
-                                    </label>
+                                    <div className="space-y-1">
+                                        <label htmlFor="terms" className="text-xs text-gray-700 dark:text-gray-300">
+                                            I agree to the{' '}
+                                            <Link href="/terms" className="text-[#0077B6] dark:text-blue-400 hover:underline">
+                                                Terms
+                                            </Link>{' '}
+                                            and{' '}
+                                            <Link href="/privacy" className="text-[#0077B6] dark:text-blue-400 hover:underline">
+                                                Privacy Policy
+                                            </Link>
+                                        </label>
+                                        {errors.terms && (
+                                            <p className="text-xs text-red-600 dark:text-red-400">
+                                                {errors.terms.message}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Action Buttons */}
@@ -794,7 +892,7 @@ export default function Register() {
                                     <div className="flex-1">
                                         <button
                                             type="button"
-                                            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-700 rounded-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            className="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                                             onClick={handleReset}
                                         >
                                             Reset All
@@ -803,13 +901,16 @@ export default function Register() {
                                     <div className="flex-1">
                                         <button
                                             type="submit"
-                                            aria-busy={sendOTPMutation.isPending}
-                                            disabled={sendOTPMutation.isPending || !isValid}
-                                            className="w-full px-4 py-2.5 bg-[#0077B6] hover:bg-[#016194] text-white text-sm font-medium rounded-sm transition-colors
-             disabled:opacity-50 disabled:cursor-not-allowed
-             flex items-center justify-center gap-2"
+                                            aria-busy={isFormSubmitting || sendOTPMutation.isPending}
+                                            disabled={isFormSubmitting || sendOTPMutation.isPending || !isValid}
+                                            className="w-full px-4 py-2.5 bg-[#0077B6] hover:bg-[#016194] dark:bg-[#0077B6] dark:hover:bg-[#016194] text-white text-sm font-medium rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
-                                            {sendOTPMutation.isPending ? (
+                                            {isFormSubmitting ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                    <span>Processing</span>
+                                                </>
+                                            ) : sendOTPMutation.isPending ? (
                                                 <>
                                                     <Loader2 className="w-4 h-4 animate-spin" />
                                                     <span>Sending OTP...</span>
@@ -821,9 +922,25 @@ export default function Register() {
                                                 </>
                                             )}
                                         </button>
-
                                     </div>
                                 </div>
+
+                                {/* Validation Summary */}
+                                {!isValid && Object.keys(errors).length > 0 && (
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-sm">
+                                        <p className="text-xs font-medium text-red-800 dark:text-red-300 mb-1">
+                                            Please fix the following errors:
+                                        </p>
+                                        <ul className="text-xs text-red-700 dark:text-red-400 space-y-0.5">
+                                            {Object.entries(errors).map(([field, error]) => (
+                                                <li key={field} className="flex items-start gap-1">
+                                                    <span className="text-red-500 dark:text-red-400">•</span>
+                                                    <span>{error.message}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
 
                                 {/* Login Link */}
                                 <div className="text-center pt-2">
@@ -845,7 +962,7 @@ export default function Register() {
                 {/* Security Note - Compact */}
                 <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-sm p-3">
                     <div className="flex items-start gap-2">
-                        <Shield className="w-4 h-4 text-[#0077B6] mt-0.5 " />
+                        <Shield className="w-4 h-4 text-[#0077B6] dark:text-blue-400 mt-0.5" />
                         <div>
                             <p className="text-xs text-gray-700 dark:text-gray-300">
                                 <span className="font-medium">Secure registration:</span> You will receive a 4-digit OTP via SMS for verification. No password required.

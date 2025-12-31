@@ -1,43 +1,8 @@
 import axios, { AxiosResponse } from "axios";
 import { api } from "@/app/api/axios";
-import { OTPRegisterData } from "@/hooks/RegisterPro/useUserRegister";
 import { handleApiError } from "@/lib/errorHandler";
-export interface User {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  phoneNo: string;
-  email?: string;
-  username?: string;
-  ReferralCode?: string;
-  dob?: string;
-  isAgreeTermsConditions?: boolean;
-  role_id?: string;
-  status?: boolean;
-  Islogin_permissions?: boolean;
-  Permissions_DeviceLocation?: boolean;
-  hobby?: any[];
-  RegistrationType?: string;
-  invitedBy?: string | null;
-  created_by?: string | null;
-  updated_by?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  user_id?: string | null;
-  freeTrialPlan?: boolean;
-  language_id?: string | null;
-  country_id?: string | null;
-  state_id?: string | null;
-  city_id?: string | null;
-}
+import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
-export interface LoginResponse {
-  user: User;
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-  };
-}
 const setCookie = (name: string, value: string, days: number = 30) => {
   if (typeof window === "undefined") return;
 
@@ -103,11 +68,39 @@ class AuthService {
     }
   }
 
+  async getRoles(): Promise<{ _id: string; name: string }[]> {
+    try {
+      const res = await axios.get(
+        "https://generaluser-web-latest.onrender.com/api/v2/role/getAll/",
+        { timeout: 15000 }
+      );
+      return res.data?.data || [];
+    } catch (error) {
+      console.error("Failed to fetch roles", error);
+      return [];
+    }
+  }
+
+  private async getRoleIdForBusinessType(
+    businessType: string
+  ): Promise<string | undefined> {
+    const roles = await this.getRoles();
+    if (businessType === "home-services") {
+      const professionalRole = roles.find(
+        (r) => r.name.toLowerCase() === "professional"
+      );
+      return professionalRole?._id;
+    }
+    const customerRole = roles.find((r) => r.name.toLowerCase() === "customer");
+    return customerRole?._id;
+  }
+
   async createUser(data: {
     firstName: string;
     lastName: string;
     phoneNo: string;
     dob: string;
+    businessType: string;
     isAgreeTermsConditions: boolean;
     role_id?: string;
     status?: boolean;
@@ -119,10 +112,10 @@ class AuthService {
         phoneNo: data.phoneNo,
         dob: data.dob,
         isAgreeTermsConditions: data.isAgreeTermsConditions,
-        role_id: data.role_id || "77547a76-5d43-4c31-9c0d-5cda12bfe960",
+        role_id: await this.getRoleIdForBusinessType(data.businessType),
         status: data.status ?? true,
       };
-
+      console.log(" the data of user is", data);
       const response = await axios.post(
         "https://generaluser-web-latest.onrender.com/api/v2/user/create/",
         payload,
@@ -165,8 +158,29 @@ class AuthService {
       });
       return response;
     } catch (error) {
+      deleteCookie("auth-token");
+      deleteCookie("refresh-token");
+      deleteCookie("user-data");
+      if (data.user_id) {
+        try {
+          await axios.delete(
+            `https://generaluser-web-latest.onrender.com/api/v2/user/delete/${data.user_id}/`,
+            { timeout: 15000 }
+          );
+        } catch (deleteError) {
+          console.error(
+            "Failed to delete user after registration failure",
+            deleteError
+          );
+        }
+      }
       throw handleApiError(error);
     }
   }
 }
+
+const deleteCookie = (name: string) => {
+  if (typeof window === "undefined") return;
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+};
 export const authAPI = new AuthService();

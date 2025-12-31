@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { redirect, useRouter } from "next/navigation";
-import { RegisterFormData } from "@/types/auth/register";
+import { useRouter } from "next/navigation";
+import { OTPRegisterData } from "@/types/auth/register";
 import {
   AnswerPayload,
   BusinesAvailabilityAPI,
@@ -9,7 +8,6 @@ import {
   getProServicesQuestionsAPI,
   LocationData,
   ProfessionalProgressAPI,
-  registerUserAPI,
   saveBusinessInfoAPI,
   saveLocationAPI,
   submitServiceAnswersAPI,
@@ -17,43 +15,66 @@ import {
 } from "@/app/api/services/ProAccount";
 import toast from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/providers/context/auth-context";
 import {} from "@/components/home-services/onboarding/step-4";
 import { getProfessionalStepsAPI } from "@/app/api/services/services";
+import { authAPI } from "@/app/api/auth/register";
+import { getAccessToken } from "@/app/api/axios";
 
-export function useRegister() {
-  const { login } = useAuth();
-  const router = useRouter();
-  const [isPending, setIsPending] = useState(false);
-  const mutation = useMutation({
-    mutationFn: registerUserAPI,
-    retry: false,
-    onMutate: () => {
-      setIsPending(true);
-    },
-    onSuccess: async (response, variables) => {
-      try {
-        await login(variables.email, variables.password, "/home-services/dashboard/services/step-2");
-        redirect("/home-services/dashboard/services/step-2");
-      } catch {
-        router.push("/auth/login");
-      }
-    },
-    onSettled: () => {
-      setIsPending(false);
+// 1️⃣ Send OTP
+export function useSendOTP() {
+  return useMutation({
+    mutationFn: ({ phoneNo }: { phoneNo: string }) => authAPI.sendOTP(phoneNo),
+    onSuccess: () => {
+      toast.success("OTP sent successfully! Check your phone.");
     },
   });
-
-  const registerUser = (data: RegisterFormData) => {
-    mutation.mutate(data);
-  };
-
-  return { registerUser, isPending: mutation.isPending || isPending };
 }
 
+// 2️⃣ Create User
+export function useCreateUser() {
+  return useMutation({
+    mutationFn: (data: {
+      firstName: string;
+      lastName: string;
+      phoneNo: string;
+      dob: string;
+      businessType: string;
+      isAgreeTermsConditions: boolean;
+      role_id?: string;
+      status?: boolean;
+    }) => authAPI.createUser(data),
+    onSuccess: (response: any) => {
+      return response;
+    },
+  });
+}
 
+// 3️⃣ Verify OTP
+export function useVerifyOTP() {
+  return useMutation({
+    mutationFn: (data: { phoneNo: string; otp: string }) =>
+      authAPI.verifyOTP(data.phoneNo, data.otp),
+    onSuccess: (response: any) => {
+      toast.success("OTP verified successfully!");
+      return response;
+    },
+  });
+}
 
+// 4️⃣ Complete Registration
+export function useCompleteRegistration() {
+  const router = useRouter();
+  const token = getAccessToken();
 
+  return useMutation({
+    mutationFn: (data: OTPRegisterData) =>
+      authAPI.completeRegistration(data, token!),
+    onSuccess: (response: any) => {
+      router.push("/home-services/dashboard/services/step-2");
+      return response;
+    },
+  });
+}
 
 // Create Professional Account - Step 03
 export function useUpdateBusinessName(token: string) {
@@ -179,7 +200,6 @@ export function useProfessionalReview(token: string) {
     refetchIntervalInBackground: true,
   });
 }
-
 
 // Check Progress Account of Professional
 

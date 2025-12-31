@@ -284,16 +284,6 @@ export default function OTPVerification({
           {/* Timer & Resend */}
           <div className="text-center space-y-3">
             <div className="flex items-center justify-center gap-2">
-              <div className={`w-6 h-6 rounded-sm flex items-center justify-center ${timer > 0
-                ? 'bg-gray-100 dark:bg-gray-800'
-                : 'bg-blue-50 dark:bg-blue-900/20'
-                }`}>
-                {timer > 0 ? (
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{timer}</span>
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5 text-[#0077B6]" />
-                )}
-              </div>
               <div>
                 {timer > 0 ? (
                   <p className="text-xs text-gray-600 dark:text-gray-400">
