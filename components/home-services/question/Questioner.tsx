@@ -185,9 +185,10 @@ const Questioner = ({
       else if (currentStep === service.questions.length) {
         setCurrentStep(service.questions.length + 1); // Review step
       }
-      // If we're on the review step, move to the professional selection step
+      // If we're on the review step, submit directly (skip professional selection)
       else if (currentStep === service.questions.length + 1) {
-        setCurrentStep(service.questions.length + 2); // Professional selection step
+        // Skip professional selection step and submit directly
+        handleSubmit();
       }
       // Otherwise, move to the next question
       else if (currentStep < service.questions.length - 1) {
@@ -276,7 +277,7 @@ const Questioner = ({
   };
 
   const progressValue = service
-    ? (currentStep / (service.questions.length + 3)) * 100
+    ? (currentStep / (service.questions.length + 2)) * 100 // Reduced by 1 step (professional selection)
     : 0;
 
   // Show loading state
@@ -560,12 +561,17 @@ const Questioner = ({
                   </Button>
                 </div>
               </div>
-            ) : currentStep === service.questions.length + 1 ? (
-              // Review step
+            ) : (
+              // Review step (now the final step, no professional selection)
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Review Your Quotation Request
                 </h3>
+
+                <p className="text-sky-600 dark:text-sky-400 text-sm">
+                  Your quotation will be sent to the professional(s) based on your selection. 
+                  Review your information before submitting.
+                </p>
 
                 <Card className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700">
                   <CardHeader className="pb-3">
@@ -629,78 +635,16 @@ const Questioner = ({
                   </CardContent>
                 </Card>
 
-                <div className="flex justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <Button
-                    onClick={handleBack}
-                    variant="outline"
-                    className="flex items-center gap-2"
+                {/* Hidden send option selector (still functional but not shown) */}
+                <div className="hidden">
+                  <RadioGroup
+                    value={sendOption}
+                    onValueChange={handleSendOptionChange}
                   >
-                    <ArrowLeft size={16} />
-                    Back
-                  </Button>
-                  <Button
-                    onClick={handleNext}
-                    className="bg-sky-600 hover:bg-sky-700 flex items-center gap-2"
-                  >
-                    Continue
-                    <ArrowRight size={16} />
-                  </Button>
+                    <RadioGroupItem value="top5" id="top5" />
+                    <RadioGroupItem value="selected" id="selected" />
+                  </RadioGroup>
                 </div>
-              </div>
-            ) : (
-              // Professional selection step
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Send Quotation Request
-                </h3>
-
-                <p className="text-sky-600 dark:text-sky-400 text-sm">
-                  For faster responses and more accurate pricing, we recommend
-                  sending your quotation request to the top 5 recommended
-                  professionals, including your selected professional.
-                </p>
-
-                <RadioGroup
-                  value={sendOption} // Now this directly uses the string value
-                  onValueChange={handleSendOptionChange}
-                >
-                  {[
-                    {
-                      id: "top5",
-                      label:
-                        "Request to top 5 professionals (selected by default)",
-                      value: "top5",
-                    },
-                    {
-                      id: "select",
-                      label: "Request to selected professional",
-                      value: "selected", // CHANGED from "select" to "selected"
-                    },
-                  ].map((option) => {
-                    const isSelected = sendOption === option.value;
-
-                    return (
-                      <Label
-                        htmlFor={option.id}
-                        key={option.id}
-                        className={`flex items-center space-x-3 border p-4 rounded-md transition-colors duration-200 cursor-pointer ${
-                          isSelected
-                            ? "border-sky-500 bg-sky-50 dark:border-sky-400 dark:bg-sky-900/20"
-                            : "border-gray-200 dark:border-gray-700 hover:border-sky-300 dark:hover:border-sky-600"
-                        }`}
-                      >
-                        <RadioGroupItem
-                          value={option.value}
-                          id={option.id}
-                          className="text-sky-600 border-gray-300 dark:border-gray-600"
-                        />
-                        <span className="text-sm font-normal text-gray-700 dark:text-gray-300 flex-1">
-                          {option.label}
-                        </span>
-                      </Label>
-                    );
-                  })}
-                </RadioGroup>
 
                 <div className="flex justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <Button
@@ -713,11 +657,7 @@ const Questioner = ({
                   </Button>
                   <Button
                     onClick={handleSubmit}
-                    disabled={
-                      (sendOption === SEND_OPTIONS.SELECTED &&
-                        professionalIds.length === 0) ||
-                      isSubmitting
-                    }
+                    disabled={isSubmitting}
                     className="bg-sky-600 hover:bg-sky-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
