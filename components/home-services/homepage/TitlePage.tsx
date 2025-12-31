@@ -92,7 +92,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
   const [filteredServices, setFilteredServices] = useState<ServiceWithId[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [serviceSlug, setServiceSlug] = useState("");
-  console.log("LOCATION DATA: ", locationData);
+  
   useEffect(() => {
     setIsMounted(true);
 
@@ -122,6 +122,7 @@ const TitlePage = ({ location }: TitlePageProps) => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location]);
+  console.log("LOCATION DATA: ", locationData);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {

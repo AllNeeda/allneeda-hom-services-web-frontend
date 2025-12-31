@@ -43,18 +43,19 @@ export function LeadDialog({
               <Sparkles className="h-5 w-5 text-sky-600 dark:text-sky-400" />
             </div>
           </div>
+          <div className="flex items-center justify-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-pulse"></div>
+              <span className="text-sm font-medium text-sky-700 dark:text-sky-300">
+                {leadCount} verified client{leadCount > 1 ? "s" : ""}
+              </span>
+            </div>
 
           <div className="space-y-2">
             <DialogTitle className="text-xl font-bold leading-tight tracking-tight">
               {userName ? `Hi ${userName}` : "New client interest"}
             </DialogTitle>
             
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-sky-500 dark:bg-sky-400 animate-pulse"></div>
-              <span className="text-sm font-medium text-sky-700 dark:text-sky-300">
-                {leadCount} verified client{leadCount > 1 ? "s" : ""}
-              </span>
-            </div>
+            
           </div>
 
           <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 px-2">
