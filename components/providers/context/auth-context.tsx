@@ -127,10 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         try {
             await authAPI.refreshTokens();
-            if (authAPI.isAuthenticated()) {
-                const user = await authAPI.getCurrentUser();
+            const user = await authAPI.getCurrentUser();
+            if (user) {
                 dispatch({ type: "AUTH_SUCCESS", payload: user });
+            } else {
+                dispatch({ type: "AUTH_LOGOUT" });
             }
+
         } catch {
             dispatch({ type: "AUTH_LOGOUT" });
             queryClient.clear();

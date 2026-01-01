@@ -1,264 +1,141 @@
-// middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const SECURITY_CONFIG = {
-  AUTH_TOKEN_NAME: "auth-token",
-  REFRESH_TOKEN_NAME: "refresh-token",
-  SESSION_TIMEOUT: 30 * 60 * 1000,
-  TOKEN_REFRESH_THRESHOLD: 5 * 60 * 1000,
-  RATE_LIMITING: {
-    MAX_REQUESTS_PER_MINUTE: 100,
-    MAX_LOGIN_ATTEMPTS: 3,
-    WINDOW_MS: 60 * 1000,
-    BLOCK_DURATION: 10,
+/* ================= CONFIG ================= */
+
+const AUTH_COOKIE = "auth-token";
+const REFRESH_COOKIE = "refresh-token";
+
+const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
+  admin: {
+    routes: ["/admin"],
+    dashboard: "/admin",
+  },
+  professional: {
+    routes: ["/home-services/dashboard"],
+    dashboard: "/home-services/dashboard",
+  },
+  customer: {
+    routes: ["/home-services/customer"],
+    dashboard: "/home-services/customer",
   },
 };
 
-const ROUTE_CONFIG = {
-  PUBLIC: ["/", "/auth/login", "/auth/register"],
-  PROTECTED_PREFIXES: [
-    "/home-services/dashboard"
-  ],
-};
+// Public routes that don’t require authentication
+const PUBLIC_ROUTES = ["/", "/auth"];
 
-// In-memory rate limit store
-const rateLimitStore = new Map<
-  string,
-  { count: number; lastReset: number; blockedUntil?: number }
->();
+/* ================= HELPERS ================= */
 
-// Validate JWT token
-function validateToken(token: string): {
-  isValid: boolean;
-  payload?: any;
-  timeUntilExpiry?: number;
-  error?: string;
-} {
-  if (!token || typeof token !== "string") {
-    return { isValid: false, error: "No token provided" };
-  }
-
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      return { isValid: false, error: "Invalid token format" };
-    }
-
-    // Decode base64 payload
-    const payload = JSON.parse(
-      Buffer.from(parts[1], "base64").toString("utf-8")
-    );
-
-    // Validate required fields
-    if (!payload.exp || !payload.iat) {
-      return { isValid: false, error: "Missing required token fields" };
-    }
-
-    // Check expiration
-    const now = Date.now();
-    const expiry = payload.exp * 1000;
-
-    if (now >= expiry) {
-      return { isValid: false, error: "Token expired" };
-    }
-
-    // Check if issued at time is in the future (clock skew protection)
-    const issuedAt = payload.iat * 1000;
-    if (issuedAt > now + 60000) {
-      // Allow 1 minute clock skew
-      return { isValid: false, error: "Token issued in the future" };
-    }
-
-    return { isValid: true, payload, timeUntilExpiry: expiry - now };
-  } catch{
-    return { isValid: false, error: "Token parse failed" };
-  }
-}
-
-// Rate limiting
-function checkRateLimit(ip: string, pathname: string) {
-  const now = Date.now();
-  const windowStart = now - SECURITY_CONFIG.RATE_LIMITING.WINDOW_MS;
-
-  let data = rateLimitStore.get(ip);
-
-  if (data?.blockedUntil && now < data.blockedUntil) {
-    return {
-      allowed: false,
-      retryAfter: Math.ceil((data.blockedUntil - now) / 1000),
-    };
-  }
-
-  if (!data || data.lastReset < windowStart) {
-    data = { count: 0, lastReset: now };
-  }
-
-  const maxRequests = pathname.startsWith("/auth/")
-    ? SECURITY_CONFIG.RATE_LIMITING.MAX_LOGIN_ATTEMPTS
-    : SECURITY_CONFIG.RATE_LIMITING.MAX_REQUESTS_PER_MINUTE;
-
-  if (data.count >= maxRequests) {
-    data.blockedUntil = now + SECURITY_CONFIG.RATE_LIMITING.BLOCK_DURATION;
-    rateLimitStore.set(ip, data);
-
-    return {
-      allowed: false,
-      retryAfter: SECURITY_CONFIG.RATE_LIMITING.BLOCK_DURATION / 1000,
-    };
-  }
-
-  data.count++;
-  rateLimitStore.set(ip, data);
-  return { allowed: true };
-}
-
-// Helpers
 function isPublicRoute(path: string) {
-  return ROUTE_CONFIG.PUBLIC.some(
-    (route) => path === route || path.startsWith(route + "/")
-  );
-}
-
-function isProtectedRoute(path: string) {
-  if (isPublicRoute(path)) return false;
-
-  return ROUTE_CONFIG.PROTECTED_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(prefix + "/")
-  );
-}
-
-function isAuthRoute(path: string) {
-  return path.startsWith("/auth/");
+  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/");
 }
 
 function isApiRoute(path: string) {
   return path.startsWith("/api/");
 }
 
-function isDashboardRoute(path: string) {
-  return path.startsWith("/home-services/dashboard");
+// Decode base64 URL-safe
+function base64UrlDecode(input: string): string {
+  return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
 }
 
-function getClientIP(request: NextRequest) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
+function decodeJwt(token: string): any | null {
+  try {
+    const clean = token.replace(/^Bearer\s+/i, "");
+    const [, payload] = clean.split(".");
+    if (!payload) return null;
+
+    return JSON.parse(base64UrlDecode(payload));
+  } catch {
+    return null;
+  }
+}
+function normalizeRoles(role: string | string[]) {
+  if (Array.isArray(role)) return role.map(r => r.toLowerCase());
+  if (typeof role === "string") return role.split(",").map(r => r.trim().toLowerCase());
+  return [];
+}
+function isAuthorized(roles: string[], path: string) {
+  return roles.some(role =>
+    ROLE_CONFIG[role]?.routes.some(route => path === route || path.startsWith(`${route}/`))
   );
 }
+function dashboardForRoles(roles: string[]) {
+  const priority = ["admin", "professional", "customer"];
+  for (const role of priority) {
+    if (roles.includes(role)) return ROLE_CONFIG[role].dashboard;
+  }
+  return "/unauthorized";
+}
 
-// Middleware start
-export function middleware(request: NextRequest) {
-  const { pathname, searchParams } = request.nextUrl;
-  const clientIP = getClientIP(request);
+// Add security headers
+function addSecurityHeaders(res: NextResponse) {
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+}
 
-  const response = NextResponse.next();
 
-  // Allow static files
+export async function middleware(req: NextRequest) {
+  const { pathname, search } = req.nextUrl;
+  const url = req.nextUrl.clone();
+
   if (
-    pathname.includes(".") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/favicon.ico")
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/static") ||
+    /\.(ico|png|jpg|css|js|svg|woff2?)$/i.test(pathname)
   ) {
-    return response;
+    return NextResponse.next();
   }
 
-  // ---------- RATE LIMIT ----------
-  const rateLimit = checkRateLimit(clientIP, pathname);
-  if (!rateLimit.allowed) {
-    // API → return JSON 429
+  if (isPublicRoute(pathname)) {
+    const res = NextResponse.next();
+    addSecurityHeaders(res);
+    return res;
+  }
+  const accessToken = req.cookies.get(AUTH_COOKIE)?.value;
+  const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
+
+  if (!accessToken) {
     if (isApiRoute(pathname)) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Too Many Requests",
-          retryAfter: rateLimit.retryAfter,
-        }),
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Prevent redirect loop on /auth/*
-    if (isAuthRoute(pathname)) {
-      return NextResponse.next();
-    }
-
-    const url = new URL("/auth/login", request.url);
-    url.searchParams.set("code", "429");
+    url.pathname = "/auth/login";
+    url.search = `redirect=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
 
-  // ---------- PROTECTED ROUTES ----------
-  if (isProtectedRoute(pathname)) {
-    const token = request.cookies.get(SECURITY_CONFIG.AUTH_TOKEN_NAME)?.value;
-    const tokenValidation = token
-      ? validateToken(token)
-      : { isValid: false, error: "No token" };
+  // Decode access token
+  let payload = decodeJwt(accessToken);
 
-    if (!tokenValidation.isValid) {
-      // Prevent redirect loop if already on auth routes
-      if (isAuthRoute(pathname)) return NextResponse.next();
+  // If access token expired but refresh token exists
+  const now = Math.floor(Date.now() / 1000);
+  if ((!payload || (payload.exp && payload.exp < now)) && refreshToken) {
 
-      const url = new URL("/auth/login", request.url);
-      url.searchParams.set("redirect", pathname);
-      
-      // Set appropriate reason based on error
-      let reason = "authentication_required";
-      if (token) {
-        if (tokenValidation.error?.includes("expired")) {
-          reason = "session_expired";
-        } else {
-          reason = "invalid_token";
-        }
-      }
-      url.searchParams.set("reason", reason);
-      
-      return NextResponse.redirect(url);
-    }
-
-    // Add security headers for protected routes
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-
-    // Mark dashboard access
-    if (isDashboardRoute(pathname)) {
-      response.headers.set("X-Dashboard-Access", "true");
-    }
+    url.pathname = "/auth/login";
+    url.search = `redirect=${encodeURIComponent(pathname + search)}`;
+    return NextResponse.redirect(url);
+  }
+  if (!payload) {
+    const res = NextResponse.redirect(new URL("/auth/login", req.url));
+    res.cookies.set(AUTH_COOKIE, "", { maxAge: 0, path: "/" });
+    return res;
   }
 
-  // ---------- AUTH ROUTES (Redirect if already authenticated) ----------
-  if (isAuthRoute(pathname)) {
-    const token = request.cookies.get(SECURITY_CONFIG.AUTH_TOKEN_NAME)?.value;
-    const tokenValidation = token
-      ? validateToken(token)
-      : { isValid: false };
-
-    if (tokenValidation.isValid) {
-      // Get redirect URL from query params or default
-      let redirectTo = searchParams.get("redirect") || "/home-services/dashboard";
-      
-      // Validate redirect URL to prevent open redirects
-      if (!redirectTo.startsWith("/")) {
-        redirectTo = "/home-services/dashboard";
-      }
-
-      // Prevent redirect loop
-      if (redirectTo === pathname || redirectTo.startsWith("/auth/")) {
-        redirectTo = "/home-services/dashboard";
-      }
-
-      return NextResponse.redirect(new URL(redirectTo, request.url));
-    }
+  const roles = normalizeRoles(payload.roles || payload.role);
+  if (!roles.length) {
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
-
-  return response;
+  if (!isAuthorized(roles, pathname)) {
+    url.pathname = dashboardForRoles(roles);
+    return NextResponse.redirect(url);
+  }
+  const res = NextResponse.next();
+  addSecurityHeaders(res);
+  return res;
 }
 
-// Matcher
+
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|woff|woff2)$).*)",
-  ],
+  matcher: ["/admin/:path*", "/home-services/:path*", "/api/:path*"],
 };
