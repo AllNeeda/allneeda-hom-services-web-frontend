@@ -3,7 +3,6 @@ import axios from "axios";
 import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, User } from "@/types/auth/register";
 
-export type { User };
 
 const setCookie = (name: string, value: string, days: number = 30) => {
   if (typeof window === "undefined") return;
@@ -81,8 +80,26 @@ class AuthService {
       const userId = decoded?.sub || decoded?.user_id;
       if (!userId) throw new Error("User ID not found in token");
       if (this._currentUser?._id === userId) return this._currentUser;
-      const response =   await axios.get(`https://generaluser-web-latest.onrender.com/api/v2/user/getById/${userId}`);
-      const userData = response.data?.data?.user || response.data;
+      const response = await axios.get(
+        `https://generaluser-web-latest.onrender.com/api/v2/user/getById/${userId}`
+      );
+      // Normalize response shapes:
+      // - response.data.data.user
+      // - response.data.data
+      // - response.data
+      const respData = response.data;
+      let userData: any = null;
+      if (respData && typeof respData === "object") {
+        if (respData.data) {
+          // some APIs nest user in data or data.user
+          userData = respData.data.user ?? respData.data;
+        } else if (respData.user) {
+          userData = respData.user;
+        } else {
+          userData = respData;
+        }
+      }
+
       this._currentUser = userData as User;
       return this._currentUser;
     } catch  {

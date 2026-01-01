@@ -8,7 +8,8 @@ import React, {
     useCallback,
     useRef,
 } from "react";
-import { User, authAPI } from "@/app/api/auth/login";
+import { authAPI } from "@/app/api/auth/login";
+import type { User } from "@/types/auth/register";
 import { tokenManager } from "@/app/api/axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "next/navigation";
@@ -23,7 +24,7 @@ interface AuthState {
 
 type AuthAction =
     | { type: "AUTH_START" }
-    | { type: "AUTH_SUCCESS"; payload: User }
+    | { type: "AUTH_SUCCESS"; payload: User | null }
     | { type: "AUTH_FAILURE"; payload: string }
     | { type: "AUTH_LOGOUT" }
     | { type: "CLEAR_ERROR" }
@@ -55,7 +56,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
             return {
                 ...state,
                 user: action.payload,
-                isAuthenticated: true,
+                isAuthenticated: !!action.payload,
                 isLoading: false,
                 error: null,
                 tokenExpiringSoon: false,
@@ -127,13 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         try {
             await authAPI.refreshTokens();
-            const user = await authAPI.getCurrentUser();
-            if (user) {
+            if (authAPI.isAuthenticated()) {
+                const user = await authAPI.getCurrentUser();
                 dispatch({ type: "AUTH_SUCCESS", payload: user });
-            } else {
-                dispatch({ type: "AUTH_LOGOUT" });
             }
-
         } catch {
             dispatch({ type: "AUTH_LOGOUT" });
             queryClient.clear();
