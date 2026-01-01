@@ -5,7 +5,6 @@ import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
 const setCookie = (name: string, value: string, days: number = 30) => {
   if (typeof window === "undefined") return;
-
   const isProduction = process.env.NODE_ENV === "production";
   const secureFlag = isProduction ? "; secure" : "";
   const sameSite = "; SameSite=Strict";
@@ -55,7 +54,6 @@ class AuthService {
       }
       setCookie("auth-token", data.accessToken, 0.5); // 30 minutes
       setCookie("refresh-token", data.refreshToken, 30); // 30 days
-      setCookie("user-data", JSON.stringify(data.user), 1); // 1 day
       return {
         user: data.user as User,
         tokens: {
@@ -75,15 +73,13 @@ class AuthService {
         { timeout: 15000 }
       );
       return res.data?.data || [];
-    } catch (error) {
-      console.error("Failed to fetch roles", error);
+    } catch  {
       return [];
     }
   }
 
   private async getRoleIdForBusinessType(
-    businessType: string
-  ): Promise<string | undefined> {
+    businessType: string  ): Promise<string | undefined> {
     const roles = await this.getRoles();
     if (businessType === "home-services") {
       const professionalRole = roles.find(
@@ -115,7 +111,6 @@ class AuthService {
         role_id: await this.getRoleIdForBusinessType(data.businessType),
         status: data.status ?? true,
       };
-      console.log(" the data of user is", data);
       const response = await axios.post(
         "https://generaluser-web-latest.onrender.com/api/v2/user/create/",
         payload,
@@ -160,20 +155,6 @@ class AuthService {
     } catch (error) {
       deleteCookie("auth-token");
       deleteCookie("refresh-token");
-      deleteCookie("user-data");
-      if (data.user_id) {
-        try {
-          await axios.delete(
-            `https://generaluser-web-latest.onrender.com/api/v2/user/delete/${data.user_id}/`,
-            { timeout: 15000 }
-          );
-        } catch (deleteError) {
-          console.error(
-            "Failed to delete user after registration failure",
-            deleteError
-          );
-        }
-      }
       throw handleApiError(error);
     }
   }
