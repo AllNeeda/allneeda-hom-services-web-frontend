@@ -3,6 +3,8 @@ import axios from "axios";
 import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, User } from "@/types/auth/register";
 
+export type { User };
+
 const setCookie = (name: string, value: string, days: number = 30) => {
   if (typeof window === "undefined") return;
   const isProduction = process.env.NODE_ENV === "production";
