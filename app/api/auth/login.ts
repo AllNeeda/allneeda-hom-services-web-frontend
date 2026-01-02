@@ -83,15 +83,10 @@ class AuthService {
       const response = await axios.get(
         `https://generaluser-web-latest.onrender.com/api/v2/user/getById/${userId}`
       );
-      // Normalize response shapes:
-      // - response.data.data.user
-      // - response.data.data
-      // - response.data
       const respData = response.data;
       let userData: any = null;
       if (respData && typeof respData === "object") {
         if (respData.data) {
-          // some APIs nest user in data or data.user
           userData = respData.data.user ?? respData.data;
         } else if (respData.user) {
           userData = respData.user;

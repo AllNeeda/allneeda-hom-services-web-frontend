@@ -13,6 +13,7 @@ import type { User } from "@/types/auth/register";
 import { tokenManager } from "@/app/api/axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "next/navigation";
+import { redirectAfterLogin } from "@/lib/redirectAfterLogin";
 
 interface AuthState {
     user: User | null;
@@ -270,99 +271,124 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [clearError]);
 
-    const verifyOTP = useCallback(async (phone: string, otp: string, customRedirect?: string | null) => {
-        if (isLoggingInRef.current) {
-            console.warn("OTP verification already in progress - resetting");
-            isLoggingInRef.current = false;
-            dispatch({ type: "SET_LOADING", payload: false });
-        }
 
-        isLoggingInRef.current = true;
-        dispatch({ type: "AUTH_START" });
-        clearError();
 
-        const timeoutId = setTimeout(() => {
+
+
+
+
+
+
+
+
+    const verifyOTP = useCallback(
+        async (phone: string, otp: string) => {
             if (isLoggingInRef.current) {
+                console.warn("OTP verification already in progress - resetting");
                 isLoggingInRef.current = false;
                 dispatch({ type: "SET_LOADING", payload: false });
-                dispatch({ type: "AUTH_FAILURE", payload: "Verification request timed out. Please check your connection and try again." });
             }
-        }, 20000);
-        try {
-            const response = await authAPI.verifyOTP(phone, otp);
-            clearTimeout(timeoutId);
-            if (!response?.user) {
-                throw new Error("Invalid response from server");
-            }
-            isLoggingInRef.current = false;
-            dispatch({ type: "AUTH_SUCCESS", payload: response.user });
-            queryClient.invalidateQueries().catch((err) => {
-                console.warn("Failed to invalidate queries:", err);
-            });
 
-            const redirect =
-                customRedirect ??
-                new URLSearchParams(window.location.search).get("redirect") ??
-                "/home-services/dashboard";
+            isLoggingInRef.current = true;
+            dispatch({ type: "AUTH_START" });
+            clearError();
 
-            const redirectUrl = redirect.startsWith("/") && !redirect.startsWith("//")
-                ? redirect
-                : "/home-services/dashboard";
-            setTimeout(() => {
-                try {
-                    router.push(redirectUrl);
-                } catch {
-                    if (typeof window !== "undefined") {
-                        router.push(redirectUrl);
-                    }
+            const timeoutId = setTimeout(() => {
+                if (isLoggingInRef.current) {
+                    isLoggingInRef.current = false;
+                    dispatch({ type: "SET_LOADING", payload: false });
+                    dispatch({
+                        type: "AUTH_FAILURE",
+                        payload:
+                            "Verification request timed out. Please check your connection and try again.",
+                    });
                 }
-            }, 100);
-        } catch (error: unknown) {
-            clearTimeout(timeoutId);
-            isLoggingInRef.current = false;
-            dispatch({ type: "SET_LOADING", payload: false });
+            }, 20000);
 
-            let errorMessage = "OTP verification failed. Please try again.";
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (typeof error === "object" && error !== null) {
-                if ("response" in error) {
-                    const axiosError = error as {
-                        response?: {
-                            status?: number;
-                            data?: {
-                                message?: string;
-                                error?: string;
-                                detail?: string;
-                                errors?: Array<string | { message?: string }>;
+            try {
+                const response = await authAPI.verifyOTP(phone, otp);
+                clearTimeout(timeoutId);
+
+                if (!response?.user) {
+                    throw new Error("Invalid response from server");
+                }
+
+                isLoggingInRef.current = false;
+                dispatch({ type: "AUTH_SUCCESS", payload: response.user });
+
+                queryClient.invalidateQueries().catch((err) => {
+                    console.warn("Failed to invalidate queries:", err);
+                });
+                const token = getAccessToken();
+                if (token) {
+                    await redirectAfterLogin(token, router);
+                    return;
+                }
+                router.replace("/home-services/dashboard");
+            } catch (error: unknown) {
+                clearTimeout(timeoutId);
+                isLoggingInRef.current = false;
+                dispatch({ type: "SET_LOADING", payload: false });
+
+                let errorMessage = "OTP verification failed. Please try again.";
+
+                if (error instanceof Error) {
+                    errorMessage = error.message;
+                } else if (typeof error === "object" && error !== null) {
+                    if ("response" in error) {
+                        const axiosError = error as {
+                            response?: {
+                                data?: {
+                                    message?: string;
+                                    error?: string;
+                                    detail?: string;
+                                    errors?: Array<string | { message?: string }>;
+                                };
+                            };
+                        };
+
+                        const responseData = axiosError.response?.data;
+                        if (responseData) {
+                            if (responseData.message) errorMessage = responseData.message;
+                            else if (responseData.error) errorMessage = responseData.error;
+                            else if (responseData.detail) errorMessage = responseData.detail;
+                            else if (
+                                Array.isArray(responseData.errors) &&
+                                responseData.errors.length > 0
+                            ) {
+                                errorMessage = responseData.errors
+                                    .map((err: any) => err.message || String(err))
+                                    .join(", ");
                             }
                         }
-                    };
-
-                    const responseData = axiosError.response?.data;
-                    if (responseData) {
-                        if (responseData.message) {
-                            errorMessage = responseData.message;
-                        } else if (responseData.error) {
-                            errorMessage = responseData.error;
-                        } else if (responseData.detail) {
-                            errorMessage = responseData.detail;
-                        } else if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-                            errorMessage = responseData.errors
-                                .map((err: any) => err.message || err.msg || err.error || String(err))
-                                .join(", ");
-                        }
                     }
-                } else if ("message" in error) {
-                    errorMessage = String((error as { message: unknown }).message);
+                } else if (typeof error === "string") {
+                    errorMessage = error;
                 }
-            } else if (typeof error === "string") {
-                errorMessage = error;
+
+                dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
+                throw error;
             }
-            dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
-            throw error;
-        }
-    }, [queryClient, router, clearError]);
+        },
+        [queryClient, router, clearError, getAccessToken]
+    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     const login = useCallback(async (email: string, password: string, customRedirect?: string | null) => {
         if (isLoggingInRef.current) {
