@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -9,7 +9,7 @@ import {
     SelectContent,
     SelectItem
 } from "@/components/ui/select";
-import { Loader2, Building2, User, MapPin, Shield, ChevronDown, Calendar, Mail, Key, Search, Home, Briefcase, Map, Globe2, UserCircle, PhoneCall, Lock, Check } from 'lucide-react';
+import { Loader2, Building2, User, MapPin, Shield, ChevronDown, Calendar, Mail, Key, Search, Home, Briefcase, Map, Globe2, UserCircle, PhoneCall, Lock, Check, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -95,6 +95,7 @@ export default function Register() {
         formState: { errors, isValid },
         clearErrors,
         trigger,
+        watch,
     } = useForm({
         resolver: zodResolver(ProfessionalStepOne),
         mode: 'onChange',
@@ -120,6 +121,14 @@ export default function Register() {
         }
     });
 
+    const phoneValue = watch('phoneNo');
+    const getPhoneDigits = useCallback((phone: string) => {
+        return phone.replace(/\D/g, '');
+    }, []);
+
+    const hasMinimumDigits = useMemo(() => {
+        return getPhoneDigits(phoneValue).length >= 10;
+    }, [phoneValue, getPhoneDigits]);
 
     const filteredSubCategories = useMemo(() => {
         return (subCategoriesData?.data?.data || []).filter((sub: SubCategory) =>
@@ -186,8 +195,9 @@ export default function Register() {
         setIsFormSubmitting(true);
 
         const isValidForm = await trigger();
+        const phoneDigits = getPhoneDigits(data.phoneNo);
 
-        if (!isValidForm) {
+        if (!isValidForm || phoneDigits.length < 10) {
             toast.error("Please fill in all required fields correctly");
             setIsFormSubmitting(false);
             return;
@@ -227,15 +237,13 @@ export default function Register() {
             // Then send OTP and move to OTP step
             await sendOTPMutation.mutateAsync({ phoneNo: data.phoneNo });
             setCurrentStep('otp');
-        } catch (error) {
+        } catch  {
             // Error handled by mutation, but we need to reset form submitting state
-            console.error("Form submission error:", error);
         } finally {
             setIsFormSubmitting(false);
         }
     };
 
-    // Step 2: Handle OTP verification
     const handleOTPVerify = async (otp: string) => {
         if (!tempRegistrationData) {
             toast.error("Registration data not found. Please start over.");
@@ -850,6 +858,7 @@ export default function Register() {
                                             {errors.phoneNo.message}
                                         </p>
                                     )}
+
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                         4-digit OTP will be sent
                                     </p>
@@ -902,7 +911,7 @@ export default function Register() {
                                         <button
                                             type="submit"
                                             aria-busy={isFormSubmitting || sendOTPMutation.isPending}
-                                            disabled={isFormSubmitting || sendOTPMutation.isPending || !isValid}
+                                            disabled={isFormSubmitting || sendOTPMutation.isPending || !isValid || !hasMinimumDigits}
                                             className="w-full px-4 py-2.5 bg-[#0077B6] hover:bg-[#016194] dark:bg-[#0077B6] dark:hover:bg-[#016194] text-white text-sm font-medium rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                         >
                                             {isFormSubmitting ? (
@@ -924,6 +933,16 @@ export default function Register() {
                                         </button>
                                     </div>
                                 </div>
+
+                                {/* Helper text when Continue button is disabled due to insufficient phone digits */}
+                                {phoneValue && !hasMinimumDigits && !errors.phoneNo && (
+                                    <div className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-sm">
+                                        <p className="text-xs text-amber-800 dark:text-amber-300 text-center flex items-center justify-center gap-1">
+                                            <Info className="w-3 h-3" />
+                                            Enter at least 10 digits in phone number to continue
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Validation Summary */}
                                 {!isValid && Object.keys(errors).length > 0 && (
@@ -947,7 +966,7 @@ export default function Register() {
                                     <p className="text-xs text-gray-600 dark:text-gray-400">
                                         Already registered?{' '}
                                         <Link
-                                            href="/login"
+                                            href="/auth/login"
                                             className="text-[#0077B6] dark:text-blue-400 font-medium hover:underline"
                                         >
                                             Sign in here

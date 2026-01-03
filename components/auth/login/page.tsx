@@ -13,10 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Phone, Shield, Loader2 } from "lucide-react";
+
 interface LoginFormProps extends React.ComponentProps<"div"> {
   className?: string;
 }
+
 const OTP_RESEND_COOLDOWN = 60; // 60 seconds
+
 export default function LoginForm({ className, ...props }: LoginFormProps) {
   const { sendOTP, verifyOTP, isLoading, error, clearError } = useAuth();
   const [otpSent, setOtpSent] = useState(false);
@@ -44,6 +47,16 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
 
   const phoneValue = watch("phone");
   const otpValue = watch("otp");
+
+  // Helper function to get only digits from phone number
+  const getPhoneDigits = useCallback((phone: string) => {
+    return phone.replace(/\D/g, '');
+  }, []);
+
+  // Check if phone has minimum 10 digits
+  const hasMinimumDigits = useMemo(() => {
+    return getPhoneDigits(phoneValue).length >= 10;
+  }, [phoneValue, getPhoneDigits]);
 
   // Start or stop countdown timer based on countdown value
   const manageCountdown = useCallback((seconds: number) => {
@@ -73,7 +86,9 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
   // Handle OTP sending
   const handleSendOTP = useCallback(async () => {
     const phone = getValues("phone");
-    if (!phone || errors.phone) return;
+    const phoneDigits = getPhoneDigits(phone);
+
+    if (!phone || errors.phone || phoneDigits.length < 10) return;
 
     setIsSendingOTP(true);
     clearError();
@@ -88,7 +103,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
     } finally {
       setIsSendingOTP(false);
     }
-  }, [sendOTP, clearError, getValues, errors.phone, setValue, manageCountdown]);
+  }, [sendOTP, clearError, getValues, errors.phone, setValue, manageCountdown, getPhoneDigits]);
 
   // Handle OTP resend
   const handleResendOTP = useCallback(async () => {
@@ -115,6 +130,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
       });
     }
   }, [otpSent, handleSendOTP, verifyOTP, clearError, reset]);
+
   const handleInputChange = useCallback((field: keyof PhoneLoginFormData, value: string) => {
     if (error) {
       const currentTime = Date.now();
@@ -126,10 +142,12 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
     }
     prevFormValuesRef.current[field] = value;
   }, [error, clearError]);
+
   if (error && errorShownTimeRef.current === 0) {
     errorShownTimeRef.current = Date.now();
     prevFormValuesRef.current = { phone: phoneValue, otp: otpValue };
   }
+
   React.useEffect(() => {
     return () => {
       if (countdownIntervalRef.current) {
@@ -137,22 +155,33 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
       }
     };
   }, []);
+
   const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setValue("phone", value);
     handleInputChange("phone", value);
   }, [setValue, handleInputChange]);
+
   const handleOtpChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 6);
     setValue("otp", value, { shouldValidate: true });
     handleInputChange("otp", value);
   }, [setValue, handleInputChange]);
-  const isSendOtpDisabled = useMemo(() => 
-    isLoading || isSendingOTP || !phoneValue || !!errors.phone,
-    [isLoading, isSendingOTP, phoneValue, errors.phone]
-  );
 
-  const isVerifyOtpDisabled = useMemo(() => 
+  // Disable SEND OTP button if less than 10 digits
+  const isSendOtpDisabled = useMemo(() => {
+    const phoneDigits = getPhoneDigits(phoneValue);
+
+    return (
+      isLoading ||
+      isSendingOTP ||
+      !phoneValue ||
+      !!errors.phone ||
+      phoneDigits.length < 10
+    );
+  }, [isLoading, isSendingOTP, phoneValue, errors.phone, getPhoneDigits]);
+
+  const isVerifyOtpDisabled = useMemo(() =>
     isLoading || !otpValue || otpValue.length !== 4,
     [isLoading, otpValue]
   );
@@ -267,34 +296,39 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
                     {errors.phone.message}
                   </p>
                 )}
+
+
               </div>
 
               {/* Send OTP Button (shown when OTP not sent or can resend) */}
               {!otpSent && (
-                <Button
-                  type="button"
-                  onClick={handleSendOTP}
-                  disabled={isSendOtpDisabled}
-                  className={cn(
-                    "w-full h-12 rounded-sm font-semibold",
-                    "bg-[#0077B6] hover:bg-[#03669b]",
-                    "text-white shadow-md hover:shadow-lg transition-all duration-200",
-                    "transform hover:-translate-y-0.5",
-                    (isLoading || isSendingOTP) && "opacity-90 cursor-not-allowed"
-                  )}
-                >
-                  {isSendingOTP ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Sending OTP...</span>
-                    </div>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Send OTP
-                    </span>
-                  )}
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    onClick={handleSendOTP}
+                    disabled={isSendOtpDisabled}
+                    className={cn(
+                      "w-full h-12 rounded-sm font-semibold",
+                      "bg-[#0077B6] hover:bg-[#03669b]",
+                      "text-white shadow-md hover:shadow-lg transition-all duration-200",
+                      "transform hover:-translate-y-0.5",
+                      (isLoading || isSendingOTP) && "opacity-90 cursor-not-allowed",
+                      !hasMinimumDigits && "opacity-70 cursor-not-allowed"
+                    )}
+                  >
+                    {isSendingOTP ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Sending OTP...</span>
+                      </div>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Send OTP
+                      </span>
+                    )}
+                  </Button>
+                </>
               )}
 
               {/* OTP Input and Verify Button (shown after OTP is sent) */}
