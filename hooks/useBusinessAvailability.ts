@@ -13,8 +13,5 @@ export const useBusinessAvailability = (token: string) => {
     onSuccess: async () => {
       toast.success("Business availability updated successfully");
     },
-    onError: (error) => {
-      toast.error(error?.message || "Failed to update business availability.");
-    },
   });
 };
