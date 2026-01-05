@@ -12,6 +12,7 @@ import { getAccessToken } from '@/app/api/axios';
 import { useProfessionalReview } from '@/hooks/RegisterPro/useRegister';
 import { useSendReview } from '@/hooks/useSendReview';
 import GlobalLoader from '@/components/ui/global-loader';
+import { safeProfessionalRedirect } from '@/lib/redirectProfessional';
 
 const ONBOARDING_STEPS = [
   { id: 1, name: 'Profile' },
@@ -80,7 +81,6 @@ export default function ReviewRequest() {
         businessName,
         reviewLink: reviewRequestLink,
       });
-
       toast.success(`Review request sent to: ${email}`);
     } catch (err: any) {
       toast.error(err.message || 'Failed to send review request.');
@@ -89,9 +89,10 @@ export default function ReviewRequest() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (serviceId) router.back();
-    else router.push(`/home-services/dashboard/services/step-6`);
+    else await safeProfessionalRedirect(token, router);
+
   };
 
   return (

@@ -20,9 +20,7 @@ export function resolveProfessionalStep(data: any): number | "dashboard" {
   if (!hasIntro || !hasFoundedYear || !hasBusinessType) {
     return 4;
   }
-  if (professional.total_review === 0) {
-    return 5;
-  }
+ 
   const businessHours = professional.business_hours;
   if (!Array.isArray(businessHours) || businessHours.length === 0) {
     return 7;

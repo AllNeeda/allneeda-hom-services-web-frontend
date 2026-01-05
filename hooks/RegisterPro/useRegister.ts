@@ -19,6 +19,7 @@ import {} from "@/components/home-services/onboarding/step-4";
 import { getProfessionalStepsAPI } from "@/app/api/services/services";
 import { authAPI } from "@/app/api/auth/register";
 import { getAccessToken } from "@/app/api/axios";
+import { safeProfessionalRedirect } from "@/lib/redirectProfessional";
 
 // 1️⃣ Send OTP
 export function useSendOTP() {
@@ -84,12 +85,12 @@ export function useUpdateBusinessName(token: string) {
     mutationKey: ["UpdateBusinessName"],
     mutationFn: (data: { businessName: string; id: string }) =>
       UpdateBusinessName(data, token),
-    onSuccess: () => {
+    onSuccess: async() => {
       queryClient.invalidateQueries({
         queryKey: ["professionalReview"],
       });
 
-      router.push(`/home-services/dashboard/services/step-4`);
+      await safeProfessionalRedirect(token, router);
     },
   });
 }
@@ -103,11 +104,11 @@ export function useBusinessInfo(token: string) {
   return useMutation({
     mutationKey: ["BusinessInfo"],
     mutationFn: (data: BusinessInfoPayload) => saveBusinessInfoAPI(data, token),
-    onSuccess: () => {
+    onSuccess: async() => {
       queryClient.invalidateQueries({
         queryKey: ["professionalReview"],
       });
-      router.push("/home-services/dashboard/services/step-5");
+      await safeProfessionalRedirect(token, router);
     },
   });
 }
@@ -119,18 +120,12 @@ export function useBusinesAvailability(token: string) {
     mutationKey: ["BusinesAvailability"],
     mutationFn: (data: BusinessAvailabilityPayload) =>
       BusinesAvailabilityAPI(data, token),
-    onSuccess: () => {
+    onSuccess: async() => {
+      await safeProfessionalRedirect(token, router);
       queryClient.invalidateQueries({
         queryKey: ["professionalReview"],
       });
-      router.push("/home-services/dashboard/services/step-8");
     },
-    onError: (error: any) => {
-      toast.error(
-        error?.response?.data?.message || "Failed to save Business Info"
-      );
-    },
-    retry: false,
   });
 }
 
@@ -155,11 +150,11 @@ export const useSubmitServiceAnswers = (token: string) => {
   return useMutation({
     mutationKey: ["submitServiceAnswers"],
     mutationFn: (data: AnswerPayload[]) => submitServiceAnswersAPI(data, token),
-    onSuccess: () => {
+    onSuccess: async() => {
       queryClient.invalidateQueries({
         queryKey: ["professionalReview"],
       });
-      router.push("/home-services/dashboard/services/step-9");
+      await safeProfessionalRedirect(token, router);
     },
     onError: (error: any) => {
       toast.error(
@@ -175,14 +170,10 @@ export function useSaveLocation(token: string) {
   return useMutation({
     mutationKey: ["ProfessionalLocation"],
     mutationFn: (data: LocationData) => saveLocationAPI(data, token),
-    onSuccess: () => {
+    onSuccess: async() => {
       router.refresh();
-      router.push("/home-services/dashboard/services/step-10");
+      await safeProfessionalRedirect(token, router);
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to save location");
-    },
-    retry: false,
   });
 }
 
