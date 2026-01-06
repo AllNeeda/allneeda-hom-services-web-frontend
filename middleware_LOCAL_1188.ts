@@ -36,11 +36,7 @@ const PUBLIC_ROUTES = ["/home-services", "/auth"];
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-<<<<<<< HEAD
   return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") ;
-=======
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") || path.startsWith("/home-servies");
->>>>>>> feat/Esmat_changes
 }
 
 function isApiRoute(path: string) {

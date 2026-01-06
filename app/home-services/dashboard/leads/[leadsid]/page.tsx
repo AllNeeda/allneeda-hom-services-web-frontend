@@ -1,5 +1,6 @@
 "use client";
 
+import { getAccessToken } from "@/app/api/axios";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
 import { useLeadDetails } from "@/hooks/useHomeServices";
 import dynamic from "next/dynamic";
@@ -31,9 +32,11 @@ const SkeletonLoader: FC = () => (
 );
 
 const ParentComponent: FC = () => {
+  const token = getAccessToken() || '';
   const params = useParams();
   const leadId = String(params.leadsid);
-  const { data: LeadDetails, isLoading, isError } = useLeadDetails(leadId);
+  const { data: LeadDetails, isLoading, isError } = useLeadDetails(leadId, token);
+ 
 
   if (isLoading) {
     return <SkeletonLoader />;

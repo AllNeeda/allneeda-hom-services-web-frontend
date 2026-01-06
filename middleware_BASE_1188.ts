@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProfessionalStepsAPI } from "./app/api/services/services";
-import { resolveProfessionalStep } from "./lib/resolveProfessionalStep";
 
 /* ================= CONFIG ================= */
 
 const AUTH_COOKIE = "auth-token";
 const REFRESH_COOKIE = "refresh-token";
-
-const PROFESSIONAL_STEP_REQUIRED_ROUTES = [
-  "/home-services/dashboard/main",
-  "/home-services/dashboard/marketing",
-  "/home-services/dashboard/leads",
-];
-
-
 
 const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
   admin: {
@@ -31,16 +21,12 @@ const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
 };
 
 // Public routes that don’t require authentication
-const PUBLIC_ROUTES = ["/home-services", "/auth"];
+const PUBLIC_ROUTES = ["/", "/auth"];
 
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-<<<<<<< HEAD
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") ;
-=======
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") || path.startsWith("/home-servies");
->>>>>>> feat/Esmat_changes
+  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/");
 }
 
 function isApiRoute(path: string) {
@@ -73,13 +59,6 @@ function isAuthorized(roles: string[], path: string) {
     ROLE_CONFIG[role]?.routes.some(route => path === route || path.startsWith(`${route}/`))
   );
 }
-
-
-
-
-
-
-
 function dashboardForRoles(roles: string[]) {
   const priority = ["admin", "professional", "customer"];
   for (const role of priority) {
@@ -151,26 +130,6 @@ export async function middleware(req: NextRequest) {
     url.pathname = dashboardForRoles(roles);
     return NextResponse.redirect(url);
   }
-
-
-if (roles.includes("professional")) {
-  try {
-    const stepData = await getProfessionalStepsAPI(accessToken!);
-    const step = resolveProfessionalStep(stepData);
-
-    if (
-      step !== "dashboard" &&
-      PROFESSIONAL_STEP_REQUIRED_ROUTES.some((route) => pathname.startsWith(route))
-    ) {
-      url.pathname = `/home-services/dashboard/services/step-${step}`;
-      return NextResponse.redirect(url);
-    }
-  } catch {
-    url.pathname = "/home-services/dashboard";
-    return NextResponse.redirect(url);
-  }
-}
-
   const res = NextResponse.next();
   addSecurityHeaders(res);
   return res;
