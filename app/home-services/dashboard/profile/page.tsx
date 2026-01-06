@@ -95,7 +95,7 @@ const taskDefinitions: Task[] = [
 ];
 
 export default function SetupProgress() {
-  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
   const token = getAccessToken() || "";
   const { data, isLoading, isError } = useProfesssionalProgress(token);
   const [tasks, setTasks] = useState<Task[]>(taskDefinitions);
