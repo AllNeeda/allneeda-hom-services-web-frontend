@@ -108,7 +108,8 @@ export function useBusinessInfo(token: string) {
       queryClient.invalidateQueries({
         queryKey: ["professionalReview"],
       });
-      await safeProfessionalRedirect(token, router);
+      router.push("/home-services/dashboard/services/step-5");
+
     },
   });
 }
