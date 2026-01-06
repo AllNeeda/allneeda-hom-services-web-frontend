@@ -3,11 +3,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiAlertCircle, FiChevronDown, FiDollarSign, FiMapPin,
-  FiLoader, FiTrendingUp,
+  FiLoader,
   FiEdit, FiSettings
 } from 'react-icons/fi';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
-import { TriangleAlert, Sparkles, ArrowRight } from 'lucide-react';
+import { TriangleAlert, Sparkles, ArrowRight, Target, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import GlobalLoader from '@/components/ui/global-loader';
@@ -86,9 +86,6 @@ const ServicesList = ({ data }: ServicesListProps) => {
   const { mutate: updateStatus } = useUpdateServiceStatus();
   const { mutate: deleteService } = useDeleteService();
 
-
-
-
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [transformedServices, setTransformedServices] = useState<TransformedService[]>([]);
 
@@ -119,6 +116,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
     if (!service.setupProgress.step4) return 'locations';
     return 'service_name'; // fallback
   };
+
   const navigateToStep = (step: string, service: TransformedService) => {
     // Set the current service data in cache before navigation
     queryClient.setQueryData(["currentService"], {
@@ -152,6 +150,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
         router.push(`/home-services/dashboard/services/addServices?${params}`);
     }
   };
+
   const handleEdit = (service: TransformedService) => {
     const currentServiceData = {
       service_id: service.originalData.service_id,
@@ -178,7 +177,6 @@ const ServicesList = ({ data }: ServicesListProps) => {
     router.push(`/home-services/dashboard/services/locations?${params}`);
   };
 
-
   const questionsDetails = (service: TransformedService) => {
     const currentServiceData = {
       service_id: service.originalData.service_id,
@@ -192,8 +190,6 @@ const ServicesList = ({ data }: ServicesListProps) => {
 
     router.push(`/home-services/dashboard/services/questionsDetails?${params}`);
   };
-
-
 
   // Navigate to the next incomplete step
   const navigateToNextStep = (service: TransformedService) => {
@@ -295,6 +291,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
     setOpen(false);
     setServiceToDelete(null);
   };
+
   const openDeleteDialog = (serviceId: string) => {
     setServiceToDelete(serviceId);
     setOpen(true);
@@ -307,19 +304,19 @@ const ServicesList = ({ data }: ServicesListProps) => {
   return (
     <div className="w-full">
       <main className="w-full max-w-7xl mx-auto">
-        <div className="space-y-3">
+        <div className="space-y-4">
           {transformedServices.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-gray-400" />
+            <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-sm border border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-sm bg-[#0077B6]/10 flex items-center justify-center">
+                <Target className="w-8 h-8 text-[#0077B6]" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No services yet</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto text-[13px]">
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto text-sm">
                 Start by adding your first service to begin receiving leads and growing your business.
               </p>
               <button
                 onClick={() => router.push('/home-services/dashboard/services/addServices')}
-                className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-all text-[13px] font-medium"
+                className="inline-flex items-center px-5 py-2.5 bg-[#0077B6] text-white rounded-sm hover:bg-[#0066A3] transition-all text-sm font-medium shadow-sm"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Add Your First Service
@@ -336,40 +333,35 @@ const ServicesList = ({ data }: ServicesListProps) => {
                 <motion.div
                   key={service.id}
                   layout
-                  className={`group relative overflow-hidden rounded-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 ${isInactive
-                    ? 'bg-gray-50 dark:bg-gray-800/50'
-                    : 'bg-white dark:bg-gray-800'
-                    } ${showWarning
-                      ? ' ring-gray-100 '
-                      : ''
+                  className={`group relative overflow-hidden rounded-sm transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:border-[#0077B6]/20 dark:hover:border-[#0077B6]/30 ${showWarning ? 'ring-1 ring-gray-100 dark:ring-gray-100' : ''
                     }`}
                 >
                   {/* Service Header */}
                   <div
                     className={`cursor-pointer transition-colors ${showWarning
-                      ? ' dark:hover:bg-gray-800'
-                      : isInactive
-                        ? 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50'
-                        : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'
+                        ? 'hover:bg-[#6742EE]/5 dark:hover:bg-[#6742EE]/10'
+                        : isInactive
+                          ? 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                       }`}
                     onClick={() => toggleExpand(service.id)}
                   >
-                    <div className="p-4">
+                    <div className="p-5">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex items-center gap-3 flex-wrap">
                             <div className="flex items-center gap-2 min-w-0">
                               <h2 className={`font-semibold truncate text-[13px] ${showWarning
-                                ? 'text-gray-900 dark:text-gray-300'
-                                : isInactive
-                                  ? 'text-gray-500 dark:text-gray-400'
-                                  : 'text-gray-900 dark:text-white'
+                                  ? 'text-gray-900 dark:text-gray-300'
+                                  : isInactive
+                                    ? 'text-gray-600 dark:text-gray-400'
+                                    : 'text-gray-900 dark:text-white'
                                 }`}>
                                 {service.name}
                               </h2>
                               {/* Pricing Type Badge */}
                               {service.completed && service.active && service.pricing_type && (
-                                <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                <div className="flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-medium bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#0077B6]/20 dark:text-[#0077B6]">
                                   {service.pricing_type}
                                 </div>
                               )}
@@ -378,28 +370,28 @@ const ServicesList = ({ data }: ServicesListProps) => {
                             {/* Status Badges */}
                             <div className="flex items-center gap-2 flex-wrap">
                               {showWarning && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-normal bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-[#6742EE]/10 text-[#6742EE] dark:bg-[#6742EE]/20 dark:text-[#6742EE]">
                                   <FiAlertCircle className="w-3 h-3 mr-1" />
                                   {completion}% Complete
                                 </span>
                               )}
 
                               {!showWarning && !service.completed && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                                   {completion}% Complete
                                 </span>
                               )}
 
                               {service.active ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-[#0077B6]/10 text-[#0077B6] dark:bg-[#0077B6]/20 dark:text-[#0077B6]">
                                   Active
                                 </span>
                               ) : service.completed ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                                   Paused
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                                   Incomplete
                                 </span>
                               )}
@@ -415,8 +407,8 @@ const ServicesList = ({ data }: ServicesListProps) => {
                               toggleService(service.id);
                             }}
                             disabled={!service.completed || isLoading}
-                            className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors ${service.active ? 'bg-[#0077B6]' : 'bg-gray-300'
-                              } ${!service.completed || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'
+                            className={`relative inline-flex h-6 w-11 rounded-sm transition-colors ${service.active ? 'bg-[#0077B6]' : 'bg-gray-300 dark:bg-gray-600'
+                              } ${!service.completed || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-90'
                               }`}
                           >
                             {isLoading ? (
@@ -425,7 +417,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
                               </div>
                             ) : (
                               <span
-                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transform transition-transform ${service.active ? 'translate-x-5' : 'translate-x-0'
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-sm transform transition-transform ${service.active ? 'translate-x-5' : 'translate-x-0'
                                   }`}
                               />
                             )}
@@ -438,10 +430,10 @@ const ServicesList = ({ data }: ServicesListProps) => {
                               toggleExpand(service.id);
                             }}
                             className={`p-2 rounded-sm transition-colors ${showWarning
-                              ? 'text-yellow-500 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/20'
-                              : isInactive
-                                ? 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                ? 'text-[#6742EE] hover:bg-[#6742EE]/10'
+                                : isInactive
+                                  ? 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                               }`}
                           >
                             <FiChevronDown
@@ -455,25 +447,25 @@ const ServicesList = ({ data }: ServicesListProps) => {
 
                       {/* Progress Bar - Only show for incomplete services */}
                       {!service.completed && service.setupProgress && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-[12px] mb-2">
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs mb-2">
                             <span className={`font-medium ${showWarning
-                              ? 'text-gray-700 dark:text-yellow-400'
-                              : 'text-gray-600 dark:text-gray-400'
+                                ? 'text-[#6742EE] dark:text-[#6742EE]'
+                                : 'text-gray-600 dark:text-gray-400'
                               }`}>
                               Setup Progress: {completion}%
                             </span>
                             <span className={`${showWarning
-                              ? 'text-gray-700 dark:text-gray-400'
-                              : 'text-gray-500 dark:text-gray-400'
+                                ? 'text-[#6742EE]/80 dark:text-[#6742EE]/60'
+                                : 'text-gray-500 dark:text-gray-400'
                               }`}>
                               {Object.values(service.setupProgress).filter(Boolean).length}/
                               {Object.keys(service.setupProgress).length} steps
                             </span>
                           </div>
-                          <div className="w-full rounded-full h-2 bg-gray-200 dark:bg-gray-600">
+                          <div className="w-full rounded-sm h-1.5 bg-gray-200 dark:bg-gray-700">
                             <div
-                              className="h-2 rounded-full bg-[#0077B6] transition-all duration-300"
+                              className="h-1.5 rounded-sm bg-[#0077B6] transition-all duration-300"
                               style={{
                                 width: `${completion}%`
                               }}
@@ -492,31 +484,28 @@ const ServicesList = ({ data }: ServicesListProps) => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className={`border-t border-gray-200 dark:border-gray-700 ${isInactive ? 'bg-gray-50/50 dark:bg-gray-800/30' : 'bg-white dark:bg-gray-800'
-                          }`}
+                        className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30"
                       >
-                        <div className="p-4 space-y-4">
-
+                        <div className="p-5 space-y-4">
+                          {/* Special Case: Max price = 0 with questions and locations */}
                           {service.originalData.maximum_price === 0 &&
                             service.originalData.question_ids?.length > 0 &&
                             service.originalData.location_ids?.length > 0 && (
-                              <div
-                                className={`rounded-sm p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 border border-yellow-200 dark:border-yellow-800`}
-                              >
-                                <div className="flex items-center justify-between">
+                              <div className="rounded-sm p-4  border border-[#6742EE]/20 dark:border-[#6742EE]/10">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                   <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] mb-1">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 flex items-center gap-2">
+                                      <Sparkles className="w-4 h-4 text-[#6742EE]" />
                                       Complete Service Price
                                     </h3>
-                                    <p className="text-gray-600 dark:text-gray-300 text-[12px]">
+                                    <p className="text-gray-600 dark:text-gray-300 text-xs">
                                       Finish setting up your service to start receiving leads
                                     </p>
                                   </div>
                                   <button
                                     onClick={() => navigateToStep('addypricing', service)}
-                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
+                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#0066A3] transition-colors text-sm "
                                   >
-                                    <Sparkles className="w-4 h-4 mr-2" />
                                     Set Service Pricing
                                     <ArrowRight className="w-4 h-4 ml-2" />
                                   </button>
@@ -525,30 +514,30 @@ const ServicesList = ({ data }: ServicesListProps) => {
                             )}
 
                           {/* Show "Complete Service Setup" only when:
-            1. Service is incomplete
-            2. AND NOT in the specific case above (max_price=0 with questions and locations) */}
+                            1. Service is incomplete
+                            2. AND NOT in the specific case above */}
                           {!service.completed &&
                             !(service.originalData.maximum_price === 0 &&
                               service.originalData.question_ids?.length > 0 &&
                               service.originalData.location_ids?.length > 0) && (
                               <div className={`rounded-sm p-4 ${showWarning
-                                ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 border border-yellow-200 dark:border-yellow-800'
-                                : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                                  ? ' border border-[#6742EE]/20 dark:border-[#6742EE]/10'
+                                  : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600'
                                 }`}>
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                   <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] mb-1">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1 flex items-center gap-2">
+                                      <Sparkles className="w-4 h-4 text-[#0077B6]" />
                                       Complete Service Setup
                                     </h3>
-                                    <p className="text-gray-600 dark:text-gray-300 text-[12px]">
+                                    <p className="text-gray-600 dark:text-gray-300 text-xs">
                                       Finish setting up your service to start receiving leads
                                     </p>
                                   </div>
                                   <button
                                     onClick={() => navigateToNextStep(service)}
-                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
+                                    className="inline-flex items-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#0066A3] transition-colors text-sm font-medium "
                                   >
-                                    <Sparkles className="w-4 h-4 mr-2" />
                                     Complete Setup
                                     <ArrowRight className="w-4 h-4 ml-2" />
                                   </button>
@@ -558,30 +547,30 @@ const ServicesList = ({ data }: ServicesListProps) => {
 
                           {/* Service Configuration */}
                           <div className="space-y-3">
-                            <h3 className="font-semibold text-gray-900 dark:text-white text-[13px] flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
                               <FiSettings className="w-4 h-4 text-[#0077B6]" />
                               Service Configuration
                             </h3>
 
                             <div className="space-y-3">
-                              {/* Only show completed steps as enabled */}
+                              {/* Pricing Section */}
                               {service.setupProgress.step2 && (
                                 <div className={`flex items-center justify-between p-3 rounded-sm border ${isInactive
-                                  ? 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-                                  : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                                    ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600'
                                   }`}>
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-600' : 'bg-blue-100 dark:bg-blue-900/30'
+                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-700' : 'bg-[#0077B6]/10 dark:bg-[#0077B6]/20'
                                       }`}>
-                                      <FiDollarSign className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-blue-600 dark:text-blue-400'
+                                      <FiDollarSign className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-[#0077B6] dark:text-[#0077B6]'
                                         }`} />
                                     </div>
                                     <div>
-                                      <p className={`font-medium text-[13px] ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
+                                      <p className={`font-medium text-sm ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
                                         }`}>
                                         Pricing
                                       </p>
-                                      <p className={`text-[12px] ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
+                                      <p className={`text-xs ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
                                         }`}>
                                         {service.originalData.minimum_price && `From $${service.originalData.minimum_price}`}
                                         {service.originalData.minimum_price && service.originalData.maximum_price && ' '}
@@ -592,7 +581,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
                                   {!isInactive && (
                                     <button
                                       onClick={() => handleEdit(service)}
-                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors text-[12px] font-medium"
+                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs font-medium"
                                     >
                                       <FiEdit className="w-3 h-3 mr-1" />
                                       Edit
@@ -601,23 +590,24 @@ const ServicesList = ({ data }: ServicesListProps) => {
                                 </div>
                               )}
 
+                              {/* Locations Section */}
                               {service.setupProgress.step4 && (
                                 <div className={`flex items-center justify-between p-3 rounded-sm border ${isInactive
-                                  ? 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-                                  : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                                    ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600'
                                   }`}>
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-600' : 'bg-green-100 dark:bg-green-900/30'
+                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-700' : 'bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20'
                                       }`}>
-                                      <FiMapPin className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-green-600 dark:text-green-400'
+                                      <FiMapPin className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-[#BE13BF] dark:text-[#BE13BF]'
                                         }`} />
                                     </div>
                                     <div>
-                                      <p className={`font-medium text-[13px] ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
+                                      <p className={`font-medium text-sm ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
                                         }`}>
                                         Service Areas
                                       </p>
-                                      <p className={`text-[12px] ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
+                                      <p className={`text-xs ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
                                         }`}>
                                         {service.originalData.location_ids?.length || 0} Service Area
                                       </p>
@@ -626,7 +616,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
                                   {!isInactive && (
                                     <button
                                       onClick={() => handleEditLocation(service)}
-                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors text-[12px] font-medium"
+                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs font-medium"
                                     >
                                       <FiEdit className="w-3 h-3 mr-1" />
                                       Manage
@@ -635,23 +625,24 @@ const ServicesList = ({ data }: ServicesListProps) => {
                                 </div>
                               )}
 
+                              {/* Questions Section */}
                               {service.setupProgress.step3 && (
                                 <div className={`flex items-center justify-between p-3 rounded-sm border ${isInactive
-                                  ? 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-                                  : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                                    ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-600'
                                   }`}>
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-600' : 'bg-purple-100 dark:bg-purple-900/30'
+                                    <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${isInactive ? 'bg-gray-100 dark:bg-gray-700' : 'bg-[#6742EE]/10 dark:bg-[#6742EE]/20'
                                       }`}>
-                                      <FiSettings className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-purple-600 dark:text-purple-400'
+                                      <FiSettings className={`w-4 h-4 ${isInactive ? 'text-gray-400' : 'text-[#6742EE] dark:text-[#6742EE]'
                                         }`} />
                                     </div>
                                     <div>
-                                      <p className={`font-medium text-[13px] ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
+                                      <p className={`font-medium text-sm ${isInactive ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-white'
                                         }`}>
                                         Service Questions
                                       </p>
-                                      <p className={`text-[12px] ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
+                                      <p className={`text-xs ${isInactive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'
                                         }`}>
                                         {service.originalData.question_ids?.length || 0} questions configured
                                       </p>
@@ -660,7 +651,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
                                   {!isInactive && (
                                     <button
                                       onClick={() => questionsDetails(service)}
-                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors text-[12px] font-medium"
+                                      className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-sm text-[#0077B6] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs font-medium"
                                     >
                                       <FiEdit className="w-3 h-3 mr-1" />
                                       Configure
@@ -672,20 +663,20 @@ const ServicesList = ({ data }: ServicesListProps) => {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-gray-600">
                             {service.completed && service.active && (
                               <button
                                 onClick={() => router.push('#service-insights')}
-                                className="inline-flex items-center justify-center px-4 py-2 bg-[#0077B6] text-white rounded-sm hover:bg-[#005f91] transition-colors text-[13px] font-medium"
+                                className="inline-flex items-center justify-center px-4 py-2.5 bg-[#0077B6] text-white rounded-sm hover:bg-[#0066A3] transition-colors text-sm font-medium shadow-sm"
                               >
-                                <FiTrendingUp className="w-4 h-4 mr-2" />
+                                <TrendingUp className="w-4 h-4 mr-2" />
                                 View Detailed Insights
                               </button>
                             )}
 
                             <button
                               onClick={() => openDeleteDialog(service.id)}
-                              className="inline-flex items-center justify-center px-4 py-2 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-[13px] font-medium"
+                              className="inline-flex items-center justify-center px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
                             >
                               Remove Service
                             </button>
@@ -704,25 +695,25 @@ const ServicesList = ({ data }: ServicesListProps) => {
         <Dialog open={open} onClose={setOpen} className="relative z-50">
           <DialogBackdrop
             transition
-            className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+            className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
           />
           <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
               <DialogPanel
                 transition
-                className="relative transform overflow-hidden rounded-sm bg-white dark:bg-gray-800 text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95 border border-gray-300 dark:border-gray-600"
+                className="relative transform overflow-hidden rounded-sm bg-white dark:bg-gray-900 text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95 border border-gray-200 dark:border-gray-700"
               >
-                <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="bg-white dark:bg-gray-900 px-5 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 sm:mx-0 sm:size-10">
-                      <TriangleAlert aria-hidden="true" className="size-6 text-gray-600 dark:text-gray-400" />
+                    <div className="mx-auto flex size-12 shrink-0 items-center justify-center rounded-sm bg-[#0077B6]/10 dark:bg-[#0077B6]/20">
+                      <TriangleAlert aria-hidden="true" className="size-6 text-[#0077B6] dark:text-[#0077B6]" />
                     </div>
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                      <DialogTitle as="h3" className="font-semibold text-gray-900 dark:text-white text-[13px]">
+                    <div className="mt-4 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                      <DialogTitle as="h3" className="font-semibold text-gray-900 dark:text-white text-sm">
                         Delete Service
                       </DialogTitle>
                       <div className="mt-2">
-                        <p className="text-gray-500 dark:text-gray-400 text-[13px]">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
                           Are you sure you want to delete {serviceToDelete && transformedServices.find(s => s.id === serviceToDelete)?.name}?
                           This action cannot be undone and all service data will be permanently removed.
                         </p>
@@ -730,11 +721,11 @@ const ServicesList = ({ data }: ServicesListProps) => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <div className="bg-gray-50 dark:bg-gray-800 px-5 py-4 sm:flex sm:flex-row-reverse sm:px-6">
                   <button
                     type="button"
                     onClick={() => serviceToDelete && handleRemoveService(serviceToDelete)}
-                    className="inline-flex w-full justify-center rounded-sm bg-gray-600 px-3 py-2 font-semibold text-white shadow-xs hover:bg-gray-500 sm:ml-3 sm:w-auto text-[13px]"
+                    className="inline-flex w-full justify-center rounded-sm bg-[#0077B6] px-4 py-2.5 font-semibold text-white shadow-xs hover:bg-[#0066A3] transition-colors sm:ml-3 sm:w-auto text-sm"
                   >
                     Delete Service
                   </button>
@@ -742,7 +733,7 @@ const ServicesList = ({ data }: ServicesListProps) => {
                     type="button"
                     data-autofocus
                     onClick={() => setOpen(false)}
-                    className="mt-3 inline-flex w-full justify-center rounded-sm bg-white px-3 py-2 font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto dark:bg-gray-600 dark:text-white dark:hover:bg-gray-500 text-[13px]"
+                    className="mt-3 inline-flex w-full justify-center rounded-sm bg-white dark:bg-gray-700 px-4 py-2.5 font-semibold text-gray-900 dark:text-white shadow-xs ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors sm:mt-0 sm:w-auto text-sm"
                   >
                     Cancel
                   </button>

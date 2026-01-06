@@ -56,13 +56,7 @@ export default function Dashboard() {
       },
     ];
   }, [data]);
-
-  const activeServicesCount = useMemo(() => {
-    return data?.services?.services?.filter((s: any) => s.service_status).length || 0;
-  }, [data]);
-  
   const isProfessionalSetupComplete = data?.services?.professional?.step > 8;
-  
   if (isLoading) {
     return <GlobalLoader />
   }
@@ -195,10 +189,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      {activeServicesCount} Active
-                    </span>
-                    <div className="w-2 h-2 bg-[#0077B6] rounded-full animate-pulse" />
+
                   </div>
                 </div>
 
