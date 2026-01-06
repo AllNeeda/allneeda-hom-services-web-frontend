@@ -36,11 +36,7 @@ const PUBLIC_ROUTES = ["/home-services", "/auth"];
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-<<<<<<< HEAD
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") ;
-=======
   return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") || path.startsWith("/home-servies");
->>>>>>> feat/Esmat_changes
 }
 
 function isApiRoute(path: string) {
@@ -153,23 +149,23 @@ export async function middleware(req: NextRequest) {
   }
 
 
-if (roles.includes("professional")) {
-  try {
-    const stepData = await getProfessionalStepsAPI(accessToken!);
-    const step = resolveProfessionalStep(stepData);
+  if (roles.includes("professional")) {
+    try {
+      const stepData = await getProfessionalStepsAPI(accessToken!);
+      const step = resolveProfessionalStep(stepData);
 
-    if (
-      step !== "dashboard" &&
-      PROFESSIONAL_STEP_REQUIRED_ROUTES.some((route) => pathname.startsWith(route))
-    ) {
-      url.pathname = `/home-services/dashboard/services/step-${step}`;
+      if (
+        step !== "dashboard" &&
+        PROFESSIONAL_STEP_REQUIRED_ROUTES.some((route) => pathname.startsWith(route))
+      ) {
+        url.pathname = `/home-services/dashboard/services/step-${step}`;
+        return NextResponse.redirect(url);
+      }
+    } catch {
+      url.pathname = "/home-services/dashboard";
       return NextResponse.redirect(url);
     }
-  } catch {
-    url.pathname = "/home-services/dashboard";
-    return NextResponse.redirect(url);
   }
-}
 
   const res = NextResponse.next();
   addSecurityHeaders(res);
