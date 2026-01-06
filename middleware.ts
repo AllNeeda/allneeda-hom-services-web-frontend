@@ -21,12 +21,12 @@ const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
 };
 
 // Public routes that don’t require authentication
-const PUBLIC_ROUTES = ["/", "/auth"];
+const PUBLIC_ROUTES = ["/home-services", "/auth"];
 
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/");
+  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") || path.startsWith("/home-servies");
 }
 
 function isApiRoute(path: string) {
