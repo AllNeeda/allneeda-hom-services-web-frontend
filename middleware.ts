@@ -39,6 +39,7 @@ function isPublicRoute(path: string) {
   return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") || path.startsWith("/home-servies");
 }
 
+
 function isApiRoute(path: string) {
   return path.startsWith("/api/");
 }
