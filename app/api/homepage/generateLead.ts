@@ -31,16 +31,9 @@ export const generateLead = async (leadData: {
   return response.data;
 };
 
-export const getProfessionalLead = async (professionalId: string, token: string, phoneNumber: string) => {
+export const getProfessionalLead = async (professionalId: string) => {
   try {
-    const response = await api.get(`/lead/professional-leads/${professionalId}`, {
-      headers:{
-        Authorization: `Bearer ${token}`,
-      },
-       params: {
-          phoneNumber,
-        },
-    });
+    const response = await api.get(`/lead/professional-leads/${professionalId}`);
     return response.data; // { success, message, data }
   } catch (error: any) {
     // If backend sent a message, show it
@@ -49,13 +42,9 @@ export const getProfessionalLead = async (professionalId: string, token: string,
   }
 };
 
-export const getLeadDetails = async (LeadId: string, token: string) => {
+export const getLeadDetails = async (LeadId: string) => {
   try {
-    const response = await api.get(`/lead/${LeadId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await api.get(`/lead/${LeadId}`);
     return response;
   } catch (error) {
     throw new Error(`Failed to fetch lead details: ${error}`);

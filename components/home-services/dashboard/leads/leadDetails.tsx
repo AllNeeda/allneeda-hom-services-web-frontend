@@ -21,7 +21,7 @@ import Link from "next/link";
 interface LeadDetailsProps {
   leadDetails: {
     title?: string;
-    user?: {
+    user_id?: {
       username?: string;
       email?: string;
       phone?: string;
@@ -36,7 +36,6 @@ interface LeadDetailsProps {
     answers?: Array<{
       question_id: string;
       answer: string;
-      question_name: string;
     }>;
     professionals?: any[];
     professionalLeads?: any[];
@@ -52,15 +51,15 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
 
   const toggleExpanded = () => setExpanded(!expanded);
   const toggleCredits = () => setCreditsVisible(!creditsVisible);
-  console.log("The Lead Details: ", leadDetails);
+
   // Safe data access with fallbacks
   const title = leadDetails?.title || "No Title";
-  const user = leadDetails?.user || {};
+  const user = leadDetails?.user_id || {};
   const location = leadDetails?.user_location || {};
   const createdAt = leadDetails?.createdAt || "";
   const answers = leadDetails?.answers || [];
   const professionalLeads = leadDetails?.professionalLeads || [];
-  console.log("the user: ", leadDetails.user);
+
   // Format the date
   const formatDate = (dateString: string) => {
     if (!dateString) return "Recently";
@@ -115,7 +114,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
           <div className="flex items-center space-x-3">
             <div className="relative">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0077B6] to-[#00B4D8] flex items-center justify-center text-white font-bold text-lg">
-                {getUserInitials(user.email)}
+                {getUserInitials(user.username)}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-gray-900">
                 <ShieldCheck className="h-3.5 w-3.5 text-white" />
@@ -125,7 +124,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
             <div>
               <div className="flex items-center">
                 <h1 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  {getDisplayName(user.email)}
+                  {getDisplayName(user.username)}
                 </h1>
               </div>
 

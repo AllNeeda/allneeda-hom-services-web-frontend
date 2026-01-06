@@ -14,7 +14,6 @@ import { getAccessToken } from "@/app/api/axios";
 import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 import { useProfessionalLead } from "@/hooks/useHomeServices";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
-import { useAuth } from "@/components/providers/context/auth-context";
 
 const ACCENT = "#0066B7";
 
@@ -183,7 +182,6 @@ export default function CustomerRequests() {
   const [responseFilter, setResponseFilter] =
     useState<(typeof RESPONSE_OPTIONS)[number]>("All Leads");
   const [sortBy, setSortBy] = useState<SortKey>("relevant");
-  const {user} = useAuth();
 
   const token = getAccessToken() || "";
   const { data: professionalData } = useProfesssionalProgress(token);
@@ -201,14 +199,12 @@ export default function CustomerRequests() {
   // Try using cached ID immediately
   const cachedProId =
     proId || (typeof window !== "undefined" && localStorage.getItem("proId"));
-  const phoneNumber = user?.phoneNo;
 
   const {
     data: professionalLead,
     isLoading,
     isError,
-  } = useProfessionalLead(cachedProId || "", token,phoneNumber|| '');
-  
+  } = useProfessionalLead(cachedProId || "");
   // Transform API data to Request format
   const requests = useMemo(() => {
     if (professionalLead) {
