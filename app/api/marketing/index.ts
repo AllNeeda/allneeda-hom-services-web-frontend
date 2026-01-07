@@ -183,7 +183,7 @@ export interface VisibilitySettings {
   total_hire: boolean;
   last_hire: boolean;
   last_seen: boolean;
-  last_activity: boolean;
+  expected_response_time: boolean;
 }
 
 export interface ProfileVisibilityData {
@@ -191,7 +191,7 @@ export interface ProfileVisibilityData {
   total_hire: number;
   last_hire_date: string;
   last_seen: string;
-  last_activity: string;
+  expected_response_time: string;
   profile_views: number;
 }
 

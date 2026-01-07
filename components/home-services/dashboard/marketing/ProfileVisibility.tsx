@@ -30,7 +30,7 @@ import GlobalLoader from "@/components/ui/global-loader";
 interface VisibilitySettings {
   total_hire: boolean;
   last_hire: boolean;
-  last_activity: boolean;
+  expected_response_time: boolean;
   last_seen: boolean;
 }
 
@@ -43,7 +43,7 @@ const ProfileVisibility: React.FC = () => {
   const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>({
     total_hire: true,
     last_hire: false,
-    last_activity: true,
+  expected_response_time: true,
     last_seen: true,
   });
   const [recentChanges, setRecentChanges] = useState<string[]>([]);
@@ -57,7 +57,7 @@ const ProfileVisibility: React.FC = () => {
       setVisibilitySettings({
         total_hire: apiSettings.total_hire ?? true,
         last_hire: apiSettings.last_hire ?? false,
-        last_activity: apiSettings.last_activity ?? true,
+        expected_response_time: apiSettings.expected_response_time ?? true,
         last_seen: apiSettings.last_seen ?? true,
       });
     }
@@ -98,7 +98,7 @@ const ProfileVisibility: React.FC = () => {
     const labels = {
       total_hire: "Total hires",
       last_hire: "Last hire date",
-      last_activity: "Last activity",
+  expected_response_time: "Expected response time",
       last_seen: "Last seen"
     };
     return labels[key];
@@ -109,7 +109,7 @@ const ProfileVisibility: React.FC = () => {
     const updatedSettings: VisibilitySettings = {
       total_hire: value,
       last_hire: value,
-      last_activity: value,
+      expected_response_time: value,
       last_seen: value,
     };
     setVisibilitySettings(updatedSettings);
@@ -153,9 +153,9 @@ const ProfileVisibility: React.FC = () => {
       description: "Show when you were last active",
       icon: <ClockIcon className="h-4 w-4" />
     },
-    last_activity: {
-      label: "Activity Timeline",
-      description: "Display your recent platform activity",
+    expected_response_time: {
+      label: "Expected Response Time",
+      description: "Show how quickly you typically respond to inquiries",
       icon: <UsersIcon className="h-4 w-4" />
     }
   };

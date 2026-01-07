@@ -33,7 +33,7 @@ import GlobalLoader from "@/components/ui/global-loader";
 interface VisibilitySettings {
   total_hire: boolean;
   last_hire: boolean;
-  last_activity: boolean;
+  expected_response_time: boolean;
   last_seen: boolean;
 }
 interface ProfilePreviewProps {
@@ -115,13 +115,8 @@ const ProfilePreview: React.FC<ProfilePreviewProps> = ({
     })
     : "";
 
-  const lastActivity = professional.last_activity
-    ? new Date(professional.last_activity).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const expectedResponseTime = professional.expected_response_time
+    ? professional.expected_response_time
     : "";
 
   // Last seen status
@@ -177,9 +172,9 @@ const ProfilePreview: React.FC<ProfilePreviewProps> = ({
         color: "#0077B6"
       },
       {
-        label: "Last Activity",
-        value: lastActivity,
-        isVisible: visibilitySettings.last_activity,
+        label: "Expected Response",
+        value: expectedResponseTime,
+        isVisible: visibilitySettings.expected_response_time,
         icon: <ClockIcon className="h-3.5 w-3.5" />,
         color: "#0077B6"
       },
@@ -228,7 +223,7 @@ const ProfilePreview: React.FC<ProfilePreviewProps> = ({
   const serviceAreas = services[0]?.location_ids?.length || 0;
 
   // Component for stat item
-  const StatItem = ({ stat }: { stat: typeof statsColumns[0][0] }) => (
+  const StatItem = ({ stat }: { stat: any }) => (
     <div className="flex items-center gap-3 py-1.5">
       {/* Icon */}
       <div className={`p-1.5 rounded ${!stat.isVisible && 'opacity-50'}`} style={{
