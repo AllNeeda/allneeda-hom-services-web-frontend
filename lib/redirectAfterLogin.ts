@@ -10,9 +10,10 @@ export async function redirectAfterLogin(token: string, router: any) {
     if (step === "dashboard") {
       router.replace("/home-services/dashboard");
     } else {
-      router.replace(`/home-services/dashboard/services/step-${step}`);
+      const nextStep = Number(step) + 1;
+      router.replace(`/home-services/dashboard/services/step-${nextStep}`);
     }
   } catch {
-    router.replace("/home-services/dashboard"); 
+    router.replace("/home-services/dashboard");
   }
 }
