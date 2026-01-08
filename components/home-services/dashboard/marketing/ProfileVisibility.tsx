@@ -13,7 +13,8 @@ import {
   UsersIcon,
   CalendarIcon,
   ClockIcon,
-  TrendingUpIcon
+  TrendingUpIcon,
+  MessageSquareIcon
 } from "lucide-react";
 import { getAccessToken } from "@/app/api/axios";
 import {
@@ -26,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
 import ProfilePreview from "./ProfilePreview";
 import GlobalLoader from "@/components/ui/global-loader";
+import ResponseTimeSettings from "./ResponseTimeSettings";
 
 interface VisibilitySettings {
   total_hire: boolean;
@@ -43,7 +45,7 @@ const ProfileVisibility: React.FC = () => {
   const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>({
     total_hire: true,
     last_hire: false,
-  expected_response_time: true,
+    expected_response_time: true,
     last_seen: true,
   });
   const [recentChanges, setRecentChanges] = useState<string[]>([]);
@@ -98,7 +100,7 @@ const ProfileVisibility: React.FC = () => {
     const labels = {
       total_hire: "Total hires",
       last_hire: "Last hire date",
-  expected_response_time: "Expected response time",
+      expected_response_time: "Expected response time",
       last_seen: "Last seen"
     };
     return labels[key];
@@ -133,6 +135,7 @@ const ProfileVisibility: React.FC = () => {
       }
     );
   };
+
   const settingConfigs: Record<keyof VisibilitySettings, {
     label: string;
     description: string;
@@ -242,6 +245,13 @@ const ProfileVisibility: React.FC = () => {
             Settings
           </TabsTrigger>
           <TabsTrigger
+            value="response-time"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 text-sm"
+          >
+            <MessageSquareIcon className="w-4 h-4 mr-2" />
+            Response Time
+          </TabsTrigger>
+          <TabsTrigger
             value="preview"
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 text-sm"
           >
@@ -252,7 +262,7 @@ const ProfileVisibility: React.FC = () => {
 
         <TabsContent value="settings" className="space-y-6 mt-6">
           {/* Quick Actions */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4  dark:bg-gray-900 rounded-sm border dark:border-[#0077B6]">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-4 dark:bg-gray-900 rounded-sm border dark:border-[#0077B6]">
             <div>
               <h3 className="font-normal text-gray-900 dark:text-white">
                 Quick Actions
@@ -359,6 +369,11 @@ const ProfileVisibility: React.FC = () => {
             })}
           </div>
         </TabsContent>
+
+        <TabsContent value="response-time" className="mt-6">
+          <ResponseTimeSettings token={token} professional_id={profileData?.services?.professional?._id} />
+        </TabsContent>
+
         <TabsContent value="preview" className="mt-6">
           <ProfilePreview
             visibilitySettings={visibilitySettings}

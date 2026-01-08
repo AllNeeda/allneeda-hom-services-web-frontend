@@ -238,3 +238,40 @@ export const UpdateSingleVisibilitySettingAPI = async (data: {
     throw handleApiError(error);
   }
 };
+
+// Get response time settings for the professional
+export const GetResponseTimeSettingsAPI = async (
+  professional_id: string,
+  token: string
+) => {
+  try {
+    const response = await api.get('/marketing/response-time-settings', {
+      params: { professional_id },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log('Fetching response time settings for professional:', response);
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+// Update response time settings (expects a body like { response_time: string })
+export const UpdateResponseTimeSettingsAPI = async (
+  data: { response_time: string; professional_id: string },
+  token: string
+) => {
+  try {
+    const response = await api.put('/marketing/response-time-settings', data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};

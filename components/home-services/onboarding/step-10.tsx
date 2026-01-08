@@ -71,10 +71,15 @@ export default function PaymentForm() {
           (pkg: any) => pkg.isActive !== false && pkg.isActive !== undefined
         );
 
-        setPackages(activePackages);
+        // Further filter to only include packages in the 'payment' category (case-insensitive)
+        const paymentPackages = activePackages.filter((pkg: any) => {
+          if (!pkg || !pkg.category) return false;
+          return String(pkg.category).toLowerCase() === 'payment';
+        });
 
-      } catch (error) {
-        console.error('Error parsing packages:', error);
+        setPackages(paymentPackages);
+
+      } catch {
         setPackages([]);
       }
     } else {

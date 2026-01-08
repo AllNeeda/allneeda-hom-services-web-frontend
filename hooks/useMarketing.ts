@@ -12,6 +12,8 @@ import {
   UpdateAllVisibilitySettingsAPI,
   UpdateSingleVisibilitySettingAPI,
   VisibilitySettings,
+  GetResponseTimeSettingsAPI,
+  UpdateResponseTimeSettingsAPI,
 } from "@/app/api/marketing";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -145,3 +147,39 @@ export function useVisibilityWithOptimisticUpdate() {
     }) => UpdateSingleVisibilitySettingAPI(data),
   });
 }
+
+// Add to your existing useMarketing hook
+export const useGetResponseTimeSettings = (
+  professional_id: string,
+  token: string
+) => {
+  return useQuery({
+    queryKey: ["responseTimeSettings", professional_id],
+    queryFn: () => GetResponseTimeSettingsAPI(professional_id, token),
+    enabled: !!token && !!professional_id,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+  });
+};
+
+export const useUpdateResponseTime = () => {
+  return useMutation({
+    mutationKey: ["update-response-time"],
+    mutationFn: (data: {
+      response_time: string;
+      professional_id: string;
+      token: string;
+    }) =>
+      UpdateResponseTimeSettingsAPI(
+        {
+          response_time: data.response_time,
+          professional_id: data.professional_id,
+        },
+        data.token
+      ),
+    onSuccess: () => {
+      toast.success("Response time updated successfully");
+    },
+  });
+};
