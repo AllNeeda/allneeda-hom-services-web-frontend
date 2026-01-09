@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-
-/* ================= CONFIG ================= */
-
 const AUTH_COOKIE = "auth-token";
 const REFRESH_COOKIE = "refresh-token";
 
@@ -21,11 +18,11 @@ const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
   },
 };
 
-// Public routes that don’t require authentication
+const ROLE_ID_MAP: Record<number, string> = {
+  10: "professional",
+};
+
 const PUBLIC_ROUTES = ["/home-services", "/auth"];
-
-/* ================= HELPERS ================= */
-
 function isPublicRoute(path: string) {
   if (path === "/auth" || path.startsWith("/auth/")) return true;
   if (path === "/home-services" || path.startsWith("/home-services/")) {
@@ -41,7 +38,6 @@ function isApiRoute(path: string) {
   return path.startsWith("/api/");
 }
 
-// Decode base64 URL-safe
 function base64UrlDecode(input: string): string {
   return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
 }
@@ -57,9 +53,14 @@ function decodeJwt(token: string): any | null {
     return null;
   }
 }
-function normalizeRoles(role: string | string[]) {
-  if (Array.isArray(role)) return role.map(r => r.toLowerCase());
-  if (typeof role === "string") return role.split(",").map(r => r.trim().toLowerCase());
+function normalizeRoles(role: any) {
+  if (Array.isArray(role)) return role.map((r) => String(r).toLowerCase());
+  if (typeof role === "number" || (typeof role === "string" && /^\d+$/.test(role))) {
+    const id = Number(role);
+    const mapped = ROLE_ID_MAP[id];
+    return mapped ? [mapped.toLowerCase()] : [];
+  }
+  if (typeof role === "string") return role.split(",").map((r) => r.trim().toLowerCase());
   return [];
 }
 function isAuthorized(roles: string[], path: string) {
@@ -67,11 +68,6 @@ function isAuthorized(roles: string[], path: string) {
     ROLE_CONFIG[role]?.routes.some(route => path === route || path.startsWith(`${route}/`))
   );
 }
-
-
-
-
-
 
 
 function dashboardForRoles(roles: string[]) {
@@ -119,11 +115,7 @@ export async function middleware(req: NextRequest) {
     url.search = `redirect=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
-
-  // Decode access token
   let payload = decodeJwt(accessToken);
-
-  // If access token expired but refresh token exists
   const now = Math.floor(Date.now() / 1000);
   if ((!payload || (payload.exp && payload.exp < now)) && refreshToken) {
 
@@ -136,8 +128,7 @@ export async function middleware(req: NextRequest) {
     res.cookies.set(AUTH_COOKIE, "", { maxAge: 0, path: "/" });
     return res;
   }
-
-  const roles = normalizeRoles(payload.roles || payload.role);
+  const roles = normalizeRoles(payload.roles || payload.role || payload.role_id);
   if (!roles.length) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }

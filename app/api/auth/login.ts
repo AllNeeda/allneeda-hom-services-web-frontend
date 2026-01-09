@@ -34,9 +34,16 @@ class AuthService {
     password: string;
   }): Promise<LoginResponse> {
     try {
-      const response = await api.post("/auth/login", credentials);
-      const data = response.data;
-      const { user, tokens } = data;
+      const response = await axios.post(
+        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/userLogin",
+        credentials,
+        { timeout: 15000, headers: { "Content-Type": "application/json" } }
+      );
+
+      const resp = response.data?.data || response.data;
+
+      const user = resp.user ?? resp;
+      const tokens = resp.tokens ?? { accessToken: resp.accessToken, refreshToken: resp.refreshToken };
 
       if (!tokens?.accessToken || !tokens?.refreshToken) {
         throw new Error("Invalid email or password");
@@ -77,18 +84,24 @@ class AuthService {
 
       if (!token) return null;
       const decoded = this.decodeToken(token);
-      const userId = decoded?.sub || decoded?.user_id;
+      const userId = decoded?._id || decoded?.id;
+      console.log("User ID from token:", userId);
       if (!userId) throw new Error("User ID not found in token");
       if (this._currentUser?._id === userId) return this._currentUser;
       const response = await axios.get(
-        `https://generaluser-web-latest.onrender.com/api/v2/user/getById/${userId}`
+        `https://vercel-mr-amani-backend.vercel.app/api/v2/user/getById/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
+        }
       );
-      const respData = response.data;
+      const respData = response.data?.data || response.data;
       let userData: any = null;
       if (respData && typeof respData === "object") {
-        if (respData.data) {
-          userData = respData.data.user ?? respData.data;
-        } else if (respData.user) {
+        if (respData.user) {
           userData = respData.user;
         } else {
           userData = respData;
@@ -128,7 +141,7 @@ class AuthService {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
       await axios.post(
-        "https://generaluser-web-latest.onrender.com/api/v2/authentication/sendOtp/",
+        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/userLogin",
         { phoneNo: normalizedPhone },
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );
@@ -141,7 +154,7 @@ class AuthService {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
       const response = await axios.post(
-        "https://generaluser-web-latest.onrender.com/api/v2/authentication/verify_otp/",
+        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/verify_otp",
         { phoneNo: normalizedPhone, otp: otp.trim() },
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );

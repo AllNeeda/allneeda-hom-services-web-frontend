@@ -182,7 +182,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
   }, [isLoading, isSendingOTP, phoneValue, errors.phone, getPhoneDigits]);
 
   const isVerifyOtpDisabled = useMemo(() =>
-    isLoading || !otpValue || otpValue.length !== 4,
+    isLoading || !otpValue || otpValue.length < 4,
     [isLoading, otpValue]
   );
 
