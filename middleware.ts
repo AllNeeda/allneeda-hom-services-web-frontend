@@ -27,7 +27,14 @@ const PUBLIC_ROUTES = ["/home-services", "/auth"];
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") ;
+  if (path === "/auth" || path.startsWith("/auth/")) return true;
+  if (path === "/home-services" || path.startsWith("/home-services/")) {
+    if (path.startsWith("/home-services/customer") || path.startsWith("/home-services/dashboard")) {
+      return false;
+    }
+    return true;
+  }
+  return PUBLIC_ROUTES.includes(path);
 }
 
 function isApiRoute(path: string) {
