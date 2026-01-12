@@ -202,7 +202,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
             type="button"
             onClick={handleResendOTP}
             disabled={isSendingOTP || isLoading}
-            className="text-sm font-medium text-[#0077B6] dark:text-blue-400 hover:underline disabled:opacity-50"
+            className="text-sm font-medium text-[#0077B6] dark:text-[#0077B6] hover:underline disabled:opacity-50"
           >
             Resend OTP
           </button>
@@ -385,7 +385,7 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
             Don&apos;t have an account?{" "}
             <Link
               href="/auth/register"
-              className="font-semibold text-[#0077B6] dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+              className="font-semibold text-[#0077B6] dark:text-[#00507b] hover:text-[#00507b] dark:hover:text-blue-300 transition-colors"
             >
               Create Professional Account
             </Link>
@@ -396,11 +396,11 @@ export default function LoginForm({ className, ...props }: LoginFormProps) {
       <div className="text-xs text-center text-gray-500 dark:text-gray-400">
         <p>
           By signing in, you agree to our{" "}
-          <Link href="#" className="font-medium hover:text-[#0077B6] dark:hover:text-blue-400 transition-colors">
+          <Link href="#" className="font-medium hover:text-[#0077B6] dark:hover:text-[#0077B6] transition-colors">
             Terms of Service
           </Link>{" "}
           and{" "}
-          <Link href="#" className="font-medium hover:text-[#0077B6] dark:hover:text-blue-400 transition-colors">
+          <Link href="#" className="font-medium hover:text-[#0077B6] dark:hover:text-[#0077B6] transition-colors">
             Privacy Policy
           </Link>
           .
