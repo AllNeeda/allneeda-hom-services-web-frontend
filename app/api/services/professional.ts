@@ -19,6 +19,7 @@ export const getProfessionalById = async (token: string) => {
   }
 };
 
+
 export const updateProfessional = async (
   id: string,
   data: ProfessionalFormData,
@@ -153,3 +154,14 @@ export const addAnswerService = async (answersData: AnswerPayload | AnswerPayloa
     });
     return response.data;
 }
+
+export const getProfessionalDetailsById = async (proId: string) => {
+  const response = await api.get(`professionals/${proId}`, {
+    headers: {
+      "Content-Type": "Application/json",
+    },
+  });
+  console.log("The api response: ", response);
+  return response;
+}
+

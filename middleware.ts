@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProfessionalStepsAPI } from "./app/api/services/services";
-import { resolveProfessionalStep } from "./lib/resolveProfessionalStep";
+
 
 /* ================= CONFIG ================= */
 
 const AUTH_COOKIE = "auth-token";
 const REFRESH_COOKIE = "refresh-token";
-
-const PROFESSIONAL_STEP_REQUIRED_ROUTES = [
-  "/home-services/dashboard/main",
-  "/home-services/dashboard/marketing",
-  "/home-services/dashboard/leads",
-];
-
-
 
 const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
   admin: {
@@ -36,7 +27,14 @@ const PUBLIC_ROUTES = ["/home-services", "/auth"];
 /* ================= HELPERS ================= */
 
 function isPublicRoute(path: string) {
-  return PUBLIC_ROUTES.includes(path) || path.startsWith("/auth/") ;
+  if (path === "/auth" || path.startsWith("/auth/")) return true;
+  if (path === "/home-services" || path.startsWith("/home-services/")) {
+    if (path.startsWith("/home-services/customer") || path.startsWith("/home-services/dashboard")) {
+      return false;
+    }
+    return true;
+  }
+  return PUBLIC_ROUTES.includes(path);
 }
 
 function isApiRoute(path: string) {
@@ -149,23 +147,6 @@ export async function middleware(req: NextRequest) {
   }
 
 
-if (roles.includes("professional")) {
-  try {
-    const stepData = await getProfessionalStepsAPI(accessToken!);
-    const step = resolveProfessionalStep(stepData);
-
-    if (
-      step !== "dashboard" &&
-      PROFESSIONAL_STEP_REQUIRED_ROUTES.some((route) => pathname.startsWith(route))
-    ) {
-      url.pathname = `/home-services/dashboard/services/step-${step}`;
-      return NextResponse.redirect(url);
-    }
-  } catch {
-    url.pathname = "/home-services/dashboard";
-    return NextResponse.redirect(url);
-  }
-}
 
   const res = NextResponse.next();
   addSecurityHeaders(res);

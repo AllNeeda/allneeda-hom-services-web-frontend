@@ -1,5 +1,6 @@
 import {
   getProfessionalById,
+  getProfessionalDetailsById,
   updateProfessional,
 } from "@/app/api/services/professional";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -370,3 +371,13 @@ export const useProfessional = (token: string | null) => {
     },
   };
 };
+
+
+export const useProfessionalDetails = (proId:string) => {
+  return useQuery({
+    queryKey: ['professionalDetails', proId],
+    queryFn: () => getProfessionalDetailsById(proId),
+    enabled: !!proId,
+    staleTime: 5*60*1000,
+  });
+}
