@@ -118,19 +118,19 @@ export const useSubcategoryServiceCount = () => {
   });
 }
 
-export const useProfessionalLead = (professionalId: string) => {
+export const useProfessionalLead = (professionalId: string,token: string, phoneNumber: string) => {
   return useQuery({
-    queryKey: ["professionalLead", professionalId],
-    queryFn: () => getProfessionalLead(professionalId),
+    queryKey: ["professionalLead", professionalId, token, phoneNumber],
+    queryFn: () => getProfessionalLead(professionalId, token, phoneNumber),
     enabled: !!professionalId,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export const useLeadDetails = (LeadId: string) => {
+export const useLeadDetails = (LeadId: string, token: string) => {
   return useQuery({
     queryKey: ['LeadDetails', LeadId],
-    queryFn: () => getLeadDetails(LeadId),
+    queryFn: () => getLeadDetails(LeadId, token),
     enabled: !!LeadId,
     staleTime: 5*60*1000,
   });
