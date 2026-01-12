@@ -6,7 +6,6 @@ export interface RegisterFormData {
   region: string;
   postalCode: string;
   website?: string;
-  username: string;
   terms: boolean;
   email: string;
   phone: string;
@@ -44,7 +43,6 @@ export interface OTPRegisterData {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
-  username: string;
   email?: string;
   phoneNo: string;
   terms: boolean;
@@ -68,7 +66,6 @@ export interface User {
   lastName: string;
   phoneNo: string;
   email?: string;
-  username?: string;
   ReferralCode?: string;
   dob?: string;
   businessType: string;

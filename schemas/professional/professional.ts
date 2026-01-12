@@ -28,7 +28,6 @@ export const ProfessionalStepOne = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  username: z.string().min(1, "Username is required"),
   email: z.string().trim().email("Valid email is required"),
   phoneNo: z.string().min(1, "Phone number is required"),
   

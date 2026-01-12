@@ -3,27 +3,39 @@ import axios from "axios";
 import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, User } from "@/types/auth/register";
 
+const USE_REFRESH_ENDPOINT = process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
 
-const setCookie = (name: string, value: string, days: number = 30) => {
+
+const setCookie = (
+  name: string,
+  value: string,
+  maxAgeSeconds: number = 30 * 24 * 60 * 60
+) => {
   if (typeof window === "undefined") return;
-  const isProduction = process.env.NODE_ENV === "production";
-  const secureFlag = isProduction ? "; secure" : "";
-  const sameSite = "; SameSite=Strict";
-  const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${encodeURIComponent(
-    value
-  )}; path=/; expires=${expires.toUTCString()}${secureFlag}${sameSite}`;
+  const secureFlag = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const sameSite = "; SameSite=Strict"; // Use Lax if cross-site GET navigations are needed
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${Math.floor(
+    maxAgeSeconds
+  )}${secureFlag}${sameSite}`;
 };
 
 const deleteCookie = (name: string) => {
   if (typeof window === "undefined") return;
-  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`;
+  const secureFlag = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const sameSite = "; SameSite=Strict";
+  document.cookie = `${name}=; Path=/; Max-Age=0${secureFlag}${sameSite}`;
 };
 
 const getCookie = (name: string): string | null => {
   if (typeof window === "undefined") return null;
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : null;
+  const cookieName = name;
+  const cookies = document.cookie ? document.cookie.split("; ") : [];
+  for (const c of cookies) {
+    if (!c) continue;
+    const [k, ...rest] = c.split("=");
+    if (k === cookieName) return decodeURIComponent(rest.join("="));
+  }
+  return null;
 };
 
 class AuthService {
@@ -45,13 +57,12 @@ class AuthService {
       const user = resp.user ?? resp;
       const tokens = resp.tokens ?? { accessToken: resp.accessToken, refreshToken: resp.refreshToken };
 
-      if (!tokens?.accessToken || !tokens?.refreshToken) {
+  if (!tokens?.accessToken || !tokens?.refreshToken) {
         throw new Error("Invalid email or password");
       }
 
-      // Save tokens in cookies
-      setCookie("auth-token", tokens.accessToken, 0.5); // 30 min
-      setCookie("refresh-token", tokens.refreshToken, 30); // 30 days
+  setCookie("auth-token", tokens.accessToken, 30 * 60); // 30 minutes
+  setCookie("refresh-token", tokens.refreshToken, 30 * 24 * 60 * 60); // 30 days
 
       this._currentUser = user; // cache user
       return { user, tokens };
@@ -78,6 +89,10 @@ class AuthService {
     try {
       let token = getCookie("auth-token");
       if (!token || this.isTokenExpiringSoon(token)) {
+        if (!USE_REFRESH_ENDPOINT) {
+          // Refresh route not available; return unauthenticated so caller can prompt login
+          return null;
+        }
         const tokens = await this.refreshTokens();
         token = tokens.accessToken;
       }
@@ -120,6 +135,10 @@ class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
+    if (!USE_REFRESH_ENDPOINT) {
+      await this.logout();
+      throw new Error("Refresh endpoint disabled by configuration");
+    }
     try {
       const refreshToken = getCookie("refresh-token");
       if (!refreshToken) throw new Error("No refresh token available");
@@ -127,16 +146,14 @@ class AuthService {
       const tokens = response.data.tokens;
       if (!tokens?.accessToken || !tokens?.refreshToken)
         throw new Error("Invalid token response");
-      setCookie("auth-token", tokens.accessToken, 0.5);
-      setCookie("refresh-token", tokens.refreshToken, 30);
+      setCookie("auth-token", tokens.accessToken, 30 * 60);
+      setCookie("refresh-token", tokens.refreshToken, 30 * 24 * 60 * 60);
       return tokens;
     } catch (error) {
       await this.logout(); // force logout if refresh fails
       throw handleApiError(error);
     }
   }
-
-  // ------------------- OTP -------------------
   async sendOTP(phone: string): Promise<void> {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
@@ -165,10 +182,8 @@ class AuthService {
         throw new Error("Authentication failed. Invalid OTP.");
       }
 
-      // Save tokens in cookies
-      setCookie("auth-token", data.accessToken, 0.5);
-      setCookie("refresh-token", data.refreshToken, 30);
-
+  setCookie("auth-token", data.accessToken, 30 * 60); // 30 minutes
+  setCookie("refresh-token", data.refreshToken, 30 * 24 * 60 * 60); // 30 days
       this._currentUser = data.user; // cache user
       return {
         user: data.user as User,
@@ -184,13 +199,20 @@ class AuthService {
   private decodeToken(token: string): any {
     try {
       const base64Url = token.split(".")[1];
+      if (!base64Url) return null;
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
+      // atob is available in browsers; in Node use Buffer
+      let jsonPayload: string;
+      if (typeof window !== "undefined" && typeof (window as any).atob === "function") {
+        jsonPayload = decodeURIComponent(
+          (window as any).atob(base64)
+            .split("")
+            .map((c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .join("")
+        );
+      } else {
+        jsonPayload = Buffer.from(base64, "base64").toString("utf8");
+      }
       return JSON.parse(jsonPayload);
     } catch {
       return null;
@@ -203,10 +225,10 @@ class AuthService {
 
   isTokenExpiringSoon(token?: string, minutes: number = 5): boolean {
     try {
-      token = token || getCookie("auth-token") || "";
-      if (!token) return true;
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const exp = payload.exp;
+  token = token || getCookie("auth-token") || "";
+  if (!token) return true;
+  const payload = this.decodeToken(token);
+  const exp = payload?.exp;
       const now = Math.floor(Date.now() / 1000);
       return exp - now <= minutes * 60;
     } catch {

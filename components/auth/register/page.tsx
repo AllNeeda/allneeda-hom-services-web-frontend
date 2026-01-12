@@ -9,7 +9,7 @@ import {
     SelectContent,
     SelectItem
 } from "@/components/ui/select";
-import { Loader2, Building2, User, MapPin, Shield, ChevronDown, Calendar, Mail, Key, Search, Home, Briefcase, Map, Globe2, UserCircle, PhoneCall, Lock, Check, Info } from 'lucide-react';
+import { Loader2, Building2, User, MapPin, Shield, ChevronDown, Calendar, Mail, Search, Home, Briefcase, Map, Globe2, UserCircle, PhoneCall, Lock, Check, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -114,7 +114,6 @@ export default function Register() {
             city: '',
             region: '',
             postalCode: '',
-            username: '',
             email: '',
             phoneNo: '',
             terms: false,
@@ -292,7 +291,7 @@ export default function Register() {
         setValue('firstName', '');
         setValue('lastName', '');
         setValue('dateOfBirth', '');
-        setValue('username', '');
+    // username removed from registration flow
         setValue('email', '');
         setValue('phoneNo', '');
         setValue('terms', false);
@@ -791,28 +790,7 @@ export default function Register() {
                                     )}
                                 </div>
 
-                                {/* Username with Icon */}
-                                <div className="space-y-1.5">
-                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                                        Username *
-                                    </label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <Key className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder="johndoe"
-                                            className={`w-full pl-10 pr-3 py-2 text-sm border ${errors.username ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
-                                            {...register('username')}
-                                        />
-                                    </div>
-                                    {errors.username && (
-                                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                            {errors.username.message}
-                                        </p>
-                                    )}
-                                </div>
+                                {/* Username removed from registration */}
 
                                 {/* Email with Icon */}
                                 <div className="space-y-1.5">

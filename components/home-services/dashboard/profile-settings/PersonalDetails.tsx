@@ -122,7 +122,7 @@ const PersonalDetails = () => {
             </div>
             <div>
               <p className="text-lg font-semibold">
-                {professionalDetails.business_name || user?.username || "No Name"} {/* 🆕 Use context username */}
+                {professionalDetails.business_name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "No Name"}
               </p>
               <p>
                 {professionalDetails.rating_avg || "N/A"}{" "}
