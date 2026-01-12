@@ -3,13 +3,15 @@ import { api } from "@/app/api/axios";
 import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
+const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
+
 class AuthService {
   private _currentUser: User | null = null;
   async sendOTP(phone: string): Promise<void> {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
       await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/userLogin",
+        `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
         {
           timeout: 15000,
@@ -25,7 +27,7 @@ class AuthService {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
 
       const response = await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/verify_otp",
+        `${base_url}/api/v2/authentication/verify_otp`,
         {
           phoneNo: normalizedPhone,
           otp: otp.trim(),
@@ -81,7 +83,7 @@ class AuthService {
   async getRoles(): Promise<any[]> {
     try {
       const res = await axios.get(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/role/getAll",
+        `${base_url}/api/v2/role/getAll`,
         { timeout: 15000 }
       );
       return res.data?.data || [];
@@ -195,7 +197,7 @@ class AuthService {
         payload.role = { role_id: Number(resolvedRoleNumeric) };
       }
       const response = await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/user/create",
+        `${base_url}/api/v2/user/create`,
         payload,
         {
           timeout: 15000,

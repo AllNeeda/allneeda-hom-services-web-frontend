@@ -4,6 +4,8 @@ import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, User } from "@/types/auth/register";
 
 const USE_REFRESH_ENDPOINT = process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
+const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
+
 
 
 const setCookie = (
@@ -47,7 +49,7 @@ class AuthService {
   }): Promise<LoginResponse> {
     try {
       const response = await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/userLogin",
+        `${base_url}/api/v2/authentication/userLogin`,
         credentials,
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );
@@ -100,11 +102,10 @@ class AuthService {
       if (!token) return null;
       const decoded = this.decodeToken(token);
       const userId = decoded?._id || decoded?.id;
-      console.log("User ID from token:", userId);
       if (!userId) throw new Error("User ID not found in token");
       if (this._currentUser?._id === userId) return this._currentUser;
       const response = await axios.get(
-        `https://vercel-mr-amani-backend.vercel.app/api/v2/user/getById/${userId}`,
+        `${base_url}/api/v2/user/getById/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -158,7 +159,7 @@ class AuthService {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
       await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/userLogin",
+        `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );
@@ -171,7 +172,7 @@ class AuthService {
     try {
       const normalizedPhone = phone.replace(/[^\d+]/g, "");
       const response = await axios.post(
-        "https://vercel-mr-amani-backend.vercel.app/api/v2/authentication/verify_otp",
+        `${base_url}/api/v2/authentication/verify_otp`,
         { phoneNo: normalizedPhone, otp: otp.trim() },
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );
