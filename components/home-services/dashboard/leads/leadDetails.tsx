@@ -15,13 +15,13 @@ import {
   CreditCard,
   Settings,
 } from "lucide-react";
-import ContactCustomer from "./ContactCustomer";
+// import ContactCustomer from "./ContactCustomer";
 import Link from "next/link";
 
 interface LeadDetailsProps {
   leadDetails: {
     title?: string;
-    user_id?: {
+    user?: {
       username?: string;
       email?: string;
       phone?: string;
@@ -36,6 +36,7 @@ interface LeadDetailsProps {
     answers?: Array<{
       question_id: string;
       answer: string;
+      question_name: string;
     }>;
     professionals?: any[];
     professionalLeads?: any[];
@@ -46,20 +47,20 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
   const [expanded, setExpanded] = useState(false);
   const [creditsVisible, setCreditsVisible] = useState(false);
   const [IsModalOpen, setIsModalOpen] = useState(false);
-  const [IsContactModalOpen, setContactIsModalOpen] = useState(false);
+  // const [IsContactModalOpen, setContactIsModalOpen] = useState(false);
   const [isPurchaseCreditsOpen, setIsPurchaseCreditsOpen] = useState(false);
 
   const toggleExpanded = () => setExpanded(!expanded);
   const toggleCredits = () => setCreditsVisible(!creditsVisible);
-
+  console.log("The Lead Details: ", leadDetails);
   // Safe data access with fallbacks
   const title = leadDetails?.title || "No Title";
-  const user = leadDetails?.user_id || {};
+  const user = leadDetails?.user || {};
   const location = leadDetails?.user_location || {};
   const createdAt = leadDetails?.createdAt || "";
   const answers = leadDetails?.answers || [];
   const professionalLeads = leadDetails?.professionalLeads || [];
-
+  console.log("the user: ", leadDetails.user);
   // Format the date
   const formatDate = (dateString: string) => {
     if (!dateString) return "Recently";
@@ -114,7 +115,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
           <div className="flex items-center space-x-3">
             <div className="relative">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0077B6] to-[#00B4D8] flex items-center justify-center text-white font-bold text-lg">
-                {getUserInitials(user.username)}
+                {getUserInitials(user.email)}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-gray-900">
                 <ShieldCheck className="h-3.5 w-3.5 text-white" />
@@ -124,7 +125,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
             <div>
               <div className="flex items-center">
                 <h1 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  {getDisplayName(user.username)}
+                  {getDisplayName(user.email)}
                 </h1>
               </div>
 
@@ -209,7 +210,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
 
       {/* Action Buttons */}
       <div className="p-5 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-        <span
+        {/* <span
           onClick={() => setContactIsModalOpen(true)}
           className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 cursor-pointer hover:to-red-700 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-red-200/50 flex items-center justify-center text-sm"
         >
@@ -224,10 +225,16 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
               }}
             />
           )}
-        </span>
+        </span> */}
+        <Link href={'/home-services/payment'}
+                  className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 cursor-pointer hover:to-emerald-700 text-white font-medium py-3 px-4 rounded transition-all duration-200 shadow-sm hover:shadow-red-200/50 flex items-center justify-center text-sm"
+
+        >
+          Accept Lead
+        </Link>
         <span
           onClick={() => setIsModalOpen(true)}
-          className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium py-3 px-4 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center text-sm"
+          className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium py-3 px-4 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center text-sm"
         >
           Not interested
           {IsModalOpen && (

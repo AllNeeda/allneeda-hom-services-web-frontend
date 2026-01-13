@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getProfessionalStepsAPI } from "./app/api/services/services";
+import { resolveProfessionalStep } from "./lib/resolveProfessionalStep";
+
+/* ================= CONFIG ================= */
 
 const AUTH_COOKIE = "auth-token";
 const REFRESH_COOKIE = "refresh-token";

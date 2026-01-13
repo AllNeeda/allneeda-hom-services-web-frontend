@@ -42,6 +42,7 @@ const BackgroundCheck = () => {
     isError,
   } = useProfessionalLicense(proId, token);
   const proLicenseData = professionalLicense?.data;
+  console.log("This is the professional license: ", proLicenseData);
   if (isError) {
     return <ErrorDisplay />;
   }
@@ -91,7 +92,7 @@ const BackgroundCheck = () => {
           </div>
         </div>
 
-        {professionalData ? (
+        {professionalData.length > 0 ? (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 p-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               {/* License Information */}

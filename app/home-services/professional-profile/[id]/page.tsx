@@ -32,9 +32,10 @@ import ShareDialogWrapper from "@/components/home-services/homepage/ShareDialogW
 import Breadcrumbs from "@/components/home-services/homepage/Breadcrumbs";
 
 import QuestionModal from "@/components/home-services/homepage/QuestionModal";
-import { useAutoTrackView } from "@/hooks/useAutoTrackView";
-import { useGetProfessionalbyUserId } from "@/hooks/useProfessional";
-import { getAccessToken } from "@/app/api/axios";
+// import { useAutoTrackView } from "@/hooks/useAutoTrackView";
+import {  useProfessionalDetails } from "@/hooks/useProfessional";
+// import { getAccessToken } from "@/app/api/axios";
+// import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 
 export default function ProfessionalProfile({
   params,
@@ -45,13 +46,15 @@ export default function ProfessionalProfile({
 
   //   Count Professional View 
   const professional_id = id
-  useAutoTrackView(professional_id);
+
+  const { data: professioanlDetails} = useProfessionalDetails(professional_id);
+  console.log("The professional Data: ", professioanlDetails, "The professionalID: ", professional_id);
 
 
   console.log(id);
   const [activeTab, setActiveTab] = useState<string>("about");
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const token = getAccessToken();
+ 
 
   // Refs for each section
   const aboutRef = useRef<HTMLDivElement>(null);
@@ -129,8 +132,6 @@ export default function ProfessionalProfile({
       prevIndex === 0 ? portfolio_album.length - 1 : prevIndex - 1
     );
   };
-  const {data: professionalData} = useGetProfessionalbyUserId(token)
-  console.log("The professional Data: ", professionalData);
 
   return (
     <div className="min-h-screen transition-colors duration-300 dark:bg-gray-900 dark:text-gray-100 text-gray-900">
