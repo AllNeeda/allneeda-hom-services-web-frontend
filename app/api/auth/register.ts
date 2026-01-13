@@ -13,7 +13,9 @@ const setCookie = (name: string, value: string, maxAgeSeconds: number) => {
   if (typeof window === "undefined") return;
   const secureFlag = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const sameSite = "; SameSite=Strict";
-  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSeconds}${secureFlag}${sameSite}`;
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; Path=/; Max-Age=${maxAgeSeconds}${secureFlag}${sameSite}`;
 };
 
 const deleteCookie = (name: string) => {
@@ -22,30 +24,61 @@ const deleteCookie = (name: string) => {
 };
 export class AuthService {
   private _currentUser: User | null = null;
-  private _normalizePhone(phone: string) {
-    return phone.replace(/[^\d+]/g, "");
+  private _normalizePhone(phone: string): string {
+    let digits = phone.replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("1")) {
+      digits = digits.slice(1);
+    }
+    if (digits.startsWith("0")) {
+      throw new Error("Phone number cannot start with zero");
+    }
+    return digits;
   }
+
   private _setCookies(accessToken: string, refreshToken: string) {
     setCookie("auth-token", accessToken, 30 * 60); // 30 min
     setCookie("refresh-token", refreshToken, 30 * 24 * 60 * 60); // 30 days
   }
+
   async sendOTP(phone: string): Promise<void> {
     try {
-      await axiosInstance.post("/api/v2/authentication/userLogin", {
-        phoneNo: this._normalizePhone(phone),
+      const response = await axiosInstance.post(
+        "/api/v2/authentication/userLogin",
+        {
+          phoneNo: this._normalizePhone(phone),
+        }
+      );
+      const otp = response.data?.data?.otp;
+      if (!otp) throw new Error("OTP not generated");
+      await this.sendOTPviaTwilio(this._normalizePhone(phone), otp);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  }
+
+  private async sendOTPviaTwilio(phone: string, otp: string) {
+    try {
+      const normalizedPhone = this._normalizePhone(phone);
+      await api.post(`sms/send_otp`, {
+        to: normalizedPhone,
+        body: `Your Allneeda verification code is ${otp}.`,
       });
     } catch (error) {
       throw handleApiError(error);
     }
   }
+
   async verifyOTP(phone: string, otp: string): Promise<LoginResponse> {
     try {
       const normalizedPhone = this._normalizePhone(phone);
 
-      const response = await axiosInstance.post("/api/v2/authentication/verify_otp", {
-        phoneNo: normalizedPhone,
-        otp: otp.trim(),
-      });
+      const response = await axiosInstance.post(
+        "/api/v2/authentication/verify_otp",
+        {
+          phoneNo: normalizedPhone,
+          otp: otp.trim(),
+        }
+      );
 
       const data = response.data?.data || response.data;
 
@@ -82,7 +115,7 @@ export class AuthService {
     status?: boolean;
   }): Promise<any> {
     try {
-      const ROLE_ID = 10; 
+      const ROLE_ID = 10;
 
       const payload: any = {
         firstName: data.firstName,
@@ -101,7 +134,10 @@ export class AuthService {
     }
   }
 
-  async completeRegistration(data: OTPRegisterData, token: string): Promise<AxiosResponse<unknown>> {
+  async completeRegistration(
+    data: OTPRegisterData,
+    token: string
+  ): Promise<AxiosResponse<unknown>> {
     try {
       const payload: any = {
         user_id: this.getCurrentUserId(),
@@ -141,7 +177,7 @@ export class AuthService {
           window
             .atob(base64)
             .split("")
-            .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
             .join("")
         );
       } else {

@@ -3,10 +3,9 @@ import axios from "axios";
 import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, User } from "@/types/auth/register";
 
-const USE_REFRESH_ENDPOINT = process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
+const USE_REFRESH_ENDPOINT =
+  process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
 const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
-
-
 
 const setCookie = (
   name: string,
@@ -16,9 +15,9 @@ const setCookie = (
   if (typeof window === "undefined") return;
   const secureFlag = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const sameSite = "; SameSite=Strict"; // Use Lax if cross-site GET navigations are needed
-  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${Math.floor(
-    maxAgeSeconds
-  )}${secureFlag}${sameSite}`;
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; Path=/; Max-Age=${Math.floor(maxAgeSeconds)}${secureFlag}${sameSite}`;
 };
 
 const deleteCookie = (name: string) => {
@@ -57,14 +56,17 @@ class AuthService {
       const resp = response.data?.data || response.data;
 
       const user = resp.user ?? resp;
-      const tokens = resp.tokens ?? { accessToken: resp.accessToken, refreshToken: resp.refreshToken };
+      const tokens = resp.tokens ?? {
+        accessToken: resp.accessToken,
+        refreshToken: resp.refreshToken,
+      };
 
-  if (!tokens?.accessToken || !tokens?.refreshToken) {
+      if (!tokens?.accessToken || !tokens?.refreshToken) {
         throw new Error("Invalid email or password");
       }
 
-  setCookie("auth-token", tokens.accessToken, 30 * 60); // 30 minutes
-  setCookie("refresh-token", tokens.refreshToken, 30 * 24 * 60 * 60); // 30 days
+      setCookie("auth-token", tokens.accessToken, 30 * 60); // 30 minutes
+      setCookie("refresh-token", tokens.refreshToken, 30 * 24 * 60 * 60); // 30 days
 
       this._currentUser = user; // cache user
       return { user, tokens };
@@ -126,7 +128,7 @@ class AuthService {
 
       this._currentUser = userData as User;
       return this._currentUser;
-    } catch  {
+    } catch {
       return null;
     }
   }
@@ -155,14 +157,41 @@ class AuthService {
       throw handleApiError(error);
     }
   }
+
+  normalizeTo10DigitPhone = (phone: string): string => {
+    let digits = phone.replace(/\D/g, "");
+    if (digits.length === 11 && digits.startsWith("1")) {
+      digits = digits.slice(1);
+    }
+    if (digits.startsWith("0")) {
+      throw new Error("Phone number cannot start with zero");
+    }
+    return digits;
+  };
+
   async sendOTP(phone: string): Promise<void> {
     try {
-      const normalizedPhone = phone.replace(/[^\d+]/g, "");
-      await axios.post(
+      const normalizedPhone = this.normalizeTo10DigitPhone(phone);
+      const response = await axios.post(
         `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
         { timeout: 15000, headers: { "Content-Type": "application/json" } }
       );
+      const otp = response.data?.data?.otp;
+      if (!otp) throw new Error("OTP not generated");
+      await this.sendOTPviaTwilio(normalizedPhone, otp);
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  }
+
+  private async sendOTPviaTwilio(phone: string, otp: string) {
+    try {
+      const normalizedPhone = this.normalizeTo10DigitPhone(phone);
+      await api.post(`sms/send_otp`, {
+        to: normalizedPhone,
+        body: `Your Allneeda verification code is ${otp}.`,
+      });
     } catch (error) {
       throw handleApiError(error);
     }
@@ -170,7 +199,7 @@ class AuthService {
 
   async verifyOTP(phone: string, otp: string): Promise<LoginResponse> {
     try {
-      const normalizedPhone = phone.replace(/[^\d+]/g, "");
+      const normalizedPhone = this.normalizeTo10DigitPhone(phone);
       const response = await axios.post(
         `${base_url}/api/v2/authentication/verify_otp`,
         { phoneNo: normalizedPhone, otp: otp.trim() },
@@ -183,8 +212,8 @@ class AuthService {
         throw new Error("Authentication failed. Invalid OTP.");
       }
 
-  setCookie("auth-token", data.accessToken, 30 * 60); // 30 minutes
-  setCookie("refresh-token", data.refreshToken, 30 * 24 * 60 * 60); // 30 days
+      setCookie("auth-token", data.accessToken, 30 * 60); // 30 minutes
+      setCookie("refresh-token", data.refreshToken, 30 * 24 * 60 * 60); // 30 days
       this._currentUser = data.user; // cache user
       return {
         user: data.user as User,
@@ -204,11 +233,18 @@ class AuthService {
       const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
       // atob is available in browsers; in Node use Buffer
       let jsonPayload: string;
-      if (typeof window !== "undefined" && typeof (window as any).atob === "function") {
+      if (
+        typeof window !== "undefined" &&
+        typeof (window as any).atob === "function"
+      ) {
         jsonPayload = decodeURIComponent(
-          (window as any).atob(base64)
+          (window as any)
+            .atob(base64)
             .split("")
-            .map((c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+            .map(
+              (c: string) =>
+                "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
+            )
             .join("")
         );
       } else {
@@ -226,10 +262,10 @@ class AuthService {
 
   isTokenExpiringSoon(token?: string, minutes: number = 5): boolean {
     try {
-  token = token || getCookie("auth-token") || "";
-  if (!token) return true;
-  const payload = this.decodeToken(token);
-  const exp = payload?.exp;
+      token = token || getCookie("auth-token") || "";
+      if (!token) return true;
+      const payload = this.decodeToken(token);
+      const exp = payload?.exp;
       const now = Math.floor(Date.now() / 1000);
       return exp - now <= minutes * 60;
     } catch {
