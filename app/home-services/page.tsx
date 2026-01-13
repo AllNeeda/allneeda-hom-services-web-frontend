@@ -4,20 +4,17 @@ import PopularSearch from "@/components/home-services/homepage/PopularSearch";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import PopularLocation from "@/components/home-services/homepage/PopularLocation";
-import { useEffect, useState } from "react";
-// import { useAuth } from "@/components/providers/context/auth-context";
+import { useEffect, useState, useMemo} from "react";
+import { useAuth } from "@/components/providers/context/auth-context";
 import {
   usePopularServices,
   useSubcategoryServices,
   useFeaturedServices,
 } from "@/hooks/useHomeServices";
-// import LocationPermissionModal from "@/components/home-services/LocationPermissionModal";
-// import { getLocationInfo } from "@/lib/getLocationInfo";
 import { LeadDialog } from "@/components/home-services/LeadAlert";
-import { useAuth } from "@/components/providers/context/auth-context";
 import { useProfessionalDetection } from "@/hooks/useProfessionalLeads";
 
-// Skeletons (same as before)
+// Skeletons (keep the same)
 const TitlePageSkeleton = () => (
   <div className="w-full h-60 md:h-72 lg:h-80 xl:h-96 bg-gray-200 dark:bg-gray-800 animate-pulse" />
 );
@@ -105,74 +102,45 @@ const CategoryServices = dynamic(
   }
 );
 
-// const AllCategories = dynamic(
-//   () => import("@/components/home-services/homepage/AllCategories"),
-//   {
-//     loading: () => <CategorySkeleton />,
-//     ssr: false,
-//   }
-// );
-
 const HomeServicesPage = () => {
   const { user, getAccessToken } = useAuth();
   const token = getAccessToken();
   const userPhone = user?.phoneNo || '';
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const {data:detectionResult, isError, isLoading} = useProfessionalDetection(token, userPhone)
-  const apiResult = detectionResult?.data;
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { data: detectionResult, isError, isLoading } = useProfessionalDetection(token, userPhone);
+  
+  // FIX 1: Initialize userLocation from localStorage only once on mount
+  /* eslint-disable no-unused-vars */
+  const [userLocation, setUserLocation] = useState<any>(() => {
+    // Initialize from localStorage only during initial render
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem("user_location");
+      return stored ? JSON.parse(stored) : null;
+    }
+    return null;
+  });
+  /* eslint-enable no-unused-vars */
 
+  const apiResult = detectionResult?.data;
   const leads = apiResult?.data ?? [];
   const isSuccess = apiResult?.success ?? false;
 
-
-
-  // LOCATION STATE
-  // const [locationModalOpen, setLocationModalOpen] = useState(false);
-  const [userLocation, setUserLocation] = useState<any>(null);
-
+  // FIX 2: Use a ref to track if we've already set the location
+  // const locationSetRef = useRef(false);
 
   useEffect(() => {
-  if (isSuccess && leads.length > 0) {
-    setIsDialogOpen(true);
-  }
+    if (isSuccess && leads.length > 0) {
+      setIsDialogOpen(true);
+    }
+  }, [isSuccess, leads]);
 
-  const stored = localStorage.getItem("user_location");
-  if (stored) {
-    setUserLocation(JSON.parse(stored));
-  }
-}, [isSuccess, leads]);
+  // FIX 3: Remove the localStorage reading from useEffect that runs on every render
+  // This was causing the infinite loop
 
-  // const handleAcceptLocation = async () => {
-  //   try {
-  //     const loc = await getLocationInfo();
-  //     setUserLocation(loc);
-  //     setLocationModalOpen(false);
-
-  //     if (isAuthenticated && user) {
-  //       // Send to backend (example)
-  //       await fetch(
-  //         `${process.env.NEXT_PUBLIC_API_URL}/users/${user._id}/location`,
-  //         {
-  //           method: "POST",
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //           body: JSON.stringify(loc),
-  //         }
-  //       );
-  //     } else {
-  //       localStorage.setItem("user_location", JSON.stringify(loc));
-  //     }
-  //   } catch (err) {
-  //     console.error("Failed to get location:", err);
-  //     setLocationModalOpen(false);
-  //   }
-  // };
-
-  // const handleDeclineLocation = () => {
-  //   setLocationModalOpen(false);
-  // };
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    localStorage.setItem('leadDialogDismissed', 'true');
+  };
 
   // Service hooks
   const { data: popularServicesData, isLoading: popularLoading } =
@@ -185,37 +153,32 @@ const HomeServicesPage = () => {
   const popularServices = popularServicesData?.data || [];
   const subcategoryServices = subcategoryServicesData || [];
   const featuredServices = featuredServicesData?.data || [];
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false)
-    // Optional: You could store in localStorage that user dismissed the dialog
-    localStorage.setItem('leadDialogDismissed', 'true')
-  }
- 
-  
 
+  // FIX 4: Memoize the location prop to prevent unnecessary re-renders
+  const memoizedLocation = useMemo(() => userLocation, [
+    userLocation?.city, 
+    userLocation?.state, 
+    userLocation?.postcode
+  ]);
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border border-white dark:border-gray-900">
-      {/* <LocationPermissionModal
-        open={locationModalOpen}
-        onAccept={handleAcceptLocation}
-        onDecline={handleDeclineLocation}
-      /> */}
       {!isLoading && !isError && isDialogOpen && (
-          <LeadDialog
-            isOpen={isDialogOpen}
-            onClose={handleCloseDialog}
-            leadCount={leads.length ||5}
-            userEmail={leads[0]?.phone}
-            userName={leads[0]?.businessName}
-          />
-        )}
+        <LeadDialog
+          isOpen={isDialogOpen}
+          onClose={handleCloseDialog}
+          leadCount={leads.length || 5}
+          userEmail={leads[0]?.phone}
+          userName={leads[0]?.businessName}
+        />
+      )}
 
       <Breadcrumbs
         paths={[{ name: "Home", href: "/" }, { name: "Home Services" }]}
       />
 
-      <TitlePage location={userLocation} />
+      {/* FIX 5: Pass the memoized location prop */}
+      <TitlePage location={memoizedLocation} />
 
       {popularLoading ? (
         <CategorySkeleton />
@@ -233,7 +196,6 @@ const HomeServicesPage = () => {
         <CategoryServices subcategoryService={subcategoryServices} />
       )}
 
-      {/* <AllCategories /> */}
       <PopularLocation />
       <PopularSearch />
     </div>

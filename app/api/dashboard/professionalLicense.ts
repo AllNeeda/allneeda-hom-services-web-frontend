@@ -55,6 +55,7 @@ export const getProfessionalLicenseById = async (professional_id: string, token:
         },
       });
       return response.data;
+
   } catch (error) { 
     throw new Error(`Failed to get the professional license: ${error}`)
   }
