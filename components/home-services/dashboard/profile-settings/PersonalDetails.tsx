@@ -1,206 +1,352 @@
 "use client";
-import { useLocationByUserId } from "@/hooks/useLocation";
+import { getAccessToken } from "@/app/api/axios";
+import { useAuth } from "@/components/providers/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { Globe, LocateIcon, Phone, Timer, Users } from "lucide-react";
+import GlobalLoader from "@/components/ui/global-loader";
+import { useProfessionalReview } from "@/hooks/RegisterPro/useRegister";
+import {
+  Phone,
+  Timer,
+  Users,
+  Pencil,
+  TrendingUp,
+  Star,
+  MapPin,
+  Globe as WebsiteIcon,
+  Calendar,
+  Briefcase,
+  Edit,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { useGetProfessionalbyUserId } from "@/hooks/useProfessional";
-import { useAuth } from "@/components/providers/context/auth-context"; // Import security system
+
+// Local, narrow types for the response used by this component.
+// Kept minimal and optional so the component is resilient to partial responses.
+type Location = {
+  address_line?: string;
+  city?: string;
+  state?: string;
+  zipcode?: string;
+  country?: string;
+};
+
+type BusinessHour = {
+  day?: string;
+  status?: string;
+  is_open?: boolean;
+  open_time?: string;
+  close_time?: string;
+};
+
+type ProfessionalShape = {
+  business_name?: string;
+  introduction?: string;
+  phone?: string;
+  founded_year?: string | number;
+  employees?: number | string;
+  website?: string;
+  profile_image?: string | null;
+  rating_avg?: number | string;
+  total_review?: number | string;
+  business_hours?: BusinessHour[];
+};
+
+type ProfessionalReviewResponse = {
+  professional?: {
+    professional?: ProfessionalShape;
+    locations?: Location[];
+  } | ProfessionalShape;
+};
 
 const PersonalDetails = () => {
-  // 🔐 Get security information from context
-  const { 
-    user,                    // Current user data
-    isAuthenticated,         // Is user logged in?
-    isLoading: authLoading,  // Is security checking credentials?
-    getAccessToken,          // Get current security token
-  } = useAuth();
-  const router = useRouter();
-  const [retrying, setRetrying] = useState(false);
-  const token = getAccessToken();
+  const token = getAccessToken() || "";
+  const { data, isLoading, isError } = useProfessionalReview(token!);
+  const { user, isLoading: isAuthLoading } = useAuth();
 
-  // 📡 Fetch professional data with dynamic token
-  const { 
-    data: prov, 
-    isLoading, 
-    isError, 
-    refetch, 
-    error 
-  } = useGetProfessionalbyUserId(token || "");
-
-  const {
-    data: locations,
-    isLoading: isLoadingLocation,
-    isError: isErrorLocation,
-    refetch: refetchLocation,
-    error: locationError,
-  } = useLocationByUserId(token || "");
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/auth/login?redirect=/home-services/dashboard');
-    }
-  }, [isAuthenticated, authLoading, router]);
-
-  const professionalDetails = prov || {};
-  const locationsDetails = locations || {};
-  // Show loading if security is still checking OR data is loading
-  if (authLoading || isLoading || isLoadingLocation || retrying) {
+  if (isLoading || isAuthLoading) {
     return (
-      <div className="max-w-6xl mx-auto p-4 space-y-5 animate-pulse">
-        <div className="h-6 bg-gray-300 rounded w-32"></div>
-        <div className="h-6 bg-gray-300 rounded w-64"></div>
-        <div className="h-40 bg-gray-200 rounded"></div>
-      </div>
+      <GlobalLoader></GlobalLoader>
     );
   }
 
-
-  // Error State
-  if (isError || isErrorLocation) {
+  if (isError) {
     return (
-      <div className="max-w-6xl mx-auto p-4 text-center">
-        <p className="text-red-600 font-semibold mb-2">
-          Oops! Something went wrong while fetching your profile or location. 
-        </p>
-        <p className="text-gray-500 mb-4">
-          Please check your internet connection or try again later.
-        </p>
-        {error?.message && <p className="text-gray-400 text-sm mb-2">Profile Error: {error.message}</p>}
-        {locationError?.message && <p className="text-gray-400 text-sm mb-4">Location Error: {locationError.message}</p>}
-        
-        <div className="flex gap-2 justify-center">
-          <Button
-            disabled={retrying}
-            onClick={async () => {
-              setRetrying(true);
-              await refetch();
-              await refetchLocation();
-              setRetrying(false);
-            }}
-            className="bg-sky-500 text-white hover:bg-sky-600"
-          >
-            {retrying ? "Retrying..." : "Retry"}
-          </Button>
-          
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-red-600 dark:text-red-400">Failed to load profile data.</div>
         </div>
       </div>
     );
   }
-  // Default professional fallback
-  const professional = {
-    id: professionalDetails.id || user?._id || "unknown", // 🆕 Use context user as fallback
-    phone: professionalDetails.phone || user?.email || "N/A", // 🆕 Use context user email
-  };
+  const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
+  const typedData = (data ?? {}) as ProfessionalReviewResponse;
+  const pro: ProfessionalShape =
+    (typedData.professional && (typedData.professional as any).professional) ||
+    (typedData.professional as ProfessionalShape) ||
+    (data as unknown as ProfessionalShape) ||
+    {};
+  const locations: Location[] =
+    (typedData.professional && (typedData.professional as any).locations) ||
+    [];
+  const primaryLocation: Location = locations[0] ?? {};
 
-  // Prepare full address
   const fullAddress = [
-    locationsDetails.address_line,
-    locationsDetails.city,
-    locationsDetails.state,
-    locationsDetails.zipcode,
-    locationsDetails.country,
+    primaryLocation.address_line,
+    primaryLocation.city,
+    primaryLocation.state,
+    primaryLocation.zipcode,
+    primaryLocation.country,
   ]
     .filter(Boolean)
-    .join(", ") || "N/A";
+    .join(", ") || "No address provided";
+
+  const businessHours: any[] = pro?.business_hours ?? [];
+  const openDays = businessHours.filter(
+    (h: any) => h?.status === "open" || h?.is_open === true
+  ).length;
+
+  const rawImage = pro?.profile_image;
+  const profileImage = (() => {
+    if (!rawImage) return "/default-profile.png";
+    const s = String(rawImage);
+    if (s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) return s;
+    return `${Backend_URL}/uploads/professionals/${s}`;
+  })();
+
+  const stats = [
+    {
+      label: "Rating",
+      value: pro.rating_avg ? `${pro.rating_avg}/5` : "N/A",
+      icon: Star,
+      color: "text-[#BE13BF] dark:text-[#BE13BF]",
+      bgColor: "bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20"
+    },
+    {
+      label: "Reviews",
+      value: pro.total_review || "0",
+      icon: TrendingUp,
+      color: "text-[#6742EE] dark:text-[#6742EE]",
+      bgColor: "bg-[#6742EE]/10 dark:bg-[#6742EE]/20"
+    },
+    {
+      label: "Open Days",
+      value: `${openDays}/7`,
+      icon: Timer,
+      color: "text-[#0077B6] dark:text-[#0077B6]",
+      bgColor: "bg-[#0077B6]/10 dark:bg-[#0077B6]/20"
+    },
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-5">
-      {/* Header Section */}
-      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 md:p-6">
-        <div className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-row justify-start gap-4 items-center">
-            <div className="w-24 h-24 xs:w-30 xs:h-30 flex-shrink-0">
-              <Image
-                src={professionalDetails.profile_image || "/default-profile.png"}
-                width={100}
-                height={100}
-                alt="profile image"
-                className="w-full h-full rounded-full object-cover"
-              />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="max-w-4xl mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 rounded px-3 py-1.5 border border-[#0077B6]/20 dark:border-[#0077B6]/30 mb-2">
+              <div className="w-1.5 h-1.5 bg-[#0077B6] dark:bg-[#0077B6] rounded-full animate-pulse" />
+              <span className="text-sm font-medium text-[#0077B6] dark:text-[#0077B6]/90">
+                Profile Overview
+              </span>
             </div>
-            <div>
-              <p className="text-lg font-semibold">
-                {professionalDetails.business_name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "No Name"}
-              </p>
-              <p>
-                {professionalDetails.rating_avg || "N/A"}{" "}
-                <strong className="text-sky-500">Ask for review  </strong>
-              </p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              Business Profile
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Manage and update your business information
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="h-9 px-4 text-sm bg-[#0077B6] hover:bg-[#0066A3] text-white"
+            >
+              <Pencil className="w-3.5 h-3.5 mr-1.5" />
+              Edit Profile
+            </Button>
+          </div>
+        </div>
+
+        {/* Profile Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+            {/* Profile Image */}
+            <div className="relative">
+              <div className="w-24 h-24">
+                <Image
+                  src={profileImage}
+                  width={96}
+                  height={96}
+                  alt="Profile"
+                  className="rounded-full object-cover w-full h-full border-4 border-white dark:border-gray-800 shadow"
+                />
+              </div>
+            </div>
+
+            {/* Business Info */}
+            <div className="flex-1 text-center sm:text-left">
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                  {pro.business_name || "Your Business Name"}
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Professional Service Provider
+                </p>
+              </div>
+
+              {/* Stats Row */}
+              <div className="flex flex-wrap justify-center sm:justify-start gap-3">
+                {stats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded-sm min-w-[100px]"
+                  >
+                    <div className={`p-1.5 rounded-sm ${stat.bgColor}`}>
+                      <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {stat.value}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {stat.label}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="self-center sm:self-auto">
+        </div>
+
+        {/* Introduction Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <div className="p-1.5 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 rounded-sm">
+                <Users className="w-4 h-4 text-[#0077B6]" />
+              </div>
+              Introduction
+            </h3>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            {pro.introduction || "No introduction provided. Add a compelling description of your business to attract more customers."}
+          </p>
+        </div>
+
+        {/* Contact Info Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <div className="p-1.5 bg-[#6742EE]/10 dark:bg-[#6742EE]/20 rounded-sm">
+                <Phone className="w-4 h-4 text-[#6742EE]" />
+              </div>
+              Contact Information
+            </h3>
             <Link
-              href={`/home-services/dashboard/profile-settings/edit-basic-info`}
-              className="text-sky-500 font-semibold"
+              href="#"
+              className="text-sm text-[#0077B6] hover:text-[#0066A3] font-medium inline-flex items-center gap-1"
             >
+              <Edit className="w-3.5 h-3.5" />
               Edit
             </Link>
           </div>
-        </div>
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-3 my-5">
-          <Button className="w-full sm:w-auto border border-gray-500 text-sky-500 hover:border-sky-500 bg-white dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-900">
-            See how you rank
-          </Button>
-          <Button
-            onClick={() =>
-              router.push(`/home-services/professional-profile/${professional.id}`)
-            }
-            className="w-full sm:w-auto border border-gray-500 text-sky-500 hover:border-sky-500 bg-white dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-900"
-          >
-            View your profile as customer
-          </Button>
-          
-
-        </div>
-
-        {/* Details */}
-        <div className="space-y-4 mt-6">
-          {/* Professional Details */}
-          {[
-            { icon: Phone, label: "Phone", value: professional.phone },
-            { icon: Globe, label: "Website", value: professionalDetails.website || "N/A" },
-            { icon: Timer, label: "Year Founded", value: professionalDetails.founded_year || "N/A" },
-            { icon: Users, label: "Number of Employees", value: professionalDetails.employees || "N/A" },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col xs:flex-row xs:items-center gap-2"
-            >
-              <div className="flex flex-row gap-2 font-bold items-center min-w-[120px]">
-                <item.icon className="w-4 h-4" />
-                <p>{item.label}:</p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-sm transition-colors">
+              <div className="p-2 bg-gray-100 dark:bg-gray-900 rounded-sm">
+                <Phone className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               </div>
-              <p className="xs:ml-5 break-all">{item.value}</p>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Phone Number
+                </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {user?.phoneNo || "Not provided"}
+                </div>
+              </div>
             </div>
-          ))}
 
-          {/* Full Address */}
-          <div className="flex flex-col xs:flex-row xs:items-center gap-2">
-            <div className="flex flex-row gap-2 font-bold items-center min-w-[120px]">
-              <LocateIcon className="w-4 h-4" />
-              <p>Address:</p>
-            </div>
-            <p className="xs:ml-5 break-all">{fullAddress}</p>
+
           </div>
         </div>
-      </div>
 
-      {/* Introduction Section */}
-      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 md:p-6">
-        <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2">
-          <p className="font-bold">Introduction</p>
-          <Link
-            href={`/home-services/dashboard/profile-settings/edit-intro`}
-            className="text-sky-500 font-semibold"
-          >
-            Edit
-          </Link>
+        {/* Business Details Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <div className="p-1.5 bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20 rounded-sm">
+                <Briefcase className="w-4 h-4 text-[#BE13BF]" />
+              </div>
+              Business Details
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-sm transition-colors">
+              <div className="p-2 bg-gray-100 dark:bg-gray-900 rounded-sm">
+                <Calendar className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Year Founded
+                </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {pro.founded_year || "Not specified"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-sm transition-colors">
+              <div className="p-2 bg-gray-100 dark:bg-gray-900 rounded-sm">
+                <Users className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Number of Employees
+                </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {pro.employees || "0"}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-sm transition-colors">
+              <div className="p-2 bg-gray-100 dark:bg-gray-900 rounded-sm">
+                <WebsiteIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Website
+                </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {pro.website || "Not provided"}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="mt-3">{professionalDetails.introduction || "No introduction provided."}</p>
+
+        {/* Location Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <div className="p-1.5 bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20 rounded-sm">
+              <MapPin className="w-4 h-4 text-[#0077B6]" />
+
+            </div>
+            Business Location
+          </h3>
+
+          <div className="p-4 ">
+            <div className="flex items-start gap-3">
+              <MapPin className="w-4 h-4 text-[#0077B6]  mt-0.5" />
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  {fullAddress}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -23,6 +23,8 @@ const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
 
 const ROLE_ID_MAP: Record<number, string> = {
   10: "professional",
+  8: "admin",
+  7: "customer",
 };
 
 const PUBLIC_ROUTES = ["/home-services", "/auth"];
@@ -57,7 +59,18 @@ function decodeJwt(token: string): any | null {
   }
 }
 function normalizeRoles(role: any) {
-  if (Array.isArray(role)) return role.map((r) => String(r).toLowerCase());
+  if (Array.isArray(role)) {
+    return role
+      .map((r) => {
+        if (typeof r === "number" || (typeof r === "string" && /^\d+$/.test(r))) {
+          const id = Number(r);
+          const mapped = ROLE_ID_MAP[id];
+          return mapped ? mapped.toLowerCase() : undefined;
+        }
+        return String(r).trim().toLowerCase();
+      })
+      .filter(Boolean) as string[];
+  }
   if (typeof role === "number" || (typeof role === "string" && /^\d+$/.test(role))) {
     const id = Number(role);
     const mapped = ROLE_ID_MAP[id];
@@ -135,6 +148,11 @@ export async function middleware(req: NextRequest) {
   if (!roles.length) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
+  // If user is already authenticated, prevent visiting auth pages (login/register)
+  if (pathname === "/auth" || pathname.startsWith("/auth/")) {
+    url.pathname = dashboardForRoles(roles);
+    return NextResponse.redirect(url);
+  }
   if (!isAuthorized(roles, pathname)) {
     url.pathname = dashboardForRoles(roles);
     return NextResponse.redirect(url);
@@ -150,4 +168,4 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: ["/admin/:path*", "/home-services/:path*", "/api/:path*"],
-};
+}; 

@@ -184,12 +184,11 @@ export function useProfessionalReview(token: string) {
     queryKey: ["professionalReview", token],
     queryFn: () => getProfessionalStepsAPI(token),
     enabled: !!token,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     staleTime: 0,
     refetchInterval: 5000,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
   });
 }
 

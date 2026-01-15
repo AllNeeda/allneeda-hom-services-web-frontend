@@ -26,8 +26,6 @@ const CustomerRetention: React.FC = () => {
 
   const offerOptions = [
     { value: "discount", label: "Discount Offer", badge: "10-15% OFF" },
-    { value: "service-reminder", label: "Service Reminder", badge: "Maintenance" },
-    { value: "referral-program", label: "Referral Program", badge: "Earn Rewards" }
   ];
 
   return (

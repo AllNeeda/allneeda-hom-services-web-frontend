@@ -20,7 +20,7 @@ export default function Dashboard() {
       businessName: data?.services?.professional?.business_name || "Your Business"
     };
   }, [data]);
-  
+
   const stats = useMemo(() => {
     const services = data?.services?.services || [];
     const professional = data?.services?.professional || {};
@@ -60,7 +60,7 @@ export default function Dashboard() {
   if (isLoading) {
     return <GlobalLoader />
   }
-  
+
   if (error) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 p-6 flex items-center justify-center">
@@ -138,7 +138,7 @@ export default function Dashboard() {
                 transition={{ delay: index * 0.1 }}
                 className="group relative bg-white dark:bg-gray-900 rounded-sm p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all hover:border-[#0077B6]/20 dark:hover:border-[#0077B6]/30"
               >
-                
+
                 <div className="flex items-start justify-between mb-4">
                   <div className={`p-3 rounded-sm ${stat.bgColor}`}>
                     <stat.icon className={`w-5 h-5 ${stat.color}`} />
@@ -147,19 +147,19 @@ export default function Dashboard() {
                     <Sparkles className="w-4 h-4 text-[#BE13BF] animate-pulse" />
                   )}
                 </div>
-                
+
                 <div className="space-y-1">
                   <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     {stat.title}
                   </h3>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stat.title === "Avg. Rating" && stat.value ? 
-                      `${stat.value}/5` : 
+                    {stat.title === "Avg. Rating" && stat.value ?
+                      `${stat.value}/5` :
                       stat.value
                     }
                   </p>
                 </div>
-                
+
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#0077B6]/0 group-hover:bg-[#0077B6] transition-all duration-300" />
               </motion.div>
             ))}
@@ -176,7 +176,7 @@ export default function Dashboard() {
               transition={{ delay: 0.2 }}
               className="group relative bg-white dark:bg-gray-900 rounded-sm p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
             >
-              
+
               <div className="relative">
                 <div className="flex items-center justify-between mb-5">
                   <div className="space-y-1">
@@ -220,7 +220,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </motion.div>
-            
+
             {/* Services List */}
             <ServicesList data={data} />
           </div>
@@ -233,7 +233,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
               className="group relative overflow-hidden bg-white dark:bg-gray-900 rounded-sm border border-[#6742EE]/20 shadow-sm"
-            >              
+            >
               <div className="relative p-6">
                 <div className="flex items-start justify-between mb-5">
                   <div className="space-y-1">
@@ -261,10 +261,6 @@ export default function Dashboard() {
                         <div className="text-xs text-gray-500 dark:text-gray-400">Available credits</div>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">This Month</span>
-                      <span className="text-sm font-medium text-[#0077B6]">$0 spent</span>
-                    </div>
                   </div>
                 </div>
 
@@ -289,7 +285,7 @@ export default function Dashboard() {
               transition={{ delay: 0.6 }}
               className="group relative bg-white dark:bg-gray-900 rounded-sm p-6 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
             >
-              
+
               <div className="relative">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="p-2.5 bg-[#0077B6]/10 rounded-sm">
@@ -302,21 +298,23 @@ export default function Dashboard() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="p-4 bg-[#0077B6]/5 rounded-sm border border-[#0077B6]/20">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        <div className="w-2 h-2 bg-[#0077B6] rounded-full" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                          Complete Your Profile
-                        </h4>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Businesses with complete profiles get 3x more leads
-                        </p>
+                  {data?.services?.professional?.step < 9 && (
+                    <div className="p-4 bg-[#0077B6]/5 rounded-sm border border-[#0077B6]/20">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          <div className="w-2 h-2 bg-[#0077B6] rounded-full" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                            Complete Your Profile
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Businesses with complete profiles get more leads
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="p-4 bg-[#BE13BF]/5 rounded-sm border border-[#BE13BF]/20">
                     <div className="flex items-start gap-3">
