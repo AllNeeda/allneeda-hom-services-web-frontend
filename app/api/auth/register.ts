@@ -4,9 +4,15 @@ import { handleApiError } from "@/lib/errorHandler";
 import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
+
+// Timeout configuration - longer for serverless environments (Vercel cold starts)
+const AUTH_TIMEOUT = process.env.NEXT_PUBLIC_AUTH_TIMEOUT
+  ? parseInt(process.env.NEXT_PUBLIC_AUTH_TIMEOUT, 10)
+  : process.env.NODE_ENV === 'production' ? 30000 : 15000;
+
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: AUTH_TIMEOUT, // 30s for production (Vercel cold starts), 15s for dev
   headers: { "Content-Type": "application/json" },
 });
 const setCookie = (name: string, value: string, maxAgeSeconds: number) => {

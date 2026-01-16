@@ -1,10 +1,15 @@
 // app/api/axios.ts
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
+// Timeout configuration - longer for serverless environments (Vercel cold starts)
+const API_TIMEOUT = process.env.NEXT_PUBLIC_API_TIMEOUT
+  ? parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT, 10)
+  : process.env.NODE_ENV === 'production' ? 30000 : 15000;
+
 const api = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api/v1/",
-  timeout: 15000, // Reduced to 15 seconds to fail faster
+  timeout: API_TIMEOUT, // 30s for production (Vercel cold starts), 15s for dev
   headers: {
     "Content-Type": "application/json",
   },
