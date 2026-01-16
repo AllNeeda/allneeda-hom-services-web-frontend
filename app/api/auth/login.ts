@@ -7,6 +7,11 @@ const USE_REFRESH_ENDPOINT =
   process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
 const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
 
+// Validate base_url on module load (only log warning, don't throw to allow graceful degradation)
+if (typeof window !== "undefined" && !base_url) {
+  console.warn("⚠️ NEXT_PUBLIC_API_BASE_AUTH_SERVICE is not configured. Authentication may not work.");
+}
+
 const setCookie = (
   name: string,
   value: string,
@@ -47,10 +52,23 @@ class AuthService {
     password: string;
   }): Promise<LoginResponse> {
     try {
+      if (!base_url) {
+        const error = new Error("Authentication service URL is not configured. Please set NEXT_PUBLIC_API_BASE_AUTH_SERVICE environment variable.");
+        console.error("❌", error.message);
+        throw error;
+      }
+
+      const loginUrl = `${base_url}/api/v2/authentication/userLogin`;
+      console.log("🔐 Attempting login to:", loginUrl);
+
       const response = await axios.post(
-        `${base_url}/api/v2/authentication/userLogin`,
+        loginUrl,
         credentials,
-        { timeout: 15000, headers: { "Content-Type": "application/json" } }
+        {
+          timeout: 15000,
+          headers: { "Content-Type": "application/json" },
+          validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+        }
       );
 
       const resp = response.data?.data || response.data;
@@ -70,7 +88,25 @@ class AuthService {
 
       this._currentUser = user; // cache user
       return { user, tokens };
-    } catch (error) {
+    } catch (error: any) {
+      // Enhanced error logging for network issues
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        console.error("❌ Cannot connect to authentication service:", base_url);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        throw new Error(`Cannot connect to authentication service at ${base_url}. Please check if the service is running and accessible.`);
+      }
+      if (error.request && !error.response) {
+        console.error("❌ Network error - No response from server");
+        console.error("Request URL:", error.config?.url || `${base_url}/api/v2/authentication/userLogin`);
+        console.error("Base URL:", base_url);
+        console.error("Error details:", {
+          code: error.code,
+          message: error.message,
+          timeout: error.code === 'ECONNABORTED'
+        });
+        throw new Error("Cannot reach authentication server. Please check your internet connection and server status.");
+      }
       throw handleApiError(error);
     }
   }
@@ -91,6 +127,11 @@ class AuthService {
   // ------------------- GET CURRENT USER -------------------
   async getCurrentUser(): Promise<User | null> {
     try {
+      if (!base_url) {
+        console.warn("⚠️ Authentication service URL not configured, cannot get current user");
+        return null;
+      }
+
       let token = getCookie("auth-token");
       if (!token || this.isTokenExpiringSoon(token)) {
         if (!USE_REFRESH_ENDPOINT) {
@@ -106,6 +147,7 @@ class AuthService {
       const userId = decoded?._id || decoded?.id;
       if (!userId) throw new Error("User ID not found in token");
       if (this._currentUser?._id === userId) return this._currentUser;
+
       const response = await axios.get(
         `${base_url}/api/v2/user/getById/${userId}`,
         {
@@ -114,6 +156,7 @@ class AuthService {
             "Content-Type": "application/json",
           },
           timeout: 15000,
+          validateStatus: (status) => status < 500,
         }
       );
       const respData = response.data?.data || response.data;
@@ -128,7 +171,11 @@ class AuthService {
 
       this._currentUser = userData as User;
       return this._currentUser;
-    } catch {
+    } catch (error: any) {
+      if (error.request && !error.response) {
+        console.error("❌ Network error getting current user");
+        console.error("Base URL:", base_url);
+      }
       return null;
     }
   }
@@ -171,16 +218,29 @@ class AuthService {
 
   async sendOTP(phone: string): Promise<void> {
     try {
+      if (!base_url) {
+        throw new Error("Authentication service URL is not configured");
+      }
+
       const normalizedPhone = this.normalizeTo10DigitPhone(phone);
       const response = await axios.post(
         `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
-        { timeout: 15000, headers: { "Content-Type": "application/json" } }
+        {
+          timeout: 15000,
+          headers: { "Content-Type": "application/json" },
+          validateStatus: (status) => status < 500,
+        }
       );
       const otp = response.data?.data?.otp;
       if (!otp) throw new Error("OTP not generated");
       await this.sendOTPviaTwilio(normalizedPhone, otp);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.request && !error.response) {
+        console.error("❌ Network error sending OTP");
+        console.error("Base URL:", base_url);
+        console.error("Error details:", error.code, error.message);
+      }
       throw handleApiError(error);
     }
   }
@@ -199,11 +259,19 @@ class AuthService {
 
   async verifyOTP(phone: string, otp: string): Promise<LoginResponse> {
     try {
+      if (!base_url) {
+        throw new Error("Authentication service URL is not configured");
+      }
+
       const normalizedPhone = this.normalizeTo10DigitPhone(phone);
       const response = await axios.post(
         `${base_url}/api/v2/authentication/verify_otp`,
         { phoneNo: normalizedPhone, otp: otp.trim() },
-        { timeout: 15000, headers: { "Content-Type": "application/json" } }
+        {
+          timeout: 15000,
+          headers: { "Content-Type": "application/json" },
+          validateStatus: (status) => status < 500,
+        }
       );
 
       const data = response.data?.data || response.data;
@@ -222,7 +290,12 @@ class AuthService {
           refreshToken: data.refreshToken,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
+      if (error.request && !error.response) {
+        console.error("❌ Network error verifying OTP");
+        console.error("Base URL:", base_url);
+        console.error("Error details:", error.code, error.message);
+      }
       throw handleApiError(error);
     }
   }
