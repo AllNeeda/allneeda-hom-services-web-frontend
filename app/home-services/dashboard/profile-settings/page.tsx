@@ -1,5 +1,4 @@
 import AdditionalProfileBadge from "@/components/home-services/dashboard/profile-settings/AdditionalProfileBadge";
-import BackgroundCheck from "@/components/home-services/dashboard/profile-settings/BackgroundCheck";
 import FAQs from "@/components/home-services/dashboard/profile-settings/FAQs";
 import FeaturedProject from "@/components/home-services/dashboard/profile-settings/FeaturedProject";
 import MediaGallary from "@/components/home-services/dashboard/profile-settings/MediaGallery";
@@ -12,7 +11,6 @@ const ProfessionalProfile = () => {
     <div className="">
       <PersonalDetails />
       <Reviews />
-      <BackgroundCheck />
       <PaymentMethod />
       <MediaGallary />
       <AdditionalProfileBadge />

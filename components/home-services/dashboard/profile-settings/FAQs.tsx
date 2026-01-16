@@ -41,9 +41,9 @@ const FAQs = () => {
         </Link>
       </div>
       <div className="flex flex-col">
-        {QuestionData.map((q: any) => (
+        {QuestionData.map((q: any, index: number) => (
           <div
-            key={q._id}
+            key={q._id ?? q.question_id ?? `faq-${index}`}
             className="border-b border-gray-200 dark:border-gray-700 p-4"
           >
             <p className="font-bold text-md">{q.question}</p>
