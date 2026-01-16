@@ -7,6 +7,12 @@ const USE_REFRESH_ENDPOINT =
   process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
 const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
 
+// Timeout configuration - longer for serverless environments (Vercel cold starts)
+// Use environment variable or default to 30 seconds for production, 15 for dev
+const AUTH_TIMEOUT = process.env.NEXT_PUBLIC_AUTH_TIMEOUT
+  ? parseInt(process.env.NEXT_PUBLIC_AUTH_TIMEOUT, 10)
+  : process.env.NODE_ENV === 'production' ? 30000 : 15000;
+
 // Validate base_url on module load (only log warning, don't throw to allow graceful degradation)
 if (typeof window !== "undefined" && !base_url) {
   console.warn("⚠️ NEXT_PUBLIC_API_BASE_AUTH_SERVICE is not configured. Authentication may not work.");
@@ -65,7 +71,7 @@ class AuthService {
         loginUrl,
         credentials,
         {
-          timeout: 15000,
+          timeout: AUTH_TIMEOUT,
           headers: { "Content-Type": "application/json" },
           validateStatus: (status) => status < 500, // Don't throw on 4xx errors
         }
@@ -95,6 +101,13 @@ class AuthService {
         console.error("Error code:", error.code);
         console.error("Error message:", error.message);
         throw new Error(`Cannot connect to authentication service at ${base_url}. Please check if the service is running and accessible.`);
+      }
+      if (error.code === 'ECONNABORTED') {
+        console.error("❌ Request timeout - Server took too long to respond");
+        console.error("Request URL:", error.config?.url || `${base_url}/api/v2/authentication/userLogin`);
+        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
+        console.error("Base URL:", base_url);
+        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load or cold start. Please try again.`);
       }
       if (error.request && !error.response) {
         console.error("❌ Network error - No response from server");
@@ -155,7 +168,7 @@ class AuthService {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          timeout: 15000,
+          timeout: AUTH_TIMEOUT,
           validateStatus: (status) => status < 500,
         }
       );
@@ -227,7 +240,7 @@ class AuthService {
         `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
         {
-          timeout: 15000,
+          timeout: AUTH_TIMEOUT,
           headers: { "Content-Type": "application/json" },
           validateStatus: (status) => status < 500,
         }
@@ -236,6 +249,12 @@ class AuthService {
       if (!otp) throw new Error("OTP not generated");
       await this.sendOTPviaTwilio(normalizedPhone, otp);
     } catch (error: any) {
+      if (error.code === 'ECONNABORTED') {
+        console.error("❌ Request timeout sending OTP");
+        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
+        console.error("Base URL:", base_url);
+        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load. Please try again.`);
+      }
       if (error.request && !error.response) {
         console.error("❌ Network error sending OTP");
         console.error("Base URL:", base_url);
@@ -268,7 +287,7 @@ class AuthService {
         `${base_url}/api/v2/authentication/verify_otp`,
         { phoneNo: normalizedPhone, otp: otp.trim() },
         {
-          timeout: 15000,
+          timeout: AUTH_TIMEOUT,
           headers: { "Content-Type": "application/json" },
           validateStatus: (status) => status < 500,
         }
@@ -291,6 +310,12 @@ class AuthService {
         },
       };
     } catch (error: any) {
+      if (error.code === 'ECONNABORTED') {
+        console.error("❌ Request timeout verifying OTP");
+        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
+        console.error("Base URL:", base_url);
+        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load. Please try again.`);
+      }
       if (error.request && !error.response) {
         console.error("❌ Network error verifying OTP");
         console.error("Base URL:", base_url);
