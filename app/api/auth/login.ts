@@ -7,15 +7,11 @@ const USE_REFRESH_ENDPOINT =
   process.env.NEXT_PUBLIC_ENABLE_REFRESH_ENDPOINT === "true";
 const base_url = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
 
-// Timeout configuration - longer for serverless environments (Vercel cold starts)
-// Use environment variable or default to 30 seconds for production, 15 for dev
-const AUTH_TIMEOUT = process.env.NEXT_PUBLIC_AUTH_TIMEOUT
-  ? parseInt(process.env.NEXT_PUBLIC_AUTH_TIMEOUT, 10)
-  : process.env.NODE_ENV === 'production' ? 30000 : 15000;
-
 // Validate base_url on module load (only log warning, don't throw to allow graceful degradation)
 if (typeof window !== "undefined" && !base_url) {
-  console.warn("⚠️ NEXT_PUBLIC_API_BASE_AUTH_SERVICE is not configured. Authentication may not work.");
+  console.warn(
+    "⚠️ NEXT_PUBLIC_API_BASE_AUTH_SERVICE is not configured. Authentication may not work."
+  );
 }
 
 const setCookie = (
@@ -59,23 +55,19 @@ class AuthService {
   }): Promise<LoginResponse> {
     try {
       if (!base_url) {
-        const error = new Error("Authentication service URL is not configured. Please set NEXT_PUBLIC_API_BASE_AUTH_SERVICE environment variable.");
-        console.error("❌", error.message);
+        const error = new Error(
+          "Authentication service URL is not configured. Please set NEXT_PUBLIC_API_BASE_AUTH_SERVICE environment variable."
+        );
+        console.error(error.message);
         throw error;
       }
 
       const loginUrl = `${base_url}/api/v2/authentication/userLogin`;
-      console.log("🔐 Attempting login to:", loginUrl);
-
-      const response = await axios.post(
-        loginUrl,
-        credentials,
-        {
-          timeout: AUTH_TIMEOUT,
-          headers: { "Content-Type": "application/json" },
-          validateStatus: (status) => status < 500, // Don't throw on 4xx errors
-        }
-      );
+      const response = await axios.post(loginUrl, credentials, {
+        timeout: 30000,
+        headers: { "Content-Type": "application/json" },
+        validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+      });
 
       const resp = response.data?.data || response.data;
 
@@ -94,32 +86,7 @@ class AuthService {
 
       this._currentUser = user; // cache user
       return { user, tokens };
-    } catch (error: any) {
-      // Enhanced error logging for network issues
-      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-        console.error("❌ Cannot connect to authentication service:", base_url);
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
-        throw new Error(`Cannot connect to authentication service at ${base_url}. Please check if the service is running and accessible.`);
-      }
-      if (error.code === 'ECONNABORTED') {
-        console.error("❌ Request timeout - Server took too long to respond");
-        console.error("Request URL:", error.config?.url || `${base_url}/api/v2/authentication/userLogin`);
-        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
-        console.error("Base URL:", base_url);
-        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load or cold start. Please try again.`);
-      }
-      if (error.request && !error.response) {
-        console.error("❌ Network error - No response from server");
-        console.error("Request URL:", error.config?.url || `${base_url}/api/v2/authentication/userLogin`);
-        console.error("Base URL:", base_url);
-        console.error("Error details:", {
-          code: error.code,
-          message: error.message,
-          timeout: error.code === 'ECONNABORTED'
-        });
-        throw new Error("Cannot reach authentication server. Please check your internet connection and server status.");
-      }
+    } catch (error) {
       throw handleApiError(error);
     }
   }
@@ -141,7 +108,9 @@ class AuthService {
   async getCurrentUser(): Promise<User | null> {
     try {
       if (!base_url) {
-        console.warn("⚠️ Authentication service URL not configured, cannot get current user");
+        console.warn(
+          "⚠️ Authentication service URL not configured, cannot get current user"
+        );
         return null;
       }
 
@@ -168,7 +137,7 @@ class AuthService {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          timeout: AUTH_TIMEOUT,
+          timeout: 30000,
           validateStatus: (status) => status < 500,
         }
       );
@@ -184,11 +153,8 @@ class AuthService {
 
       this._currentUser = userData as User;
       return this._currentUser;
-    } catch (error: any) {
-      if (error.request && !error.response) {
-        console.error("❌ Network error getting current user");
-        console.error("Base URL:", base_url);
-      }
+    } catch (error) {
+      handleApiError(error);
       return null;
     }
   }
@@ -236,41 +202,15 @@ class AuthService {
       }
 
       const normalizedPhone = this.normalizeTo10DigitPhone(phone);
-      const response = await axios.post(
+      await axios.post(
         `${base_url}/api/v2/authentication/userLogin`,
         { phoneNo: normalizedPhone },
         {
-          timeout: AUTH_TIMEOUT,
+          timeout: 30000,
           headers: { "Content-Type": "application/json" },
           validateStatus: (status) => status < 500,
         }
       );
-      const otp = response.data?.data?.otp;
-      if (!otp) throw new Error("OTP not generated");
-      await this.sendOTPviaTwilio(normalizedPhone, otp);
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED') {
-        console.error("❌ Request timeout sending OTP");
-        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
-        console.error("Base URL:", base_url);
-        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load. Please try again.`);
-      }
-      if (error.request && !error.response) {
-        console.error("❌ Network error sending OTP");
-        console.error("Base URL:", base_url);
-        console.error("Error details:", error.code, error.message);
-      }
-      throw handleApiError(error);
-    }
-  }
-
-  private async sendOTPviaTwilio(phone: string, otp: string) {
-    try {
-      const normalizedPhone = this.normalizeTo10DigitPhone(phone);
-      await api.post(`sms/send_otp`, {
-        to: normalizedPhone,
-        body: `Your Allneeda verification code is ${otp}.`,
-      });
     } catch (error) {
       throw handleApiError(error);
     }
@@ -287,7 +227,7 @@ class AuthService {
         `${base_url}/api/v2/authentication/verify_otp`,
         { phoneNo: normalizedPhone, otp: otp.trim() },
         {
-          timeout: AUTH_TIMEOUT,
+          timeout: 30000,
           headers: { "Content-Type": "application/json" },
           validateStatus: (status) => status < 500,
         }
@@ -309,18 +249,7 @@ class AuthService {
           refreshToken: data.refreshToken,
         },
       };
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED') {
-        console.error("❌ Request timeout verifying OTP");
-        console.error("Timeout setting:", AUTH_TIMEOUT, "ms");
-        console.error("Base URL:", base_url);
-        throw new Error(`Request timed out after ${AUTH_TIMEOUT / 1000} seconds. The server may be experiencing high load. Please try again.`);
-      }
-      if (error.request && !error.response) {
-        console.error("❌ Network error verifying OTP");
-        console.error("Base URL:", base_url);
-        console.error("Error details:", error.code, error.message);
-      }
+    } catch (error) {
       throw handleApiError(error);
     }
   }

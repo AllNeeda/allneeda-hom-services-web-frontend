@@ -5,14 +5,9 @@ import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
 
-// Timeout configuration - longer for serverless environments (Vercel cold starts)
-const AUTH_TIMEOUT = process.env.NEXT_PUBLIC_AUTH_TIMEOUT
-  ? parseInt(process.env.NEXT_PUBLIC_AUTH_TIMEOUT, 10)
-  : process.env.NODE_ENV === 'production' ? 30000 : 15000;
-
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: AUTH_TIMEOUT, // 30s for production (Vercel cold starts), 15s for dev
+  timeout: 30000, // 30s for production (Vercel cold starts), 15s for dev
   headers: { "Content-Type": "application/json" },
 });
 const setCookie = (name: string, value: string, maxAgeSeconds: number) => {
@@ -48,26 +43,8 @@ export class AuthService {
 
   async sendOTP(phone: string): Promise<void> {
     try {
-      const response = await axiosInstance.post(
-        "/api/v2/authentication/userLogin",
-        {
-          phoneNo: this._normalizePhone(phone),
-        }
-      );
-      const otp = response.data?.data?.otp;
-      if (!otp) throw new Error("OTP not generated");
-      await this.sendOTPviaTwilio(this._normalizePhone(phone), otp);
-    } catch (error) {
-      throw handleApiError(error);
-    }
-  }
-
-  private async sendOTPviaTwilio(phone: string, otp: string) {
-    try {
-      const normalizedPhone = this._normalizePhone(phone);
-      await api.post(`sms/send_otp`, {
-        to: normalizedPhone,
-        body: `Your Allneeda verification code is ${otp}.`,
+      await axiosInstance.post("/api/v2/authentication/userLogin", {
+        phoneNo: this._normalizePhone(phone),
       });
     } catch (error) {
       throw handleApiError(error);
