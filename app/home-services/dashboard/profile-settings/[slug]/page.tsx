@@ -34,7 +34,7 @@ const EditProfilePage = () => {
   );
 
   return (
-    <div className="rounded bg-white dark:bg-gray-800 p-4 my-4">
+    <div className="rounded bg-white dark:bg-gray-900 py-4 my-4">
       {ComponentToRender}
     </div>
   );

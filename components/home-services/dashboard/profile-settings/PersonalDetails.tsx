@@ -1,7 +1,6 @@
 "use client";
 import { getAccessToken } from "@/app/api/axios";
 import { useAuth } from "@/components/providers/context/auth-context";
-import { Button } from "@/components/ui/button";
 import GlobalLoader from "@/components/ui/global-loader";
 import { useProfessionalReview } from "@/hooks/RegisterPro/useRegister";
 import {
@@ -52,10 +51,7 @@ type ProfessionalShape = {
 };
 
 type ProfessionalReviewResponse = {
-  professional?: {
-    professional?: ProfessionalShape;
-    locations?: Location[];
-  } | ProfessionalShape;
+  professional?: { professional?: ProfessionalShape; locations?: Location[] } | ProfessionalShape;
 };
 
 const PersonalDetails = () => {
@@ -80,14 +76,20 @@ const PersonalDetails = () => {
   }
   const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
   const typedData = (data ?? {}) as ProfessionalReviewResponse;
-  const pro: ProfessionalShape =
-    (typedData.professional && (typedData.professional as any).professional) ||
-    (typedData.professional as ProfessionalShape) ||
-    (data as unknown as ProfessionalShape) ||
-    {};
-  const locations: Location[] =
-    (typedData.professional && (typedData.professional as any).locations) ||
-    [];
+  let pro: ProfessionalShape = {};
+  let locations: Location[] = [];
+
+  if (typedData.professional) {
+    const wrapper = typedData.professional as { professional?: ProfessionalShape; locations?: Location[] } | ProfessionalShape;
+    if (typeof (wrapper as any).professional !== "undefined") {
+      pro = (wrapper as { professional?: ProfessionalShape }).professional || {};
+      locations = (wrapper as { locations?: Location[] }).locations || [];
+    } else {
+      pro = wrapper as ProfessionalShape;
+    }
+  } else if (data) {
+    pro = data as unknown as ProfessionalShape;
+  }
   const primaryLocation: Location = locations[0] ?? {};
 
   const fullAddress = [
@@ -146,7 +148,7 @@ const PersonalDetails = () => {
             <div className="inline-flex items-center gap-2 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 rounded px-3 py-1.5 border border-[#0077B6]/20 dark:border-[#0077B6]/30 mb-2">
               <div className="w-1.5 h-1.5 bg-[#0077B6] dark:bg-[#0077B6] rounded-full animate-pulse" />
               <span className="text-sm font-medium text-[#0077B6] dark:text-[#0077B6]/90">
-                Profile Overview
+                Profile Overview 
               </span>
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -157,13 +159,13 @@ const PersonalDetails = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="h-9 px-4 text-sm bg-[#0077B6] hover:bg-[#0066A3] text-white"
+            <Link
+              href="/home-services/dashboard/profile-settings/edit-basic-info"
+              className="inline-flex items-center h-9 px-4 text-sm bg-[#0077B6] hover:bg-[#0066A3] text-white rounded"
             >
               <Pencil className="w-3.5 h-3.5 mr-1.5" />
               Edit Profile
-            </Button>
+            </Link>
           </div>
         </div>
 

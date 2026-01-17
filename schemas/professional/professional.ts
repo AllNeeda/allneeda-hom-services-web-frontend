@@ -38,3 +38,30 @@ export const ProfessionalStepOne = z.object({
 });
 
 export type ProfessionalStepOneSchemaType = z.infer<typeof ProfessionalStepOne>;
+
+// Additional schema used by profile edit
+export const BusinessHoursSchema = z.array(
+  z.object({
+    day: z.number(),
+    status: z.enum(["open", "closed"]),
+    start_time: z.string(),
+    end_time: z.string(),
+  })
+);
+
+export const EditProfessionalSchema = z.object({
+  business_name: z.string().min(1, "Business name is required"),
+  introduction: z.string().min(1, "Introduction is required"),
+  founded_year: z.string().min(1, "Year founded is required"),
+  employees: z.string().min(1, "Number of employees is required"),
+  website: z.string().optional(),
+  address_line: z.string().min(1, "Address is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  country: z.string().optional(),
+  zipcode: z.string().min(1, "Zipcode is required"),
+  business_type: z.enum(["company", "individual", "sub-contractor"]),
+  business_hours: BusinessHoursSchema,
+});
+
+export type EditProfessionalFormType = z.infer<typeof EditProfessionalSchema>;
