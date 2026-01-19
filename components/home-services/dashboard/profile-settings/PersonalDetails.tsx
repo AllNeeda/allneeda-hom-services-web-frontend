@@ -39,6 +39,7 @@ type BusinessHour = {
 
 type ProfessionalShape = {
   business_name?: string;
+  business_type?: string;
   introduction?: string;
   phone?: string;
   founded_year?: string | number;
@@ -148,7 +149,7 @@ const PersonalDetails = () => {
             <div className="inline-flex items-center gap-2 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 rounded px-3 py-1.5 border border-[#0077B6]/20 dark:border-[#0077B6]/30 mb-2">
               <div className="w-1.5 h-1.5 bg-[#0077B6] dark:bg-[#0077B6] rounded-full animate-pulse" />
               <span className="text-sm font-medium text-[#0077B6] dark:text-[#0077B6]/90">
-                Profile Overview 
+                Profile Overview
               </span>
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -192,7 +193,7 @@ const PersonalDetails = () => {
                   {pro.business_name || "Your Business Name"}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Professional Service Provider
+                  {pro.business_type?.replace(/^./, c => c.toUpperCase()) || "Your Business Name"}
                 </p>
               </div>
 
