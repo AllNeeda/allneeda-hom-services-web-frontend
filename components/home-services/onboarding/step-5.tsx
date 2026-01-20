@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaRegStar, FaStar } from 'react-icons/fa';
 import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ProgressBar } from "@/components/home-services/onboarding/ProgressBar";
@@ -13,6 +12,7 @@ import { useProfessionalReview } from '@/hooks/RegisterPro/useRegister';
 import { useSendReview } from '@/hooks/useSendReview';
 import GlobalLoader from '@/components/ui/global-loader';
 import { safeProfessionalRedirect } from '@/lib/redirectProfessional';
+import toast from 'react-hot-toast';
 
 const ONBOARDING_STEPS = [
   { id: 1, name: 'Profile' },
@@ -52,11 +52,11 @@ export default function ReviewRequest() {
 
   const professional = data?.professional?.professional || {};
   const businessName = professional.business_name || 'Your Business';
-  const userId = professional._id || '';
+  const professional_id = professional._id || '';
   const imageUrl = professional.profile_image || '';
   const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
   const username = professional.business_name || 'Your Business';
-  const reviewLink = userId ? `${window.location.origin}/home-services/customerReview/${userId}` : '';
+  const reviewLink = professional_id ? `${window.location.origin}/home-services/reviews/${professional_id}` : '';
   const handleEmailChange = (index: number, value: string) => {
     const updated = [...emails];
     updated[index] = value;
@@ -67,14 +67,14 @@ export default function ReviewRequest() {
 
   const handleSendEmail = async (email: string, index: number) => {
     if (!email || !email.includes('@')) {
-      toast.message('Please enter a valid email address.');
+      toast.error('Please enter a valid email address.');
       return;
     }
 
     setSendingIndex(index);
 
     try {
-      const reviewRequestLink = `${window.location.origin}/ask-reviews/services/${userId}/reviews`;
+      const reviewRequestLink = `${window.location.origin}/home-services/reviews/${professional_id}`;
 
       await sendReviewMutation.mutateAsync({
         recipientEmail: email,
@@ -144,7 +144,7 @@ export default function ReviewRequest() {
                 + Add another email address
               </button>
 
-              {userId && (
+              {professional_id && (
                 <div className="mt-6 flex flex-col items-center w-full">
 
                   <div className="flex flex-col sm:flex-row w-full max-w-md gap-2">

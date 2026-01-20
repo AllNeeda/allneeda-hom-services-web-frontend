@@ -13,9 +13,6 @@ export function useSendReview(token?: string) {
     }) => {
       return SendReviewAPI(data, token);
     },
-    onSuccess: () => {
-      toast.success("Review request sent successfully");
-    },
     onError: (error: any) => {
       toast.error(error?.message || "Failed to send review request.");
     },
