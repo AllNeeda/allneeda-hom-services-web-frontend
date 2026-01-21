@@ -157,7 +157,7 @@ export default function PaymentSuccessPage() {
             {/* Action buttons */}
             <div className="mt-8 flex flex-col sm:flex-row gap-3">
               <Link
-                href="/home-services/dashboard/lead"
+                href="/home-services/dashboard/leads"
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group"
               >
                 <Home className="w-5 h-5" />
