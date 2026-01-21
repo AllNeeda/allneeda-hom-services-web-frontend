@@ -1,163 +1,242 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
-import CheckoutFormContent from "./CheckoutFormContent";
-import { createPaymentIntent } from "@/app/api/services/payment.api";
+import React, { useMemo, useState } from "react";
+import { useGetCreditPackage } from "@/hooks/useCredits";
+import { createCheckoutSession } from "@/app/api/services/checkout.api";
+import { getAccessToken } from "@/app/api/axios";
+import { CreditPackage } from "@/types/credit.types";
 
-// Make sure to call `loadStripe` outside of a component's render to avoid
-// recreating the `Stripe` object on every render.
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-// Dummy subscription plans JSON
-const DUMMY_SUBSCRIPTION_PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    credits: 100,
-    price: 80,
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    credits: 200,
-    price: 150,
-  },
-  {
-    id: "gold",
-    name: "Gold",
-    credits: 800,
-    price: 550,
-  },
-  {
-    id: "platinum",
-    name: "Platinum",
-    credits: 2000,
-    price: 1200,
-  },
-];
-
-// Dummy current user (in real app, fetch from your auth context)
-const DUMMY_CURRENT_USER = {
-  name: "John Doe",
-  email: "john.doe@example.com",
-  phone: "+1 (555) 123-4567",
-};
+type BillingTab = "monthly" | "annual" | "one_time";
 
 export default function CheckoutForm() {
-  const [clientSecret, setClientSecret] = useState("");
-  const [amount, setAmount] = useState(150);
-  const [selectedPlan, setSelectedPlan] = useState("premium");
+  const token = getAccessToken() || "";
+
+  const { data, isLoading, isError } = useGetCreditPackage(token);
+  const packages: CreditPackage[] = data?.data?.data || [];
+
+  const [activeTab, setActiveTab] = useState<BillingTab>("monthly");
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Create payment intent when amount changes
-  useEffect(() => {
-    const createPaymentIntentAsync = async () => {
-      if (amount <= 0) return;
-      
+  /* ---------------- Helpers ---------------- */
+
+  const monthlyPackages = useMemo(
+    () => packages.filter(p => p.billingType === "monthly"),
+    [packages]
+  );
+
+  const annualPackages = useMemo(
+    () => packages.filter(p => p.billingType === "yearly"),
+    [packages]
+  );
+
+  const oneTimePackages = useMemo(
+    () => packages.filter(p => p.billingType === "one_time"),
+    [packages]
+  );
+
+  const currentPackages = useMemo(() => {
+    if (activeTab === "monthly") return monthlyPackages;
+    if (activeTab === "annual") return annualPackages;
+    return oneTimePackages;
+  }, [activeTab, monthlyPackages, annualPackages, oneTimePackages]);
+
+  const selectedPkg = packages.find(p => p._id === selectedPackage);
+
+  const formatPrice = (amount: number, currency = "USD") =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  // const calculateDiscountPercentage = (price: number, discount: number) =>
+  //   Math.round(((price - discount) / price) * 100);
+
+  /* ---------------- Actions ---------------- */
+
+  const handleSelectPackage = (id: string) => {
+    setSelectedPackage(id);
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedPackage) return;
+
+    try {
       setLoading(true);
-      setError(null);
-      try {
-        const data = await createPaymentIntent(amount);
-        setClientSecret(data.clientSecret);
-      } catch (err: any) {
-        console.error("Error creating payment intent:", err);
-        setError(err.message || "Failed to create payment intent");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    createPaymentIntentAsync();
-  }, [amount]);
-
-  const appearance = {
-    theme: 'stripe' as const,
-    variables: {
-      colorPrimary: '#10b981',
-      colorBackground: '#ffffff',
-      colorText: '#1f2937',
-      colorDanger: '#ef4444',
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-      spacingUnit: '4px',
-      borderRadius: '8px',
-    },
-  };
-
-  const options = {
-    clientSecret,
-    appearance,
-  };
-
-  const handlePlanChange = (planId: string) => {
-    const plan = DUMMY_SUBSCRIPTION_PLANS.find(p => p.id === planId);
-    if (plan) {
-      setSelectedPlan(planId);
-      setAmount(plan.price);
+      const res = await createCheckoutSession(selectedPackage, token);
+      if (res?.url) window.location.href = res.url;
+    } catch (err) {
+      console.error("Checkout error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading && !clientSecret) {
+  /* ---------------- States ---------------- */
+
+  if (isLoading) {
+    return <p className="text-center py-20">Loading credit packages…</p>;
+  }
+
+  if (isError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Setting up payment...</p>
-        </div>
-      </div>
+      <p className="text-center text-red-500 py-20">
+        Failed to load packages
+      </p>
     );
   }
 
-  if (error && !clientSecret) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Payment Setup Failed</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={() => {
-              setError(null);
-              const plan = DUMMY_SUBSCRIPTION_PLANS.find(p => p.id === selectedPlan);
-              if (plan) {
-                setAmount(plan.price);
-              }
-            }}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  /* ---------------- UI ---------------- */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="max-w-7xl mx-auto">
-        {clientSecret ? (
-          <Elements stripe={stripePromise} options={options}>
-            <CheckoutFormContent
-              clientSecret={clientSecret}
-              amount={amount}
-              selectedPlan={selectedPlan}
-              onPlanChange={handlePlanChange}
-              subscriptionPlans={DUMMY_SUBSCRIPTION_PLANS}
-              currentUser={DUMMY_CURRENT_USER}
-              loading={loading}
-            />
-          </Elements>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
+      <div className="max-w-6xl mx-auto">
+
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h2 className="text-2xl font-bold text-[#0077B6] dark:text-white mb-3">
+            Choose Your Plan
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm max-w-2xl mx-auto">
+            Select the perfect plan for your needs. All plans include our core features.
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex bg-gray-100 dark:bg-gray-800 p-1 rounded-sm">
+            {(["monthly", "annual", "one_time"] as BillingTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-5 py-2 text-sm rounded-sm transition-all
+                  ${activeTab === tab
+                    ? "bg-white dark:bg-[#026ba3] text-[#0077B6] dark:text-white shadow"
+                    : "text-gray-500 dark:text-gray-300 hover:text-[#0077B6]"
+                  }`}
+              >
+                {tab === "monthly" && "Monthly"}
+                {tab === "annual" && "Annual"}
+                {tab === "one_time" && "One-Time"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Plans */}
+        {currentPackages.length === 0 ? (
+          <p className="text-center text-gray-500 py-20">
+            No plans available for this billing cycle.
+          </p>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400">Loading payment form...</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {currentPackages.map((pkg) => {
+              
+              const isSelected = selectedPackage === pkg._id;
+              const hasDiscount =
+                pkg.discountPrice && pkg.discountPrice < pkg.price;
+
+              return (
+                <div
+                  key={pkg._id}
+                  onMouseEnter={() => setHoveredCard(pkg._id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  className={`border rounded-sm transition-all
+                    ${isSelected
+                      ? "border-[#0077B6] ring-2 ring-[#0077B6]/20 shadow-md"
+                      : "border-gray-200 dark:border-gray-700"
+                    }
+                    ${hoveredCard === pkg._id && !isSelected ? "-translate-y-1 shadow-lg" : ""}
+                  `}
+                >
+                  <div className="p-6 bg-white dark:bg-gray-800">
+
+                    <h3 className="text-center font-bold text-[#0077B6] text-lg mb-3">
+                      {pkg.name}
+                    </h3>
+
+                    <div className="text-center mb-4">
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {pkg.credits} Credits
+                      </span>
+                    </div>
+
+                    <div className="text-center mb-5">
+                      {hasDiscount ? (
+                        <>
+                          <div className="text-gray-400 line-through text-sm">
+                            {formatPrice(pkg.price, pkg.currency)}
+                          </div>
+                          <div className="text-3xl font-bold text-[#0077B6]">
+                            {formatPrice(pkg.discountPrice!, pkg.currency)}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-3xl font-bold text-[#0077B6]">
+                          {formatPrice(pkg.price, pkg.currency)}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => handleSelectPackage(pkg._id)}
+                      className={`w-full py-3 rounded-sm font-semibold transition-all
+                        ${isSelected
+                          ? "bg-[#0077B6] text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-[#0077B6] hover:bg-gray-200"
+                        }`}
+                    >
+                      {isSelected ? "Selected" : "Select Plan"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
+
+        {/* Order Summary */}
+        {selectedPkg && (
+          <div className="mt-12 max-w-3xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-sm border">
+            <h3 className="text-center font-bold text-[#0077B6] mb-6">
+              Order Summary
+            </h3>
+
+            <div className="flex justify-between mb-3 text-sm">
+              <span>Plan</span>
+              <span className="font-semibold">{selectedPkg.name}</span>
+            </div>
+
+            <div className="flex justify-between mb-3 text-sm">
+              <span>Credits</span>
+              <span className="font-semibold">{selectedPkg.credits}</span>
+            </div>
+
+            <div className="flex justify-between text-lg font-bold border-t pt-4">
+              <span>Total</span>
+              <span className="text-[#0077B6]">
+                {formatPrice(
+                  selectedPkg.discountPrice || selectedPkg.price,
+                  selectedPkg.currency
+                )}
+              </span>
+            </div>
+
+            <button
+              onClick={handleCheckout}
+              disabled={loading}
+              className="w-full mt-6 py-4 bg-gradient-to-r from-[#0077B6] to-[#00A8E8]
+                text-white rounded-sm font-semibold
+                hover:from-[#006699] hover:to-[#0077B6]
+                disabled:opacity-50"
+            >
+              {loading ? "Redirecting to Stripe…" : "Continue to Payment"}
+            </button>
+          </div>
+        )}
+
       </div>
     </div>
   );

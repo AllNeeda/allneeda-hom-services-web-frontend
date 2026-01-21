@@ -3,15 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
 
 async function getCoordinatesFromZipcode(zipcode: string, apiKey?: string) {
+
   try {
     if (!apiKey) {
-      console.error("Geocoding error: missing Google API key");
       return null;
     }
-
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${zipcode}&key=${apiKey}`;
     const response = await fetch(geocodeUrl);
     const data = await response.json();
+    console.log("Google professional called: ", zipcode)
     
     if (data.status === "OK" && data.results[0]?.geometry?.location) {
       return {

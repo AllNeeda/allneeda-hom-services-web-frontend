@@ -14,9 +14,14 @@ import {
   AlertCircle,
   CreditCard,
   Settings,
+  CircleDollarSign,
+  TriangleAlert,
+  ChevronRight,
 } from "lucide-react";
 // import ContactCustomer from "./ContactCustomer";
 import Link from "next/link";
+import { getAccessToken } from "@/app/api/axios";
+import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 
 interface LeadDetailsProps {
   leadDetails: {
@@ -52,7 +57,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
 
   const toggleExpanded = () => setExpanded(!expanded);
   const toggleCredits = () => setCreditsVisible(!creditsVisible);
-  console.log("The Lead Details: ", leadDetails);
+
   // Safe data access with fallbacks
   const title = leadDetails?.title || "No Title";
   const user = leadDetails?.user || {};
@@ -60,7 +65,12 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
   const createdAt = leadDetails?.createdAt || "";
   const answers = leadDetails?.answers || [];
   const professionalLeads = leadDetails?.professionalLeads || [];
-  console.log("the user: ", leadDetails.user);
+
+  // get professional details
+  const token = getAccessToken() || "";
+    const { data: professionalData } = useProfesssionalProgress(token);
+    const leadPrice = 80;
+
   // Format the date
   const formatDate = (dateString: string) => {
     if (!dateString) return "Recently";
@@ -133,6 +143,17 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
                 <div className="inline-flex items-center bg-[#0077B6]/5 border border-[#0077B6]/10 text-[#0077B6] text-sm font-normal text-[12px] px-6 py-1 rounded-sm">
                   {title}
                 </div>
+              </div>
+            </div>
+          </div>
+          <div className=" dark:border-green-400 border border-green-500 bg-green-500/10 dark:bg-green-500/30 p-2">
+            <div className="flex flex-row gap-4 items-center justify-start">
+              <span className="bg-green-600 dark:bg-green-600 p-1.5 rounded-full">
+                <CircleDollarSign className="w-4 h-4 font-bold text-white"/>
+              </span>
+              <div className="">
+                <p className="uppercase text-xs font-semibold">your credit balance</p>
+                <h1 className="text-lg font-bold">$ {professionalData.credit_balance}</h1>
               </div>
             </div>
           </div>
@@ -226,7 +247,9 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
             />
           )}
         </span> */}
-        <Link href={'/home-services/payment'}
+        {professionalData?.credit_balance > leadPrice ? (
+          <>
+          <Link href={'/home-services/payment'}
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 cursor-pointer hover:to-emerald-700 text-white font-medium py-3 px-4 rounded transition-all duration-200 shadow-sm hover:shadow-red-200/50 flex items-center justify-center text-sm"
 
         >
@@ -241,6 +264,37 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
             <NotInterested onClose={() => setIsModalOpen(false)} />
           )}
         </span>
+          </>
+        ):(
+          <div className="border border-amber-200 w-full rounded shadow-lg">
+            <div className="flex flex-row gap-6 border-b border-amber-200 items-center rounded-t bg-amber-100 dark:bg-amber-200 justify-start px-4 py-2">
+              <span className="p-2 bg-amber-500 text-white rounded-full">
+              <TriangleAlert className=" w-5 h-5"/>
+              </span>
+              <p className="uppercase text-amber-900 font-bold">credit required</p>
+            </div>
+            <div className="my-4 space-y-2 px-4">
+              <p className="text-gray-700 dark:text-gray-300">Required Credit to accept lead:</p>
+              <div className="flex flex-row items-baseline">
+                <h1 className="text-2xl font-bold text-amber-500">
+                  ${Math.abs((professionalData?.credit_balance ?? 0) - (leadPrice ?? 0))}
+                </h1>
+                <p className="text-sm">Credit more</p>
+              </div>
+              <p className="text-gray-700 dark:text-gray-300">Please buy some credit to continue accepting leads.</p>
+              <Link href={'/home-services/payment'}
+                  className="w-2/5 mt-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3.5 px-6 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:shadow-emerald-200/50 flex items-center justify-center gap-2 text-sm group"
+
+        >
+          <CreditCard className="w-4 h-4"/>
+          Buy Credit
+          <ChevronRight className="w-4 h-4"/>
+        </Link>
+            </div>
+            
+          </div>
+        )}
+        
       </div>
 
       {/* PurchaseCredits Modal */}

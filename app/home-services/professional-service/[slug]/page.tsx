@@ -1,13 +1,25 @@
 "use client";
-import { use, useEffect, useState } from "react";
+
+import { use, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import ProfessionalList from "@/components/home-services/homepage/professional/ProfessionalList";
-import Breadcrumbs from "@/components/home-services/homepage/Breadcrumbs";
 import { useSearchParams } from "next/navigation";
-import { useTopProfessionals } from "@/hooks/useHomeServices";
+
+import Breadcrumbs from "@/components/home-services/homepage/Breadcrumbs";
+import ProfessionalList from "@/components/home-services/homepage/professional/ProfessionalList";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
 
-// Define interfaces for your API data
+import { useTopProfessionals } from "@/hooks/useHomeServices";
+
+import {
+  Professional,
+  GoogleProfessional,
+} from "@/types/professional";
+import GlobalLoader from "@/components/ui/global-loader";
+
+/* -------------------------------------------------------------------------- */
+/*                                   Types                                    */
+/* -------------------------------------------------------------------------- */
+
 interface ApiProfessional {
   _id: string;
   service_name: string;
@@ -28,51 +40,40 @@ interface ApiProfessional {
   };
 }
 
-interface GoogleProfessional {
-  place_id: string;
-  name: string;
-  formatted_address: string;
-  formatted_phone_number: string;
-  rating: number | string;
-  user_ratings_total: number;
-  business_status: string;
-  opening_hours?: {
-    open_now: boolean;
-  };
-  photos?: any[];
-  geometry?: any;
-  types: string[];
-  website?: string;
-  url?: string;
-  reviews?: any[];
-  price_level?: number;
-  icon?: string;
-  icon_background_color?: string;
-  icon_mask_base_uri?: string;
-}
+/* -------------------------------------------------------------------------- */
+/*                         Data Transformation Helper                          */
+/* -------------------------------------------------------------------------- */
 
-// Transform function for API data
-const transformProfessionalData = (apiData: ApiProfessional[]) => {
-  return apiData.map((item, index) => ({
+const transformProfessionalData = (
+  data: ApiProfessional[]
+): Professional[] =>
+  data.map((item, index) => ({
     id: item._id || `professional-${index}`,
     company: item.professional.business_name,
     type:
-      item.professional.business_type === "company" ? "Company" : "Handyman",
+      item.professional.business_type === "company"
+        ? "Company"
+        : "Handyman",
     service: item.service_name,
     rating: item.professional.rating_avg || 0,
     services: [item.service_name],
+
+    /* ✅ REQUIRED BY Professional TYPE */
     zipCodes: [],
-    distance: 0,
-    guarantee: true,
-    employee_count: item.professional.business_type === "company" ? 10 : 1,
-    total_hires: item.professional.total_hire,
     founded: 2020,
     background_check: true,
+
+    distance: 0,
+    guarantee: true,
+    employee_count:
+      item.professional.business_type === "company" ? 10 : 1,
+    total_hires: item.professional.total_hire,
     status: "Available",
     description: item.description || item.professional.introduction,
     imageUrl:
       item.professional.profile_image ||
       "/assets/home-service/default-service.jpg",
+
     apiData: {
       maximum_price: item.maximum_price,
       minimum_price: item.minimum_price,
@@ -81,149 +82,110 @@ const transformProfessionalData = (apiData: ApiProfessional[]) => {
       professional_id: item.professional._id,
     },
   }));
-};
- /* eslint-disable no-unused-vars */
-function ProfessionalTypeFilter({
-  selectedType,
-  onTypeChange,
-}: {
-  selectedType: string;
- 
-  onTypeChange: (type: string) => void;
-  /* eslint-enable no-unused-vars */
-}) {
-  return (
-    <div className="flex flex-wrap gap-2 mb-4">
-      <button
-        className={`px-4 py-1 rounded-full text-xs font-medium transition-colors ${
-          selectedType === "All"
-            ? "bg-sky-600 text-white"
-            : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
-        }`}
-        onClick={() => onTypeChange("All")}
-      >
-        All Professionals
-      </button>
-      <button
-        className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
-          selectedType === "company"
-            ? "bg-sky-600 text-white"
-            : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
-        }`}
-        onClick={() => onTypeChange("company")}
-      >
-        Companies
-      </button>
-      <button
-        className={`px-4 py-1 rounded-full text-sm font-medium transition-colors ${
-          selectedType === "individual"
-            ? "bg-sky-600 text-white"
-            : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
-        }`}
-        onClick={() => onTypeChange("individual")}
-      >
-        Individuals
-      </button>
-    </div>
-  );
-}
 
-/* eslint-disable no-unused-vars */
+/* -------------------------------------------------------------------------- */
+/*                                Page Component                               */
+/* -------------------------------------------------------------------------- */
+
 export default function ProfessionalPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  /* -------------------------------- Params -------------------------------- */
   const { slug } = use(params);
   const searchParams = useSearchParams();
-  const service_id = searchParams.get("id");
-  const zipcode = searchParams.get("zipcode");
 
-  const [selectedType, setSelectedType] = useState<string>("All");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const serviceId =
+    searchParams.get("id") ?? "68e7ce11b0735d6e372e4380";
+  const zip =
+    searchParams.get("zipcode") ?? "95814";
+
+  const serviceName = useMemo(
+    () =>
+      slug
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+    [slug]
+  );
+
+  /* -------------------------------- State --------------------------------- */
+  /* eslint-disable no-unused-vars */
+  const [selectedType, setSelectedType] = useState("All");
+  /* eslint-enable no-unused-vars */
   const [googleProfessionals, setGoogleProfessionals] = useState<
     GoogleProfessional[]
   >([]);
-  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const formatted = slug
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-  const service = service_id || "68e7ce11b0735d6e372e4380";
-  const zip = zipcode || "95814";
-
+  /* ----------------------------- Platform API ------------------------------ */
   const {
     data: topProfessionals,
     isLoading,
     isError,
-  } = useTopProfessionals(service, zip);
+  } = useTopProfessionals(serviceId, zip);
 
-  const searchProfessionals = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/google?serviceName=${formatted}&zipcode=${zip}`
-      );
-      const json = await res.json();
-      setGoogleProfessionals(json.data ?? []);
-    } catch (err) {
-      console.error("Error fetching professionals:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  /* eslint-enable no-unused-vars */
-
-  const platformProfessionals = topProfessionals?.data
-    ? transformProfessionalData(topProfessionals.data)
-    : [];
-
-  // Filter platform professionals based on selected type
-  const filteredProfessionals = platformProfessionals.filter((professional) => {
-    if (selectedType === "All") return true;
-    if (selectedType === "company") return professional.type === "Company";
-    if (selectedType === "individual") return professional.type === "Handyman";
-    return true;
-  });
-
-  // Filter Google professionals based on selected type (if needed)
-  const filteredGoogleProfessionals = googleProfessionals.filter((pro) => {
-    if (selectedType === "All") return true;
-    if (selectedType === "company") {
-      return pro.types?.includes("general_contractor") || false;
-    }
-    if (selectedType === "individual") {
-      return (
-        pro.types?.some(
-          (type) =>
-            type.includes("plumber") ||
-            type.includes("electrician") ||
-            type.includes("Handyman")
-        ) || false
-      );
-    }
-    return true;
-  });
-
+  /* ------------------------------ Google API ------------------------------- */
   useEffect(() => {
-    searchProfessionals();
-  }, []); // Consider adding dependencies if needed
+    const fetchGoogleProfessionals = async () => {
+      setGoogleLoading(true);
+      try {
+        const res = await fetch(
+          `/api/google?serviceName=${serviceName}&zipcode=${zip}`
+        );
+        
+          const json = await res.json();
+          const normalized: GoogleProfessional[] = (json?.data ?? []).map(
+          (item: GoogleProfessional) => ({
+            ...item,
+            formatted_phone_number:
+              item.formatted_phone_number ?? "Not available",
+          })
+        );
 
-  const displayService = slug
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+        setGoogleProfessionals(normalized);
+      } catch (error) {
+        console.error("Google search failed:", error);
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
 
+    fetchGoogleProfessionals();
+  }, [serviceName, zip]);
+
+  /* ------------------------- Transform Platform Data ------------------------ */
+  const platformProfessionals = useMemo<Professional[]>(() => {
+    console.log("top google professional: ", topProfessionals)
+    if (!topProfessionals?.data) return [];
+    return transformProfessionalData(topProfessionals.data);
+  }, [topProfessionals]);
+
+  /* ------------------------------- Filtering -------------------------------- */
+  const filteredPlatformProfessionals = useMemo(() => {
+    if (selectedType === "All") return platformProfessionals;
+
+    return platformProfessionals.filter((pro) =>
+      selectedType === "company"
+        ? pro.type === "Company"
+        : pro.type === "Handyman"
+    );
+  }, [platformProfessionals, selectedType]);
+
+  const filteredGoogleProfessionals = useMemo(() => {
+    if (selectedType === "All") return googleProfessionals;
+
+    return googleProfessionals.filter((pro) =>
+      selectedType === "company"
+        ? pro.types?.includes("general_contractor")
+        : true
+    );
+  }, [googleProfessionals, selectedType]);
+
+  /* ------------------------------- UI States -------------------------------- */
   if (isLoading && platformProfessionals.length === 0) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
-            Loading professionals...
-          </p>
-        </div>
-      </div>
+      <GlobalLoader/>
     );
   }
 
@@ -235,49 +197,37 @@ export default function ProfessionalPage({
     return (
       <ErrorDisplay
         errorType="loading"
-        fullScreen={true}
+        fullScreen
         onRetry={() => window.location.reload()}
       />
     );
   }
 
-  const userLocationRaw = localStorage.getItem("user_location");
-  /* eslint-disable no-unused-vars */
-  let userLocation: any = null;
-   
-  try {
-    userLocation = userLocationRaw ? JSON.parse(userLocationRaw) : null;
-  } catch (e) {
-    console.error("Failed to parse user_location from localStorage:", e);
-    userLocation = null;
-  }
-  /* eslint-enable no-unused-vars */
-
+  /* -------------------------------- Render -------------------------------- */
   return (
-    <div className="relative bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300 dark:text-gray-100 text-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 py-10">
         <Breadcrumbs
           paths={[
             { name: "Home", href: "/" },
             { name: "Home Services", href: "/home-services" },
-            { name: displayService },
+            { name: serviceName },
           ]}
         />
 
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
           className="py-4"
-        ></motion.div>
-        <div>
-            <ProfessionalList
-              professionals={filteredProfessionals}
-              googleProfessionals={filteredGoogleProfessionals}
-              serviceId={service}
-              loading={loading || isLoading}
-            />
-        </div>
+        />
+
+        <ProfessionalList
+          professionals={filteredPlatformProfessionals}
+          googleProfessionals={filteredGoogleProfessionals}
+          serviceId={serviceId}
+          loading={googleLoading || isLoading}
+        />
       </div>
     </div>
   );
