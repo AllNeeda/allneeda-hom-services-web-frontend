@@ -188,7 +188,7 @@ class AuthService {
   private async sendOTPviaTwilio(phone: string, otp: string) {
     try {
       const normalizedPhone = this.normalizeTo10DigitPhone(phone);
-      await api.post(`sms/send_otp`, {
+      await api.post(`sms/send`, {
         to: normalizedPhone,
         body: `Your Allneeda verification code is ${otp}.`,
       });

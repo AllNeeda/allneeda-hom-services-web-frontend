@@ -80,6 +80,7 @@ export const useTopProfessionals = (service:string, zipcode:string) => {
   return useQuery({
     queryKey: ['topProfessionals', service, zipcode],
     queryFn:() => getTopProfessionals(service, zipcode),
+    
     enabled: !!service && !!zipcode,
     staleTime: 5*60*1000,
   });

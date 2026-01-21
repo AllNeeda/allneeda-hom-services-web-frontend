@@ -15,6 +15,7 @@ import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 import { useProfessionalLead } from "@/hooks/useHomeServices";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
 import { useAuth } from "@/components/providers/context/auth-context";
+import GlobalLoader from "@/components/ui/global-loader";
 
 const ACCENT = "#0066B7";
 
@@ -187,6 +188,7 @@ export default function CustomerRequests() {
 
   const token = getAccessToken() || "";
   const { data: professionalData } = useProfesssionalProgress(token);
+  
 
   // Store ID locally after fetching once
   const proId = useMemo(() => {
@@ -239,16 +241,7 @@ export default function CustomerRequests() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="w-full max-w-6xl mx-auto sm:p-4 md:p-6 transition-colors duration-300 dark:bg-gray-900 min-h-screen">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0066B7] mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading professional leads...
-            </p>
-          </div>
-        </div>
-      </div>
+      <GlobalLoader/>
     );
   }
 

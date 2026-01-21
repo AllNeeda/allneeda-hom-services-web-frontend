@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-
 /* ================= CONFIG ================= */
 
 const AUTH_COOKIE = "auth-token";
@@ -23,13 +22,19 @@ const ROLE_CONFIG: Record<string, { routes: string[]; dashboard: string }> = {
 
 const ROLE_ID_MAP: Record<number, string> = {
   10: "professional",
+  8: "admin",
+  7: "customer",
 };
 
 const PUBLIC_ROUTES = ["/home-services", "/auth"];
+// Add public API routes here
+const PUBLIC_API_ROUTES = ["/api/google"]; // Add other public API routes as needed
+
 function isPublicRoute(path: string) {
   if (path === "/auth" || path.startsWith("/auth/")) return true;
-  if (path === "/home-services" || path.startsWith("/home-services/")) {
-    if (path.startsWith("/home-services/customer") || path.startsWith("/home-services/dashboard")) {
+  if (path.startsWith("/home-services/")) {
+    if (path.startsWith("/home-services/customer") || 
+        path.startsWith("/home-services/dashboard")) {
       return false;
     }
     return true;
@@ -37,8 +42,9 @@ function isPublicRoute(path: string) {
   return PUBLIC_ROUTES.includes(path);
 }
 
-function isApiRoute(path: string) {
-  return path.startsWith("/api/");
+// Check if it's a public API route
+function isPublicApiRoute(path: string) {
+  return PUBLIC_API_ROUTES.some(route => path.startsWith(route));
 }
 
 function base64UrlDecode(input: string): string {
@@ -56,8 +62,20 @@ function decodeJwt(token: string): any | null {
     return null;
   }
 }
+
 function normalizeRoles(role: any) {
-  if (Array.isArray(role)) return role.map((r) => String(r).toLowerCase());
+  if (Array.isArray(role)) {
+    return role
+      .map((r) => {
+        if (typeof r === "number" || (typeof r === "string" && /^\d+$/.test(r))) {
+          const id = Number(r);
+          const mapped = ROLE_ID_MAP[id];
+          return mapped ? mapped.toLowerCase() : undefined;
+        }
+        return String(r).trim().toLowerCase();
+      })
+      .filter(Boolean) as string[];
+  }
   if (typeof role === "number" || (typeof role === "string" && /^\d+$/.test(role))) {
     const id = Number(role);
     const mapped = ROLE_ID_MAP[id];
@@ -66,12 +84,12 @@ function normalizeRoles(role: any) {
   if (typeof role === "string") return role.split(",").map((r) => r.trim().toLowerCase());
   return [];
 }
+
 function isAuthorized(roles: string[], path: string) {
   return roles.some(role =>
     ROLE_CONFIG[role]?.routes.some(route => path === route || path.startsWith(`${route}/`))
   );
 }
-
 
 function dashboardForRoles(roles: string[]) {
   const priority = ["admin", "professional", "customer"];
@@ -88,11 +106,11 @@ function addSecurityHeaders(res: NextResponse) {
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 }
 
-
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const url = req.nextUrl.clone();
 
+  // Skip middleware for static files
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
@@ -101,52 +119,66 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Skip authentication for public API routes
+  if (isPublicApiRoute(pathname)) {
+    const res = NextResponse.next();
+    addSecurityHeaders(res);
+    return res;
+  }
+
+  // Check if it's a public web route
   if (isPublicRoute(pathname)) {
     const res = NextResponse.next();
     addSecurityHeaders(res);
     return res;
   }
+
+  // For protected routes, check authentication
   const accessToken = req.cookies.get(AUTH_COOKIE)?.value;
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
 
   if (!accessToken) {
-    if (isApiRoute(pathname)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     url.pathname = "/auth/login";
     url.search = `redirect=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
+
   let payload = decodeJwt(accessToken);
   const now = Math.floor(Date.now() / 1000);
+  
   if ((!payload || (payload.exp && payload.exp < now)) && refreshToken) {
-
     url.pathname = "/auth/login";
     url.search = `redirect=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
+
   if (!payload) {
     const res = NextResponse.redirect(new URL("/auth/login", req.url));
     res.cookies.set(AUTH_COOKIE, "", { maxAge: 0, path: "/" });
     return res;
   }
+
   const roles = normalizeRoles(payload.roles || payload.role || payload.role_id);
+  
   if (!roles.length) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
+
+  // If user is already authenticated, prevent visiting auth pages (login/register)
+  if (pathname === "/auth" || pathname.startsWith("/auth/")) {
+    url.pathname = dashboardForRoles(roles);
+    return NextResponse.redirect(url);
+  }
+
   if (!isAuthorized(roles, pathname)) {
     url.pathname = dashboardForRoles(roles);
     return NextResponse.redirect(url);
   }
 
-
-
   const res = NextResponse.next();
   addSecurityHeaders(res);
   return res;
 }
-
 
 export const config = {
   matcher: ["/admin/:path*", "/home-services/:path*", "/api/:path*"],
