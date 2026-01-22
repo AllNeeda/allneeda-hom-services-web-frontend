@@ -70,6 +70,7 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
   const token = getAccessToken() || "";
     const { data: professionalData } = useProfesssionalProgress(token);
     const leadPrice = 80;
+    console.log("Professional Data: ", professionalData);
 
   // Format the date
   const formatDate = (dateString: string) => {
@@ -153,7 +154,8 @@ const ProfessionalCard: FC<LeadDetailsProps> = ({ leadDetails }) => {
               </span>
               <div className="">
                 <p className="uppercase text-xs font-semibold">your credit balance</p>
-                <h1 className="text-lg font-bold">$ {professionalData.credit_balance}</h1>
+                <h1 className="text-lg font-bold">$ {professionalData?.credit_balance}</h1>
+               
               </div>
             </div>
           </div>

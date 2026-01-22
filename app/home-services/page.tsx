@@ -13,6 +13,7 @@ import {
 } from "@/hooks/useHomeServices";
 import { LeadDialog } from "@/components/home-services/LeadAlert";
 import { useProfessionalDetection } from "@/hooks/useProfessionalLeads";
+import { getReviewLink } from "../api/homepage/views";
 
 // Skeletons (keep the same)
 const TitlePageSkeleton = () => (
@@ -104,10 +105,11 @@ const CategoryServices = dynamic(
 
 const HomeServicesPage = () => {
   const { user, getAccessToken } = useAuth();
-  const token = getAccessToken();
+  const token = getAccessToken() || '';
   const userPhone = user?.phoneNo || '';
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: detectionResult, isError, isLoading } = useProfessionalDetection(token, userPhone);
+  const [reviewLink, setReviewLink] = useState('');
   
   // FIX 1: Initialize userLocation from localStorage only once on mount
   /* eslint-disable no-unused-vars */
@@ -161,6 +163,16 @@ const HomeServicesPage = () => {
     userLocation?.postcode
   ]);
 
+  const generateRreviewLink = async() => {
+    try {
+      const response = await getReviewLink(token);
+      setReviewLink(response.reviewLink);
+
+    } catch (error) {
+      console.error("Error: ", error);
+    }
+  }
+
   return (
     <div className="relative bg-white dark:bg-gray-900 border border-white dark:border-gray-900">
       {!isLoading && !isError && isDialogOpen && (
@@ -179,7 +191,10 @@ const HomeServicesPage = () => {
 
       {/* FIX 5: Pass the memoized location prop */}
       <TitlePage location={memoizedLocation} />
-
+      <div className="p-5">
+        {reviewLink && <p className="border border-slate-200 p-2">{reviewLink}</p>}
+        <button onClick={generateRreviewLink} className="bg-green-500 text-white px-4 py-2">Generate Review Link</button>
+      </div>
       {popularLoading ? (
         <CategorySkeleton />
       ) : (
