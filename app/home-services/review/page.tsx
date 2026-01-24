@@ -3,7 +3,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Star, CheckCircle, AlertCircle, Loader2, Shield, MessageSquare, Send, Moon, Sun } from "lucide-react";
-import { submitReview } from "@/app/api/homepage/views";
+
 
 const CustomerReviewPage = () => {
   const searchParams = useSearchParams();
@@ -63,7 +63,7 @@ const CustomerReviewPage = () => {
     setError(null);
     setIsSubmitted(true);
 
-    await submitReview(verifyToken, rating, message);
+    // await submitReview(verifyToken, rating, message);
 
     setSuccess(true);
     localStorage.removeItem("review_token");
