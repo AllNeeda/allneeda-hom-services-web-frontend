@@ -5,9 +5,10 @@ import { LoginResponse, OTPRegisterData, User } from "@/types/auth/register";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_AUTH_SERVICE;
 
+const DEFAULT_TIMEOUT = process.env.NODE_ENV === "production" ? 30000 : 15000;
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000, // 30s for production (Vercel cold starts), 15s for dev
+  timeout: DEFAULT_TIMEOUT,
   headers: { "Content-Type": "application/json" },
 });
 const setCookie = (name: string, value: string, maxAgeSeconds: number) => {
@@ -93,7 +94,6 @@ export class AuthService {
     lastName: string;
     phoneNo: string;
     dob: string;
-    businessType: string;
     isAgreeTermsConditions: boolean;
     status?: boolean;
   }): Promise<any> {
@@ -110,7 +110,18 @@ export class AuthService {
         status: data.status ?? true,
       };
 
+      const start = Date.now();
       const response = await axiosInstance.post("/api/v2/user/create", payload);
+      const duration = Date.now() - start;
+
+      // Log slow responses to help diagnose backend latency.
+      if (typeof window !== "undefined" && duration > 1500) {
+        console.warn(`[authAPI.createUser] slow response: ${duration}ms`, {
+          url: "/api/v2/user/create",
+          payloadSize: JSON.stringify(payload).length,
+        });
+      }
+
       return response.data;
     } catch (error) {
       throw handleApiError(error);

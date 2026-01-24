@@ -39,7 +39,6 @@ export function useCreateUser() {
       lastName: string;
       phoneNo: string;
       dob: string;
-      businessType: string;
       isAgreeTermsConditions: boolean;
       role_id?: string;
       status?: boolean;

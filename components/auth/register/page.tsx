@@ -218,7 +218,6 @@ export default function Register() {
                 firstName: registrationData.firstName,
                 lastName: registrationData.lastName,
                 phoneNo: registrationData.phoneNo,
-                businessType: registrationData.businessType,
                 dob: registrationData.dateOfBirth,
                 isAgreeTermsConditions: registrationData.terms,
             });
