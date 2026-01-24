@@ -16,22 +16,9 @@ export function useReviews(id: string) {
 }
 
 export function useReviewSubmission() {
-  type ReviewMedia = {
-    type: "video" | "image";
-    name: string;
-  };
-
-  type ReviewPayload = {
-    professionalId: string;
-    rating: number;
-    tags?: string[];
-    comments?: string;
-    media?: ReviewMedia[];
-    user_id?: string | undefined;
-  };
   return useMutation({
-    mutationFn: (data: ReviewPayload | FormData) => {
-      return SubmitCustomerReviewAPI(data as ReviewPayload);
+    mutationFn: (data: any) => {
+      return SubmitCustomerReviewAPI(data as any);
     },
     onSuccess: () => {
       toast.success("Review submitted successfully");
@@ -40,8 +27,9 @@ export function useReviewSubmission() {
 }
 
 export function useCreateReviewUser() {
+
   return useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       firstName: string;
       lastName: string;
       phoneNo: string;
@@ -49,7 +37,10 @@ export function useCreateReviewUser() {
       isAgreeTermsConditions: boolean;
       role_id?: string;
       status?: boolean;
-    }) => SubmitCustomerReviewWithUserAPI(data),
+    }) => {
+      const payload = { ...data, role_id: "2" };
+      return SubmitCustomerReviewWithUserAPI(payload);
+    },
     onSuccess: (response: any) => {
       return response;
     },

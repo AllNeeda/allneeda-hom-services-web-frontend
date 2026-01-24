@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2, X, Calendar, User, Phone } from "lucide-react";
-import { useCreateUser } from "@/hooks/RegisterPro/useRegister";
+import { useCreateReviewUser } from "@/hooks/useReviews";
 import { z } from "zod";
 
 type Props = {
@@ -27,7 +27,7 @@ export const registerUserSchema = z.object({
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
 
 export default function RegisterUserModal({ open, onClose, onCreated, defaultPhone }: Props) {
-    const createUser = useCreateUser();
+    const createUser = useCreateReviewUser();
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [phoneNo, setPhoneNo] = useState(defaultPhone || "");

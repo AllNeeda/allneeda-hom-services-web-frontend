@@ -28,15 +28,14 @@ export const SendReviewAPI = async (data: any, token?: string) => {
   }
 };
 
-export const SubmitCustomerReviewAPI = async (data: {
-  professionalId: string;
-  rating: number;
-  tags?: string[];
-  comments?: string;
-  media?: { type: "video" | "image"; name: string }[];
-}) => {
+export const SubmitCustomerReviewAPI = async (data: any) => {
   try {
-    const response = await api.post("/reviews/submitCustomerReview", data);
+    const isFormData = data instanceof FormData;
+    const response = await api.post("/reviews/submitCustomerReview", data, {
+      headers: {
+        "Content-Type": isFormData ? "multipart/form-data" : "application/json",
+      },
+    });
     return response.data;
   } catch (error) {
     throw handleApiError(error);

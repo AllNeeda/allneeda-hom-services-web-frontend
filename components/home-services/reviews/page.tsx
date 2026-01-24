@@ -221,7 +221,8 @@ export default function Reviews({ id }: ReviewsProps) {
       setIsSubmitting(true);
       if (mediaFiles.length > 0) {
         const form = new FormData();
-        form.append("professionalId", id);
+        // backend expects snake_case field names
+        form.append("professional_id", id);
         form.append("rating", String(rating));
         form.append("comments", additionalComments);
         if (rating >= 3) {
@@ -242,7 +243,7 @@ export default function Reviews({ id }: ReviewsProps) {
         await submitReview.mutateAsync(form);
       } else {
         const payload = {
-          professionalId: id,
+          professional_id: id,
           rating,
           tags: rating >= 3 ? selectedTags : [],
           comments: additionalComments,
