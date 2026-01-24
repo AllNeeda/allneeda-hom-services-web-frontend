@@ -18,7 +18,7 @@ type Props = {
 export const registerUserSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    phoneNo: z.string().min(1, "Phone number is required").regex(/^[0-9()+\-\s]+$/, "Invalid phone number"),
+    phoneNo: z.string().min(1, "Phone number is required").regex(/^[0-9()+\-\s]+$/, "Invalid phone number").refine((val) => (val || "").replace(/\D/g, "").length <= 10, { message: "Phone number must not exceed 10 digits" }),
     dob: z.string().min(1, "Date of birth is required"),
     isAgreeTermsConditions: z.boolean(),
     status: z.boolean().optional(),
