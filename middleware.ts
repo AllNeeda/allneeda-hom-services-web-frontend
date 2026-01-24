@@ -39,9 +39,6 @@ function isPublicRoute(path: string) {
   return PUBLIC_ROUTES.includes(path);
 }
 
-function isApiRoute(path: string) {
-  return path.startsWith("/api/");
-}
 
 function base64UrlDecode(input: string): string {
   return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
@@ -123,9 +120,6 @@ export async function middleware(req: NextRequest) {
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
 
   if (!accessToken) {
-    if (isApiRoute(pathname)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     url.pathname = "/auth/login";
     url.search = `redirect=${encodeURIComponent(pathname + search)}`;

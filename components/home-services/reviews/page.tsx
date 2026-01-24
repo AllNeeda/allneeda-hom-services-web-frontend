@@ -11,7 +11,8 @@ import {
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import toast from "react-hot-toast";
-import { reviewSchema } from "./reviewSchema";
+import RegisterUserModal from "./createUser";
+import { useReviewSubmission } from "@/hooks/useReviews";
 import { useReviews } from "@/hooks/useReviews";
 import GlobalLoader from "@/components/ui/global-loader";
 
@@ -73,7 +74,10 @@ export default function Reviews({ id }: ReviewsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragAreaRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-
+  const submitReview = useReviewSubmission();
+  const [createdUserId, setCreatedUserId] = useState<string | undefined>(undefined);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const pendingSubmitRef = useRef<any>(null);
   const handleFilesRef = React.useRef<any>(null);
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
@@ -164,7 +168,6 @@ export default function Reviews({ id }: ReviewsProps) {
     });
   }, [mediaFiles]);
 
-  // Keep ref updated with latest handleFiles
   useEffect(() => {
     handleFilesRef.current = handleFiles;
   }, [handleFiles]);
@@ -173,11 +176,8 @@ export default function Reviews({ id }: ReviewsProps) {
     const files = Array.from(e.target.files || []);
     handleFiles(files);
   };
+
   const handleTagClick = (tagId: string) => {
-    if (rating < 3) {
-      toast.error("Please rate 3 stars or higher to select tags");
-      return;
-    }
     if (selectedTags.includes(tagId)) {
       setSelectedTags(prev => prev.filter(id => id !== tagId));
       return;
@@ -189,6 +189,7 @@ export default function Reviews({ id }: ReviewsProps) {
     }
     setSelectedTags(prev => [...prev, tagId]);
   };
+
   const removeMediaFile = (id: string) => {
     setMediaFiles(prev => {
       const fileToRemove = prev.find(file => file.id === id);
@@ -204,33 +205,61 @@ export default function Reviews({ id }: ReviewsProps) {
   };
 
   const handleSubmit = async () => {
+    pendingSubmitRef.current = async (overrideUserId?: string) => {
+      await runSubmit(overrideUserId);
+    };
+    setShowRegisterModal(true);
+  };
+
+  const runSubmit = async (overrideUserId?: string) => {
     try {
-      reviewSchema.parse({
+      const validationData: any = {
         rating,
-        tags: selectedTags,
         additionalComments,
-      });
-
+      };
+      if (rating >= 3) validationData.tags = selectedTags;
       setIsSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      if (mediaFiles.length > 0) {
+        const form = new FormData();
+        form.append("professionalId", id);
+        form.append("rating", String(rating));
+        form.append("comments", additionalComments);
+        if (rating >= 3) {
+          selectedTags.forEach((t) => form.append("tags[]", t));
+        }
+        form.append(
+          "mediaMeta",
+          JSON.stringify(mediaFiles.map((m) => ({ type: m.type, name: m.file.name })))
+        );
+        mediaFiles.forEach((m) => {
+          form.append("media", m.file, m.file.name);
+        });
 
-      toast.success("Review submitted successfully!");
+        const userIdToUse = overrideUserId ?? createdUserId;
+        if (userIdToUse) {
+          form.append("user_id", userIdToUse as string);
+        }
+        await submitReview.mutateAsync(form);
+      } else {
+        const payload = {
+          professionalId: id,
+          rating,
+          tags: rating >= 3 ? selectedTags : [],
+          comments: additionalComments,
+          media: mediaFiles.map((m) => ({ type: m.type, name: m.file.name })),
+          user_id: overrideUserId ?? createdUserId,
+        };
+
+        await submitReview.mutateAsync(payload);
+      }
 
       setIsSubmitting(false);
       setRating(0);
       setSelectedTags([]);
       setMediaFiles([]);
       setAdditionalComments("");
-    } catch (err: any) {
-      if (err?.errors && Array.isArray(err.errors)) {
-        err.errors.forEach((e: any) => {
-          if (e?.message) toast.error(e.message);
-        });
-      } else if (err?.message) {
-        toast.error(err.message);
-      } else {
-        toast.error("Validation failed. Please check your input.");
-      }
+    } catch {
+      setIsSubmitting(false);
     }
   };
 
@@ -244,23 +273,22 @@ export default function Reviews({ id }: ReviewsProps) {
     ];
 
     return (
-      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-gray-900 text-white text-xs rounded-sm whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-gray-900 dark:bg-gray-900 text-white text-xs rounded-sm whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
         {labels[value - 1]}
       </div>
     );
   };
 
-  const isSubmitDisabled = rating === 0 || selectedTags.length === 0 || isSubmitting || additionalComments.trim().length === 0;
+  const isSubmitDisabled = rating === 0 || (rating >= 3 && selectedTags.length === 0) || isSubmitting || additionalComments.trim().length === 0;
   const showTagSection = rating >= 3;
 
   if (isLoading) return <GlobalLoader />;
-  if (isError) return <div>Error loading data: {String(error)}</div>;
+  if (isError) return <div className="text-red-600 dark:text-red-400">Error loading data: {String(error)}</div>;
   const yearsInBusiness = professionalData?.founded_year ? Math.max(0, new Date().getFullYear() - Number(professionalData.founded_year)) : 0;
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Professional Info Section */}
-
         {/* Review Section Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -275,17 +303,18 @@ export default function Reviews({ id }: ReviewsProps) {
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 Share Your Experience
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Your feedback helps others make better decisions about {professionalData?.business_name || "this professionalData"}
               </p>
             </div>
           </div>
         </motion.div>
 
+        {/* Professional Info Section */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 bg-white dark:bg-gray-800 rounded-sm p-6 border border-gray-200 dark:border-gray-700"
+          className="mb-8 bg-white dark:bg-gray-900 rounded-sm p-6 border border-gray-200 dark:border-gray-700"
         >
           <div className="flex flex-col md:flex-row gap-6">
             {/* Left Column - Profile Info */}
@@ -295,7 +324,6 @@ export default function Reviews({ id }: ReviewsProps) {
                   <div className="relative w-16 h-16 rounded-sm overflow-hidden">
                     <Image
                       src={`${backendUrl}/uploads/professionals/${professionalData.profile_image}`}
-
                       alt={professionalData.business_name}
                       fill
                       className="object-cover"
@@ -311,37 +339,31 @@ export default function Reviews({ id }: ReviewsProps) {
                     {professionalData?.business_name || "Professional"}
                   </h1>
                   <div className="flex items-center gap-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       {professionalData?.business_type === "company" ? "Company" : "Individual"} • {yearsInBusiness > 0 ? `${yearsInBusiness} Year${yearsInBusiness > 1 ? 's' : ''} in business` : "New business"}
                     </p>
-
                   </div>
                 </div>
               </div>
-
             </div>
-
           </div>
         </motion.div>
 
-
-        {/* Rest of your existing component remains the same from the Rating Section onwards */}
         {/* Rating Section */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
+          className="bg-white dark:bg-gray-900 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
         >
-          {/* ... existing rating section code ... */}
           <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 bg-[#0077B6]/10 rounded-sm">
-              <Star className="w-5 h-5 text-[#0077B6]" />
+            <div className="p-3 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 rounded-sm">
+              <Star className="w-5 h-5 text-[#0077B6] dark:text-[#40A9FF]" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
                 How would you rate your overall experience with {professionalData?.business_name || "this professional"}?
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Select your rating below
               </p>
             </div>
@@ -363,14 +385,14 @@ export default function Reviews({ id }: ReviewsProps) {
                         <div className={cn(
                           "w-9 h-9 md:w-10 md:h-10 rounded-sm flex items-center justify-center",
                           (hoverRating || rating) >= star
-                            ? "bg-[#BE13BF]/10"
-                            : "bg-gray-100 dark:bg-gray-700"
+                            ? "bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20"
+                            : "bg-gray-100 dark:bg-gray-900"
                         )}>
                           <Star
                             className={cn(
                               "w-5 h-5 md:w-6 md:h-6 transition-colors",
                               (hoverRating || rating) >= star
-                                ? "fill-[#BE13BF] text-[#BE13BF]"
+                                ? "fill-[#BE13BF] text-[#BE13BF] dark:fill-[#E83FF0] dark:text-[#E83FF0]"
                                 : "fill-gray-300 text-gray-300 dark:fill-gray-600 dark:text-gray-600"
                             )}
                           />
@@ -391,15 +413,14 @@ export default function Reviews({ id }: ReviewsProps) {
                   )}
                 </div>
 
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   <span className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mr-1">
                     {rating === 0 ? "—" : rating}
                   </span>
-                  <span className="text-base text-gray-500">/5</span>
+                  <span className="text-base text-gray-500 dark:text-gray-400">/5</span>
                 </div>
               </div>
             </div>
-
           </div>
         </motion.div>
 
@@ -410,27 +431,27 @@ export default function Reviews({ id }: ReviewsProps) {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
+              className="bg-white dark:bg-gray-900 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 bg-[#6742EE]/10 rounded-sm">
-                    <ThumbsUp className="w-5 h-5 text-[#6742EE]" />
+                  <div className="p-3 bg-[#6742EE]/10 dark:bg-[#6742EE]/20 rounded-sm">
+                    <ThumbsUp className="w-5 h-5 text-[#6742EE] dark:text-[#8A6CFF]" />
                   </div>
                   <div>
                     <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
                       What stood out the most about {professionalData?.business_name || "this professionalData"}?
                     </h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       Choose up to three aspects
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-base font-bold text-[#0077B6]">
+                  <div className="text-base font-bold text-[#0077B6] dark:text-[#40A9FF]">
                     {selectedTags.length}/3
                   </div>
-                  <div className="text-xs text-gray-500">selected</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">selected</div>
                 </div>
               </div>
 
@@ -447,15 +468,15 @@ export default function Reviews({ id }: ReviewsProps) {
                         "p-3 rounded-sm border transition-all text-left",
                         "flex items-start gap-3",
                         isSelected
-                          ? "bg-[#0077B6]/10 border-[#0077B6]"
-                          : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-[#0077B6]/50"
+                          ? "bg-[#0077B6]/10 dark:bg-[#0077B6]/20 border-[#0077B6] dark:border-[#40A9FF]"
+                          : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-600 hover:border-[#0077B6]/50 dark:hover:border-[#40A9FF]/50"
                       )}
                     >
                       <div className={cn(
                         "p-2 rounded-sm",
                         isSelected
-                          ? "bg-[#0077B6] text-white"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                          ? "bg-[#0077B6] dark:bg-[#40A9FF] text-white"
+                          : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
                       )}>
                         {tag.icon}
                       </div>
@@ -464,13 +485,13 @@ export default function Reviews({ id }: ReviewsProps) {
                         <h3 className="font-medium text-gray-900 dark:text-white mb-0.5 text-sm">
                           {tag.label}
                         </h3>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
                           {tag.description}
                         </p>
                       </div>
 
                       {isSelected && (
-                        <div className="w-5 h-5 bg-[#0077B6] rounded-sm flex items-center justify-center">
+                        <div className="w-5 h-5 bg-[#0077B6] dark:bg-[#40A9FF] rounded-sm flex items-center justify-center">
                           <Check className="w-3 h-3 text-white" />
                         </div>
                       )}
@@ -487,17 +508,17 @@ export default function Reviews({ id }: ReviewsProps) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white dark:bg-gray-800 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
+          className="bg-white dark:bg-gray-900 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
         >
           <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-[#BE13BF]/10 rounded-sm">
-              <Camera className="w-5 h-5 text-[#BE13BF]" />
+            <div className="p-3 bg-[#BE13BF]/10 dark:bg-[#BE13BF]/20 rounded-sm">
+              <Camera className="w-5 h-5 text-[#BE13BF] dark:text-[#E83FF0]" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
                 Add Photos (optional)
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Upload up to 3 photos or videos
               </p>
             </div>
@@ -517,15 +538,15 @@ export default function Reviews({ id }: ReviewsProps) {
             className={cn(
               "relative rounded-sm border border-dashed transition-colors",
               isDragging
-                ? "border-[#0077B6] bg-[#0077B6]/5"
-                : "border-gray-300 dark:border-gray-700",
+                ? "border-[#0077B6] dark:border-[#40A9FF] bg-[#0077B6]/5 dark:bg-[#0077B6]/10"
+                : "border-gray-300 dark:border-gray-600",
               mediaFiles.length === 0 ? "p-8" : "p-4"
             )}
           >
             {mediaFiles.length === 0 ? (
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 mb-3 bg-gray-100 dark:bg-gray-700 rounded-sm">
-                  <Upload className="w-5 h-5 text-gray-400" />
+                <div className="inline-flex items-center justify-center w-12 h-12 mb-3 bg-gray-100 dark:bg-gray-900 rounded-sm">
+                  <Upload className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                   Drag & drop or click to upload
@@ -536,7 +557,7 @@ export default function Reviews({ id }: ReviewsProps) {
                 <button
                   type="button"
                   onClick={triggerFileInput}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0077B6] text-white text-sm rounded-sm hover:bg-[#0066A3] transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0077B6] dark:bg-[#40A9FF] text-white text-sm rounded-sm hover:bg-[#0066A3] dark:hover:bg-[#1890FF] transition-colors"
                 >
                   <Upload className="w-3 h-3" />
                   Browse Files
@@ -557,7 +578,7 @@ export default function Reviews({ id }: ReviewsProps) {
                     <button
                       type="button"
                       onClick={triggerFileInput}
-                      className="text-xs text-[#0077B6] hover:text-[#0066A3] transition-colors"
+                      className="text-xs text-[#0077B6] dark:text-[#40A9FF] hover:text-[#0066A3] dark:hover:text-[#1890FF] transition-colors"
                     >
                       + Add More
                     </button>
@@ -574,7 +595,7 @@ export default function Reviews({ id }: ReviewsProps) {
                         exit={{ opacity: 0, scale: 0.9 }}
                         className="relative group"
                       >
-                        <div className="relative aspect-square rounded-sm overflow-hidden bg-gray-100 dark:bg-gray-700">
+                        <div className="relative aspect-square rounded-sm overflow-hidden bg-gray-100 dark:bg-gray-900">
                           {file.type === "image" ? (
                             <Image
                               src={file.preview}
@@ -585,7 +606,7 @@ export default function Reviews({ id }: ReviewsProps) {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Video className="w-5 h-5 text-gray-400" />
+                              <Video className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                             </div>
                           )}
                         </div>
@@ -613,7 +634,7 @@ export default function Reviews({ id }: ReviewsProps) {
                     <button
                       type="button"
                       onClick={triggerFileInput}
-                      className="aspect-square border border-dashed border-gray-300 dark:border-gray-700 rounded-sm hover:border-[#0077B6] transition-colors flex items-center justify-center"
+                      className="aspect-square border border-dashed border-gray-300 dark:border-gray-600 rounded-sm hover:border-[#0077B6] dark:hover:border-[#40A9FF] transition-colors flex items-center justify-center"
                     >
                       <PlusIcon />
                     </button>
@@ -623,10 +644,10 @@ export default function Reviews({ id }: ReviewsProps) {
             )}
 
             {isDragging && (
-              <div className="absolute inset-0 bg-[#0077B6]/10 flex items-center justify-center">
+              <div className="absolute inset-0 bg-[#0077B6]/10 dark:bg-[#0077B6]/20 flex items-center justify-center">
                 <div className="text-center">
-                  <Upload className="w-8 h-8 text-[#0077B6] mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-900">
+                  <Upload className="w-8 h-8 text-[#0077B6] dark:text-[#40A9FF] mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     Drop files here
                   </p>
                 </div>
@@ -640,20 +661,18 @@ export default function Reviews({ id }: ReviewsProps) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white dark:bg-gray-800 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
+          className="bg-white dark:bg-gray-900 rounded-sm p-6 mb-6 border border-gray-200 dark:border-gray-700"
         >
           <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-             Comments 
+            Comments
           </h3>
           <textarea
             value={additionalComments}
             onChange={(e) => setAdditionalComments(e.target.value)}
-            placeholder={`Share any additional thoughts about your experience with ${professionalData?.business_name || "this professional"}...`}
-            className="w-full h-32 px-4 py-3 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#0077B6] focus:border-[#0077B6] transition-all"
+            placeholder={`Share your message about your experience with ${professionalData?.business_name || "this professional"}`}
+            className="w-full h-32 px-4 py-3 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#0077B6] dark:focus:ring-[#40A9FF] focus:border-[#0077B6] dark:focus:border-[#40A9FF] transition-all text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           />
-          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-            <span>Optional but appreciated</span>
-            <span>{additionalComments.length}/500</span>
+          <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
           </div>
         </motion.div>
 
@@ -671,8 +690,8 @@ export default function Reviews({ id }: ReviewsProps) {
               "w-full py-3.5 px-4 text-sm font-medium rounded-sm transition-colors",
               "flex items-center justify-center gap-2",
               isSubmitDisabled
-                ? "bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700 cursor-not-allowed"
-                : "bg-[#0077B6] text-white hover:bg-[#0066A3]"
+                ? "bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 cursor-not-allowed"
+                : "bg-[#0077B6] dark:bg-[#40A9FF] text-white hover:bg-[#0066A3] dark:hover:bg-[#1890FF]"
             )}
           >
             {isSubmitting ? (
@@ -689,13 +708,13 @@ export default function Reviews({ id }: ReviewsProps) {
           </button>
 
           <div className="mt-4 text-center">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+            <p className="text-xs text-gray-600 dark:text-gray-300">
               By clicking Submit you agree to the{" "}
-              <a href="#" className="text-[#0077B6] hover:underline">
+              <a href="#" className="text-[#0077B6] dark:text-[#40A9FF] hover:underline">
                 Terms of Use
               </a>{" "}
               and{" "}
-              <a href="#" className="text-[#0077B6] hover:underline">
+              <a href="#" className="text-[#0077B6] dark:text-[#40A9FF] hover:underline">
                 Privacy Policy
               </a>
             </p>
@@ -704,14 +723,28 @@ export default function Reviews({ id }: ReviewsProps) {
 
         {/* Submitting overlay */}
         {isSubmitting && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white dark:bg-gray-800 px-6 py-5 rounded-md flex items-center gap-4 shadow-lg">
-              <Loader2 className="w-5 h-5 animate-spin text-[#0077B6]" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+            <div className="bg-white dark:bg-gray-900 px-6 py-5 rounded-md flex items-center gap-4 shadow-lg">
+              <Loader2 className="w-5 h-5 animate-spin text-[#0077B6] dark:text-[#40A9FF]" />
               <div className="text-sm font-medium text-gray-900 dark:text-white">Submitting your review...</div>
             </div>
           </div>
         )}
 
+        {/* Register modal (opens before submitting if needed) */}
+        <RegisterUserModal
+          open={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          onCreated={async (userId) => {
+            setShowRegisterModal(false);
+            if (userId) setCreatedUserId(userId);
+            if (pendingSubmitRef.current) {
+              const fn = pendingSubmitRef.current;
+              pendingSubmitRef.current = null;
+              await fn(userId);
+            }
+          }}
+        />
       </div>
     </div>
   );
@@ -720,7 +753,7 @@ export default function Reviews({ id }: ReviewsProps) {
 function PlusIcon() {
   return (
     <svg
-      className="w-5 h-5 text-gray-400"
+      className="w-5 h-5 text-gray-400 dark:text-gray-500"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
