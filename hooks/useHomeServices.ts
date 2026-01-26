@@ -76,15 +76,18 @@ export const useUserLocationStorage = () => {
 //     get top 5 professionals
 //===================================
 
-export const useTopProfessionals = (service:string, zipcode:string) => {
+export const useTopProfessionals = (service: string, zipcode: string) => {
   return useQuery({
     queryKey: ['topProfessionals', service, zipcode],
-    queryFn:() => getTopProfessionals(service, zipcode),
+    queryFn: () => getTopProfessionals(service, zipcode),
     
     enabled: !!service && !!zipcode,
-    staleTime: 5*60*1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (cache persists)
+    refetchOnWindowFocus: false, // ← This is the key fix!
+    refetchOnMount: false, // Also prevent refetch on component mount if data exists
   });
-}
+};
 
 //=================================================
 //         get service questions
