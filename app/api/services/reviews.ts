@@ -58,3 +58,24 @@ export const SubmitCustomerReviewWithUserAPI = async (data: {
     throw handleApiError(error);
   }
 };
+
+export const UpdateReviewsAPI = async (
+  ReviewId: string,
+  status: string,
+  token: string,
+) => {
+  try {
+    const response = await api.put(
+      `/reviews/update/${ReviewId}`,
+      { status },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};

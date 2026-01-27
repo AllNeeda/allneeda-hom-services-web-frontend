@@ -25,8 +25,9 @@ const ONBOARDING_STEPS = [
 
 export default function ReviewRequest() {
   const router = useRouter();
-  const params = useSearchParams();
-  const serviceId = params.get('id');
+  const searchParams = useSearchParams()
+  const from = searchParams.get('from')
+
 
   const token = getAccessToken() || "";
   const { data, isLoading, isError } = useProfessionalReview(token); // add loading state
@@ -90,21 +91,24 @@ export default function ReviewRequest() {
   };
 
   const handleNext = async () => {
-    if (serviceId) router.back();
-    else await safeProfessionalRedirect(token, router);
+
+    if (from === 'reviews') {
+      router.push('/home-services/dashboard/pro_reviews');
+    }
+    else {
+      await safeProfessionalRedirect(token, router);
+    }
 
   };
 
   return (
     <div>
-      {!serviceId && (
-        <ProgressBar
-          currentStep={2}
-          totalSteps={ONBOARDING_STEPS.length}
-          steps={ONBOARDING_STEPS}
-          className="mb-8"
-        />
-      )}
+      <ProgressBar
+        currentStep={2}
+        totalSteps={ONBOARDING_STEPS.length}
+        steps={ONBOARDING_STEPS}
+        className="mb-8"
+      />
 
       <div className="dark:bg-gray-900 text-gray-800 dark:text-white text-[13px]">
         <div className="max-w-6xl mx-auto">

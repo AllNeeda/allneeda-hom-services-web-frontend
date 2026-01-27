@@ -2,6 +2,7 @@ import { getProfessionalById } from "@/app/api/reviews";
 import {
   SubmitCustomerReviewAPI,
   SubmitCustomerReviewWithUserAPI,
+  UpdateReviewsAPI,
 } from "@/app/api/services/reviews";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -45,4 +46,17 @@ export function useCreateReviewUser() {
       return response;
     },
   });
+}
+
+
+export function useUpdateReviews(token:string)
+{
+ return useMutation({
+    mutationKey: ['updateReview', token],
+    mutationFn: (data: {ReviewId:string, status:string, token:string}) => UpdateReviewsAPI(data.ReviewId, data.status, data.token),
+    onSuccess: () => {
+      toast.success("Review updated successfully");
+    }
+  })
+  
 }
