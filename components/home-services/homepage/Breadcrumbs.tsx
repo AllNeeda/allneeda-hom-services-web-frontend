@@ -8,7 +8,7 @@ export default function Breadcrumbs({
   paths: { name: string; href?: string }[];
 }) {
   return (
-    <nav className="flex items-center text-sm text-gray-900 dark:text-gray-200 mb-4 md:absolute md:top-5 md:left-9 z-50 px-4 md:px-0">
+    <nav className="flex items-center text-sm text-gray-900 dark:text-gray-200 mb-4 md:absolute md:top-5 md:left-9 z-10 px-4 md:px-0">
       <div className="flex items-center overflow-x-auto whitespace-nowrap py-2 w-full hide-scrollbar">
         {paths.map((path, index) => (
           <div key={index} className="flex items-center">

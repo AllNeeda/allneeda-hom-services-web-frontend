@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import Breadcrumbs from "@/components/home-services/homepage/Breadcrumbs";
 import ProfessionalList from "@/components/home-services/homepage/professional/ProfessionalList";
 import ErrorDisplay from "@/components/ui/ErrorDisplay";
+import GlobalLoader from "@/components/ui/global-loader";
 
 import { useTopProfessionals } from "@/hooks/useHomeServices";
 
@@ -14,7 +15,6 @@ import {
   Professional,
   GoogleProfessional,
 } from "@/types/professional";
-import GlobalLoader from "@/components/ui/global-loader";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -58,11 +58,9 @@ const transformProfessionalData = (
     rating: item.professional.rating_avg || 0,
     services: [item.service_name],
 
-    /* ✅ REQUIRED BY Professional TYPE */
     zipCodes: [],
     founded: 2020,
     background_check: true,
-
     distance: 0,
     guarantee: true,
     employee_count:
@@ -87,6 +85,8 @@ const transformProfessionalData = (
 /*                                Page Component                               */
 /* -------------------------------------------------------------------------- */
 
+const FINAL_LIMIT = 5;
+
 export default function ProfessionalPage({
   params,
 }: {
@@ -110,13 +110,14 @@ export default function ProfessionalPage({
   );
 
   /* -------------------------------- State --------------------------------- */
-  /* eslint-disable no-unused-vars */
-  const [selectedType, setSelectedType] = useState("All");
-  /* eslint-enable no-unused-vars */
-  const [googleProfessionals, setGoogleProfessionals] = useState<
-    GoogleProfessional[]
-  >([]);
+  const [selectedType] = useState("All");
+
+  const [googleProfessionals, setGoogleProfessionals] =
+    useState<GoogleProfessional[]>([]);
   const [googleLoading, setGoogleLoading] = useState(false);
+  
+  // Track if we've already fetched Google data
+  // const [hasFetchedGoogle, setHasFetchedGoogle] = useState(false);
 
   /* ----------------------------- Platform API ------------------------------ */
   const {
@@ -125,38 +126,8 @@ export default function ProfessionalPage({
     isError,
   } = useTopProfessionals(serviceId, zip);
 
-  /* ------------------------------ Google API ------------------------------- */
-  useEffect(() => {
-    const fetchGoogleProfessionals = async () => {
-      setGoogleLoading(true);
-      try {
-        const res = await fetch(
-          `/api/google?serviceName=${serviceName}&zipcode=${zip}`
-        );
-        
-          const json = await res.json();
-          const normalized: GoogleProfessional[] = (json?.data ?? []).map(
-          (item: GoogleProfessional) => ({
-            ...item,
-            formatted_phone_number:
-              item.formatted_phone_number ?? "Not available",
-          })
-        );
-
-        setGoogleProfessionals(normalized);
-      } catch (error) {
-        console.error("Google search failed:", error);
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    fetchGoogleProfessionals();
-  }, [serviceName, zip]);
-
   /* ------------------------- Transform Platform Data ------------------------ */
   const platformProfessionals = useMemo<Professional[]>(() => {
-    console.log("top google professional: ", topProfessionals)
     if (!topProfessionals?.data) return [];
     return transformProfessionalData(topProfessionals.data);
   }, [topProfessionals]);
@@ -182,11 +153,99 @@ export default function ProfessionalPage({
     );
   }, [googleProfessionals, selectedType]);
 
+ /* ------------------------------ Google API ------------------------------- */
+useEffect(() => {
+  // ✅ Skip Google if platform already enough
+  if (filteredPlatformProfessionals.length >= FINAL_LIMIT) return;
+
+  const cacheKey = `google-pros-${serviceName}-${zip}`;
+  const cached = sessionStorage.getItem(cacheKey);
+
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      
+      // Handle both formats: direct array or object with data array
+      let cachedData: GoogleProfessional[] = [];
+      
+      if (Array.isArray(parsed)) {
+        // Old format: direct array
+        cachedData = parsed;
+      } else if (parsed && Array.isArray(parsed.data)) {
+        // New format: object with data array
+        cachedData = parsed.data;
+      }
+      
+      setGoogleProfessionals(cachedData);
+      return;
+    } catch (error) {
+      console.error("Failed to parse cached Google professionals:", error);
+      sessionStorage.removeItem(cacheKey);
+    }
+  }
+
+  const fetchGoogleProfessionals = async () => {
+    setGoogleLoading(true);
+    try {
+      const res = await fetch(
+        `/api/google?serviceName=${serviceName}&zipcode=${zip}`
+      );
+
+      const json = await res.json();
+
+      const normalized: GoogleProfessional[] = (json?.data ?? []).map(
+        (item: GoogleProfessional) => ({
+          ...item,
+          formatted_phone_number:
+            item.formatted_phone_number ?? "Not available",
+        })
+      );
+
+      // Store with timestamp for cache management
+      const cacheData = {
+        data: normalized,
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+      setGoogleProfessionals(normalized);
+    } catch (error) {
+      console.error("Google search failed:", error);
+      setGoogleProfessionals([]);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  fetchGoogleProfessionals();
+}, [serviceName, zip, filteredPlatformProfessionals.length]);
+
+  /* ------------------------ Final Combined Result --------------------------- */
+  const combinedProfessionals = useMemo(() => {
+    const platformCount = filteredPlatformProfessionals.length;
+
+    if (platformCount >= FINAL_LIMIT) {
+      return {
+        platform: filteredPlatformProfessionals,
+        google: [],
+      };
+    }
+
+    const needed = FINAL_LIMIT - platformCount;
+    
+    // Ensure filteredGoogleProfessionals is an array before slicing
+    const googleArray = Array.isArray(filteredGoogleProfessionals) 
+      ? filteredGoogleProfessionals 
+      : [];
+
+    return {
+      platform: filteredPlatformProfessionals,
+      google: googleArray.slice(0, needed),
+    };
+  }, [filteredPlatformProfessionals, filteredGoogleProfessionals]);
+
   /* ------------------------------- UI States -------------------------------- */
   if (isLoading && platformProfessionals.length === 0) {
-    return (
-      <GlobalLoader/>
-    );
+    return <GlobalLoader />;
   }
 
   if (
@@ -223,10 +282,10 @@ export default function ProfessionalPage({
         />
 
         <ProfessionalList
-          professionals={filteredPlatformProfessionals}
-          googleProfessionals={filteredGoogleProfessionals}
+          professionals={combinedProfessionals.platform}
+          googleProfessionals={combinedProfessionals.google}
           serviceId={serviceId}
-          loading={googleLoading || isLoading}
+          loading={googleLoading || (isLoading && platformProfessionals.length === 0)}
         />
       </div>
     </div>

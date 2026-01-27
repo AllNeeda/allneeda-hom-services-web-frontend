@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, Variants } from "framer-motion";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Image as ImageIcon } from "lucide-react";
 import { ServiceType } from "@/types/service/services";
 import Image from "next/image";
 import { getStaticURL } from "@/app/api/axios";
@@ -38,6 +38,37 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
     }
   }, [popularServices]);
 
+  // Function to check if image URL is valid
+  const isValidImageUrl = (url: string): boolean => {
+    if (!url || url.trim() === "") return false;
+    
+    // Check if it ends with common image extensions
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+    const lowerUrl = url.toLowerCase();
+    
+    return imageExtensions.some(ext => 
+      lowerUrl.endsWith(ext) || 
+      lowerUrl.includes(ext + '?') || 
+      lowerUrl.includes(ext + '&')
+    );
+  };
+
+  // Function to get image URL - with fallback to placeholder
+  const getImageSrc = (image_url: string, serviceName: string) => {
+    if (isValidImageUrl(image_url)) {
+      // Check if it's already a full URL
+      if (image_url.startsWith('http')) {
+        return image_url;
+      }
+      // Construct full URL
+      return `${API_BASE_URL}/${image_url.replace(/^\/+/, '')}`;
+    }
+    
+    // Use Lorem Picsum placeholder with service name as seed
+    const seed = encodeURIComponent(serviceName.replace(/\s+/g, '-').toLowerCase());
+    return `https://picsum.photos/seed/${seed}/400/300`;
+  };
+
   // Variants definitions
   const container: Variants = {
     hidden: { opacity: 0 },
@@ -66,6 +97,7 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
   };
 
   const displayServices = services;
+  
   // Handle location safely
   let userZipcode = "10003";
   if (typeof window !== "undefined") {
@@ -110,7 +142,7 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
           </motion.div>
         </motion.div>
 
-        {/* Services Grid - Using img tag for better reliability */}
+        {/* Services Grid */}
         <motion.div
           variants={isMounted ? container : undefined}
           initial="hidden"
@@ -118,6 +150,9 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
           className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4"
         >
           {displayServices.map(({ id, name, slug, image_url }) => {
+            const hasValidImage = isValidImageUrl(image_url);
+            const imageSrc = getImageSrc(image_url, name);
+            
             return (
               <motion.div
                 key={id}
@@ -130,16 +165,34 @@ const PopularServices = ({ popularServices }: PopularServicesProps) => {
                   aria-label={`Browse ${name} services`}
                   prefetch={true}
                 >
-                  <div className="h-40 relative overflow-hidden">
-                    <Image
-                      src={`${API_BASE_URL}/${image_url}`}
-                      alt={name}
-                      width={100}
-                      height={40}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <div className="h-40 relative overflow-hidden bg-gray-200 dark:bg-gray-700">
+                    {hasValidImage ? (
+                      <Image
+                        src={imageSrc}
+                        alt={name}
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          // Fallback to placeholder if image fails to load
+                          const target = e.target as HTMLImageElement;
+                          const seed = encodeURIComponent(name.replace(/\s+/g, '-').toLowerCase());
+                          target.src = `https://picsum.photos/seed/${seed}/400/300`;
+                        }}
+                      />
+                    ) : (
+                      // Placeholder state
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700">
+                        <ImageIcon className="w-12 h-12 text-gray-500 dark:text-gray-400 mb-2" />
+                        <span className="text-xs text-gray-600 dark:text-gray-300 text-center px-2">
+                          {name}
+                        </span>
+                      </div>
+                    )}
+                    
                     {/* Gradient overlay for better text visibility */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    <div className={`absolute inset-0 bg-gradient-to-t ${hasValidImage ? 'from-black/70 to-transparent' : 'from-black/50 to-transparent'}`}></div>
+                    
                     {/* Service name positioned at bottom left */}
                     <div className="absolute bottom-0 left-0 p-3 text-white">
                       <h3 className="text-sm font-semibold line-clamp-2">
