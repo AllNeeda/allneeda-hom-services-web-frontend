@@ -46,7 +46,7 @@ export const SubmitCustomerReviewWithUserAPI = async (data: {
   firstName: string;
   lastName: string;
   phoneNo: string;
-  dob: string;
+  Email: string;
   isAgreeTermsConditions: boolean;
   role_id?: string;
   status?: boolean;

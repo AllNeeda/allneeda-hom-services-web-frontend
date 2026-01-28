@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Loader2, X, Calendar, User, Phone } from "lucide-react";
+import { Loader2, X, User, Phone, Mail } from "lucide-react";
 import { useCreateReviewUser } from "@/hooks/useReviews";
 import { z } from "zod";
 
@@ -19,7 +19,7 @@ export const registerUserSchema = z.object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     phoneNo: z.string().min(1, "Phone number is required").regex(/^[0-9()+\-\s]+$/, "Invalid phone number").refine((val) => (val || "").replace(/\D/g, "").length <= 10, { message: "Phone number must not exceed 10 digits" }),
-    dob: z.string().min(1, "Date of birth is required"),
+    Email: z.string().min(1, "Email is required").email("Invalid email address"),
     isAgreeTermsConditions: z.boolean(),
     status: z.boolean().optional(),
 });
@@ -31,7 +31,7 @@ export default function RegisterUserModal({ open, onClose, onCreated, defaultPho
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [phoneNo, setPhoneNo] = useState(defaultPhone || "");
-    const [dob, setDob] = useState("");
+    const [Email, setEmail] = useState("");
     const [isAgree, setIsAgree] = useState(true);
     const [errors, setErrors] = useState<Partial<Record<keyof RegisterUserInput, string>>>({});
     const formRef = useRef<HTMLFormElement | null>(null);
@@ -45,7 +45,7 @@ export default function RegisterUserModal({ open, onClose, onCreated, defaultPho
             firstName,
             lastName,
             phoneNo,
-            dob,
+            Email,
             isAgreeTermsConditions: Boolean(isAgree),
             status: true,
         });
@@ -182,25 +182,26 @@ export default function RegisterUserModal({ open, onClose, onCreated, defaultPho
                             )}
                         </div>
 
-                        {/* Date of Birth */}
+                        {/* Email */}
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                                <Calendar className="w-4 h-4" />
-                                Date of Birth *
+                                <Mail className="w-4 h-4" />
+                                Email *
                             </label>
                             <div className="relative">
                                 <input
-                                    value={dob}
-                                    onChange={(e) => setDob(e.target.value)}
-                                    onFocus={() => handleInputFocus('dob')}
+                                    value={Email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    onFocus={() => handleInputFocus('Email')}
                                     max={today}
-                                    type="date"
-                                    className={`w-full px-3 py-2 text-sm border ${errors.dob ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
+                                    type="email"
+                                    placeholder="Example@allneeda.com"
+                                    className={`w-full px-3 py-2 text-sm border ${errors.Email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[#0077B6] focus:border-transparent dark:focus:ring-[#0077B6] dark:focus:border-transparent transition-colors`}
                                 />
                             </div>
-                            {errors.dob && (
+                            {errors.Email && (
                                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                    {errors.dob}
+                                    {errors.Email}
                                 </p>
                             )}
                         </div>
