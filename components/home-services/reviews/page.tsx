@@ -79,7 +79,7 @@ export default function Reviews({ id }: ReviewsProps) {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const pendingSubmitRef = useRef<any>(null);
   const handleFilesRef = React.useRef<any>(null);
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+  const backendUrl = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
 
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => {
