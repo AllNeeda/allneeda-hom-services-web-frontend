@@ -28,7 +28,7 @@ const ReviewsList = ({
     handleApproveReview,
     handleDeclineReview,
 }: any) => {
-    const Backend_URL = 'http://localhost:4000';
+    const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [currentMedia, setCurrentMedia] = useState<any>(null);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -72,7 +72,7 @@ const ReviewsList = ({
         setCurrentMedia({ src, type: isVideo ? 'video' : 'image' });
         setCurrentMediaIndex(newIndex);
         setVideoPlaying(isVideo);
-    }, [currentMediaIndex, mediaItems]);
+    }, [currentMediaIndex, mediaItems, Backend_URL]);
 
     const toggleFullscreen = useCallback(() => {
         if (!isFullscreen) {
@@ -374,14 +374,14 @@ const ReviewsList = ({
 
                             <div className="flex flex-col items-start sm:items-end gap-1">
                                 <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                            {new Date(review.createdAt).toLocaleString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                year: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </div>
+                                    {new Date(review.createdAt).toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </div>
                             </div>
                         </div>
 
@@ -463,7 +463,7 @@ const ReviewsList = ({
                             </div>
                         </div>
 
-        
+
                     </motion.div>
                 ))}
 
