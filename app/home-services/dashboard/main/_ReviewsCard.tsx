@@ -6,6 +6,7 @@ import { getAccessToken } from "@/app/api/axios";
 import { useProfessionalLeads } from "@/hooks/useProfessionalLeads";
 import GlobalLoader from "@/components/ui/global-loader";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const Backend_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
@@ -201,6 +202,7 @@ function MediaModal({ media, isOpen, onClose }: { media: MediaItem; isOpen: bool
     loadVideo();
   };
 
+
   if (!isOpen) return null;
 
   const imageUrl = `${Backend_URL}/uploads/professionals/${media.media_url}`;
@@ -384,6 +386,7 @@ function UserInfo({ review }: { review: Review }) {
 function ReviewItem({ review }: { review: Review }) {
   const user = getUserFromReview(review);
   const hasMedia = review.media && review.media.length > 0;
+  
 
   return (
     <div className="flex gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200">
@@ -438,6 +441,11 @@ export default function RecentReviewsCard() {
     error: any;
   };
 
+  const router = useRouter();
+  const handleReviewsClick = useCallback(() => {
+    router.push("/home-services/dashboard/pro_reviews");
+  }, [router]);
+
   if (isLoading) return <GlobalLoader />;
 
   if (error) {
@@ -462,6 +470,7 @@ export default function RecentReviewsCard() {
   const recentReviews = reviews
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
+
 
   if (reviews.length === 0) {
     return (
@@ -498,7 +507,7 @@ export default function RecentReviewsCard() {
 
       {reviews.length > 3 && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button className="w-full text-center text-[13px] text-[#0077B6] hover:text-[#005885] font-medium transition-colors duration-200">
+          <button onClick={() => handleReviewsClick()} className="w-full text-center text-[13px] text-[#0077B6] hover:text-[#005885] font-medium transition-colors duration-200">
             View All {reviews.length} Reviews
           </button>
         </div>
