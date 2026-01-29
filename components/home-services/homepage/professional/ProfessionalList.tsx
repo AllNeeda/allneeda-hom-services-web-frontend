@@ -104,8 +104,9 @@ export default function ProfessionalList({
     verifiedOnly: false,
     sortBy: "rating",
   });
+  console.log("PROFESSIONAL: ", professionals);
 
-  const selectedProfessionals: string[] = professionals.map((item) => item.id);
+  const selectedProfessionals: string[] = professionals.map((item) => item._id);
 
   useEffect(() => {
     setBaseDir(getPorfessionalsStaticURL());
@@ -334,14 +335,14 @@ export default function ProfessionalList({
 
         {/* Professionals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
-          {sortedProfessionals.map((professional) => (
+          {sortedProfessionals.map((professional, index) => (
             <CompactProfessionalCard
-              key={professional.id}
+              key={`${professional._id}-${index}`}
               professional={professional}
               serviceId={serviceId}
               selectedProfessionals={selectedProfessionals}
               BASEDIR={BASEDIR}
-              isGoogleProfessional={transformedGooglePros.some(gp => gp.id === professional.id)}
+              isGoogleProfessional={transformedGooglePros.some(gp => gp._id === professional._id)}
               googleProDatails={googleProDetails}
               googleData={(professional as any).googleData}
             />
@@ -884,7 +885,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                 <Questioner
                   className="flex-1 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-medium py-2 rounded-lg transition-all duration-300 group"
                   serviceId={serviceId}
-                  professionalId={professional.id}
+                  professionalId={professional._id}
                   professionalIds={selectedProfessionals}
                   triggerText={'Request Quotation'}
                   googleProDatails={googleProDatails}
@@ -894,7 +895,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                   <Questioner
                     className="flex-1 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-purple-700 text-white text-xs font-medium py-2 rounded-lg transition-all duration-300 group"
                     serviceId={serviceId}
-                    professionalId={professional.id}
+                    professionalId={professional._id}
                     professionalIds={selectedProfessionals}
                     triggerText={'Request Quotation'}
                   />
@@ -903,7 +904,7 @@ const CompactProfessionalCard: React.FC<CompactProfessionalCardProps> = ({
                     size="sm"
                     className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-white text-xs font-medium py-2 h-auto rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
                   >
-                    <Link href={`/home-services/professional-profile/${professional.id}`}>
+                    <Link href={`/home-services/professional-profile/${professional?.apiData?.professional_id}`}>
                       View Profile
                     </Link>
                   </Button>

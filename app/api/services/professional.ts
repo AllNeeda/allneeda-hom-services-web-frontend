@@ -129,10 +129,11 @@ export const createProMedia = async (
 export const getProMediaById = async (proId: string, token: string) => {
   const response = await api.get(`/professionals/${proId}/media`, {
     headers: {
-      Authorization: `Bearer ${token}`,
+      "Authorization": `Bearer ${token}`,
       "Content-Type": "Application/json",
     },
   });
+  console.log("ProMedia Data: ", response.data);
   return response;
 };
 
@@ -211,12 +212,13 @@ export const addAnswerService = async (
   return response.data;
 };
 
-export const getProfessionalDetailsById = async (proId: string) => {
-  const response = await api.get(`professionals/${proId}`, {
+export const getProfessionalDetailsById = async (proId:string) => {
+  const response = await api.get(`professionals/${proId}/details`,{
     headers: {
-      "Content-Type": "Application/json",
-    },
+      "Content-Type": "application/json",
+    }
   });
-  console.log("The api response: ", response);
-  return response;
-};
+  return response.data;
+}
+
+

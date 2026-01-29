@@ -8,12 +8,11 @@ import { useProfesssionalProgress } from "@/hooks/RegisterPro/useRegister";
 import { ChartNoAxesCombined, Loader2, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {useMemo } from "react";
 
 type MediaItem = { fileUrl?: string; youtubeEmbed?: string };
 
 const MediaGallery = () => {
-  const [medialURL, setMediaURL] = useState("");
   const token = getAccessToken() || "";
   const { data: professionalData } = useProfesssionalProgress(token);
 
@@ -32,10 +31,8 @@ const MediaGallery = () => {
     isError,
   } = useProfessionalMedia(proId, token);
   const proMediaData = proMeida?.data || [];
-  useEffect(() => {
-    const url = getMediacUrl();
-    setMediaURL(url);
-  }, []);
+  console.log("the pro media: ", proMediaData)
+  
 
   const EditMedia = "add-media";
   if (isError) {
@@ -77,7 +74,7 @@ const MediaGallery = () => {
               {/* If it's an image */}
               {item.fileUrl && (
                 <Image
-                  src={`${medialURL}${item.fileUrl}`}
+                  src={`${getMediacUrl()}${item.fileUrl}`}
                   width={100}
                   height={100}
                   alt="Professional media"

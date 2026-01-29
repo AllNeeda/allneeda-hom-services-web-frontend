@@ -1,8 +1,8 @@
 import {
   getProfessionalById,
-  getProfessionalDetailsById,
   updateProfessional,
   Professional as ApiProfessional,
+  getProfessionalDetailsById,
 } from "@/app/api/services/professional";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -299,11 +299,15 @@ export const useProfessional = (token: string | null) => {
   };
 };
 
-export const useProfessionalDetails = (proId: string) => {
+
+export const useProfessionalDetails = (professionalId: string) => {
   return useQuery({
-    queryKey: ["professionalDetails", proId],
-    queryFn: () => getProfessionalDetailsById(proId),
-    enabled: !!proId,
+    queryKey: ["professionalDetails", professionalId],
+    queryFn: async () => {
+      return await getProfessionalDetailsById(professionalId!);
+    },
+    enabled: !!professionalId,
+    refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000,
   });
-};
+}

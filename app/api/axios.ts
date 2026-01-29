@@ -363,6 +363,7 @@ export const constructImageUrl = (
  * Static URL helpers for media assets
  * These construct full URLs using the API base URL
  */
+
 export const getStaticURL = () => {
   // Check for custom static URL first (for CDN scenarios)
   if (process.env.NEXT_PUBLIC_STATIC_URL) {
@@ -392,7 +393,7 @@ export const getCategoryStaticURL = () => {
 };
 
 export const getMediacUrl = () => {
-  return getBaseAPIUrl();
+  return process.env.NEXT_PUBLIC_API_BASE_MEDIA;
 };
 
 export const getPorfessionalsStaticURL = () => {
