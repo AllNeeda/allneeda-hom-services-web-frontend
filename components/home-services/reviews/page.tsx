@@ -14,6 +14,7 @@ import toast from "react-hot-toast";
 import RegisterUserModal from "./createUser";
 import { useReviewSubmission } from "@/hooks/useReviews";
 import { useReviews } from "@/hooks/useReviews";
+import { useAuth } from "@/components/providers/context/auth-context";
 import GlobalLoader from "@/components/ui/global-loader";
 
 type ReviewsProps = {
@@ -79,6 +80,7 @@ export default function Reviews({ id }: ReviewsProps) {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const pendingSubmitRef = useRef<any>(null);
   const handleFilesRef = React.useRef<any>(null);
+  const { user, isAuthenticated } = useAuth();
   const backendUrl = process.env.NEXT_PUBLIC_API_BASE_MEDIA || 'http://localhost:4000';
 
   useEffect(() => {
@@ -205,9 +207,14 @@ export default function Reviews({ id }: ReviewsProps) {
   };
 
   const handleSubmit = async () => {
+    if (isAuthenticated && user?._id) {
+      await runSubmit(user._id as string);
+      return;
+    }
     pendingSubmitRef.current = async (overrideUserId?: string) => {
       await runSubmit(overrideUserId);
     };
+    
     setShowRegisterModal(true);
   };
 
