@@ -120,6 +120,6 @@ export const professionalDetection = async (token: string | null, phone: string)
       'Authorization': `Bearer ${token}`
     }
   });
-  console.log("The api response: ", response);
   return response;
 }
+

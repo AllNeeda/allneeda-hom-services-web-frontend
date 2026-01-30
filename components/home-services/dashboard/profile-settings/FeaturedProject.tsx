@@ -68,7 +68,7 @@ const FeaturedProject = () => {
     isLoading,
   } = useProFeaturedProject(proId, token);
   useEffect(() => {
-    const url = getMediacUrl();
+    const url: any = getMediacUrl();
     setMediaURL(url);
   }, []);
 

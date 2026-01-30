@@ -48,7 +48,7 @@ const transformProfessionalData = (
   data: ApiProfessional[]
 ): Professional[] =>
   data.map((item, index) => ({
-    id: item._id || `professional-${index}`,
+    _id: item._id || `professional-${index}`,
     company: item.professional.business_name,
     type:
       item.professional.business_type === "company"
@@ -273,6 +273,7 @@ useEffect(() => {
             { name: serviceName },
           ]}
         />
+        
 
         <motion.div
           initial={{ opacity: 0, y: -15 }}

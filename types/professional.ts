@@ -1,6 +1,6 @@
 
 export interface Professional {
-    id: string;
+  _id: string;
   company: string;
   type: string;
   service: string;
