@@ -320,10 +320,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     console.warn("Failed to invalidate queries:", err);
                 });
                 const token = getAccessToken();
-                if (token) {
+                const isProfessionalUser = (() => {
+                    const u: any = response.user;
+                    if (!u) return false;
+                    const roles = u.roles ?? u.role ?? u.role_id;
+                    if (!roles) return false;
+                    if (Array.isArray(roles)) {
+                        return roles.some((r) => String(r).toLowerCase().includes("professional") || String(r) === "10");
+                    }
+                    const r = String(roles).toLowerCase();
+                    if (/^\d+$/.test(r)) return r === "10"; // numeric role id -> 10 == professional
+                    return r.includes("professional");
+                })();
+
+                if (token && isProfessionalUser) {
                     await redirectAfterLogin(token, router);
                     return;
                 }
+
                 router.replace("/home-services/dashboard");
             } catch (error: unknown) {
                 clearTimeout(timeoutId);

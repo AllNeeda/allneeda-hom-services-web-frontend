@@ -3,6 +3,6 @@ export function resolveProfessionalStep(data: any): number | "dashboard" {
 
 
   const currentStep = professional.step ?? 0;
-  if (currentStep >= 9) return "dashboard";
+  if (currentStep >= 10) return "dashboard";
   return currentStep;
 }
