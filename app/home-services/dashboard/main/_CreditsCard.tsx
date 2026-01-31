@@ -171,15 +171,17 @@ export default function CreditsCard() {
 
   // Calculate credits from filtered data
   const creditData = useMemo(() => {
-    const creditsPurchased = filteredTransactions
-      .filter((credit: CreditTransaction) =>
-        credit.type === 'purchase' &&
-        credit.status === 'completed'
-      )
-      .reduce((total: number, credit: CreditTransaction) =>
-        total + (credit.amount || 0), 0
-      );
-
+const creditsPurchased = Number(
+  filteredTransactions
+    .filter((credit: CreditTransaction) =>
+      credit.type === 'purchase' &&
+      credit.status === 'completed'
+    )
+    .reduce((total: number, credit: CreditTransaction) =>
+      total + (credit.amount || 0), 0
+    )
+    .toFixed(2) // limits to 2 decimal places
+);
     const spentCredits = filteredTransactions
       .filter((credit: CreditTransaction) =>
         credit.type === 'feature_usage' &&

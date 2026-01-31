@@ -54,14 +54,25 @@ export default function CustomerSatisfaction() {
     };
   }, []);
 
-  // Filter only approved reviews
+  // Filter only approved reviews (case-insensitive)
   const filteredReviews = useMemo(() => {
-    return reviews.filter(review => review.review_type === "approved");
+    return reviews.filter(review =>
+      Boolean(review.review_type) && review.review_type.toLowerCase() === "approved"
+    );
   }, [reviews]);
 
   // Calculate comprehensive satisfaction metrics
   const satisfactionData = useMemo(() => {
-    if (filteredReviews.length === 0) {
+    // If there are no approved reviews, fall back to any available reviews
+    const sourceReviews = filteredReviews.length > 0 ? filteredReviews : reviews;
+
+    // Keep only reviews with a valid numeric rating between 1 and 5
+    const validReviews = sourceReviews.filter(r => {
+      const n = Number(r.rating);
+      return !Number.isNaN(n) && n >= 1 && n <= 5;
+    });
+
+    if (validReviews.length === 0) {
       return {
         averageRating: 0,
         satisfactionPercentage: 0,
@@ -72,17 +83,18 @@ export default function CustomerSatisfaction() {
       };
     }
 
-    const totalRating = filteredReviews.reduce((sum, review) => sum + review.rating, 0);
-    const averageRating = totalRating / filteredReviews.length;
-
-    // Calculate satisfaction percentage (ratings 4-5 are considered satisfied)
-    const satisfiedReviews = filteredReviews.filter(review => review.rating >= 4).length;
-    const satisfactionPercentage = (satisfiedReviews / filteredReviews.length) * 100;
-
-    // Calculate rating distribution
+    const totalRating = validReviews.reduce((sum, review) => sum + Number(review.rating), 0);
+    const averageRating = totalRating / validReviews.length;
+    const satisfiedReviews = validReviews.filter(review => Number(review.rating) >= 4).length;
+    const satisfactionPercentage = (satisfiedReviews / validReviews.length) * 100;
     const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    filteredReviews.forEach(review => {
-      ratingDistribution[review.rating as keyof typeof ratingDistribution]++;
+    validReviews.forEach(review => {
+      const n = Number(review.rating);
+      if (n >= 1 && n <= 5) {
+        // ensure numeric key access
+        // @ts-ignore
+        ratingDistribution[n]++;
+      }
     });
 
     // Prepare pie chart data
@@ -97,17 +109,20 @@ export default function CustomerSatisfaction() {
     return {
       averageRating: parseFloat(averageRating.toFixed(1)),
       satisfactionPercentage: parseFloat(satisfactionPercentage.toFixed(1)),
-      totalReviews: filteredReviews.length,
+      totalReviews: validReviews.length,
       ratingDistribution,
       pieChartData,
       hasData: true
     };
-  }, [filteredReviews]);
+  }, [filteredReviews, reviews]);
 
   // Custom tooltip for pie chart
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const percent = satisfactionData.totalReviews
+        ? ((data.value / satisfactionData.totalReviews) * 100).toFixed(1)
+        : "0.0";
       return (
         <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-sm shadow-lg">
           <p className="text-[13px] font-medium text-gray-900 dark:text-white">
@@ -117,7 +132,7 @@ export default function CustomerSatisfaction() {
             Reviews: {data.value}
           </p>
           <p className="text-[13px] text-gray-600 dark:text-gray-300">
-            {((data.value / satisfactionData.totalReviews) * 100).toFixed(1)}%
+            {percent}%
           </p>
         </div>
       );
@@ -175,7 +190,7 @@ export default function CustomerSatisfaction() {
 
       {/* Chart Section */}
       <div className="w-full">
-        <div className="min-w-[100%] h-[182px]">
+  <div className="min-w-full h-[182px]">
           {satisfactionData.hasData ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>

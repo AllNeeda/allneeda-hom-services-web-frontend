@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Package, CreditCard, Wallet, DollarSign, Eye } from "lucide-react";
+import { Package, Wallet, DollarSign, Eye, Coins } from "lucide-react";
 
 import CreditsCard from "./_CreditsCard";
 import ReviewsCard from "./_ReviewsCard";
@@ -106,18 +106,20 @@ export default function Dashboard() {
 
   // Calculate metrics directly
   const leadsCount = data?.professionalLeads?.length || 0;
+  console.log('Credits Data:', data);
 
-  const creditsPurchased = data?.credits
-    ?.filter(credit => credit.type === 'purchase' && credit.status === 'completed')
-    .reduce((total, credit) => total + (credit.amount || 0), 0) || 0;
+  const creditsPurchased = Number(
+    (data?.credits
+      ?.filter(credit => credit.type === 'purchase' && credit.status === 'completed')
+      .reduce((total, credit) => total + (credit.amount || 0), 0) || 0
+    ).toFixed(2)
+  );
 
   const spentCredits = data?.credits
     ?.filter(credit => credit.type === 'feature_usage' && credit.status === 'completed')
     .reduce((total, credit) => total + (credit.amount || 0), 0) || 0;
 
-  const totalRevenue = data?.credits
-    ?.filter(credit => credit.type === 'purchase' && credit.status === 'completed')
-    .reduce((total, credit) => total + Number(credit.price || 0), 0) || 0;
+  const totalRevenue = data?.professional?.credit_balance || 0;
   const profileViews = data?.professional?.profile_views || 0;
 
   const metrics = [
@@ -131,7 +133,7 @@ export default function Dashboard() {
     {
       title: "Purchased",
       value: creditsPurchased.toString(),
-      icon: <CreditCard className="w-4 h-4 text-white" />,
+      icon: <DollarSign className="w-4 h-4 text-white" />,
       color: "bg-[#0096C7]",
       darkColor: "dark:bg-[#00B4D8]",
     },
@@ -143,9 +145,9 @@ export default function Dashboard() {
       darkColor: "dark:bg-[#48CAE4]",
     },
     {
-      title: "Total Cost",
+      title: "Total Credits",
       value: `${totalRevenue}`,
-      icon: <DollarSign className="w-4 h-4 text-white" />,
+      icon: <Coins className="w-4 h-4 text-white" />,
       color: "bg-[#023E8A]",
       darkColor: "dark:bg-[#0077B6]",
     },

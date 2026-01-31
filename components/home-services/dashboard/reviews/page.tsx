@@ -129,7 +129,7 @@ const Reviews = () => {
 
     if (!reviews.length) {
         return (
-            <div className="min-h-screen bg-white dark:bg-gray-900 p-6 flex items-center justify-center">
+            <div className=" dark:bg-gray-900 p-6 flex items-center justify-center">
                 <div className="text-center max-w-md">
                     <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Search className="w-8 h-8 text-blue-500 dark:text-blue-400" />
@@ -140,6 +140,13 @@ const Reviews = () => {
                     <p className="text-gray-600 dark:text-gray-400 text-sm">
                         No reviews have been submitted yet.
                     </p>
+                    <Button onClick={() => handleAskForReview()}
+                        className="mt-2 items-center text-sm rounded-sm px-2 py-2 bg-[#0077B6] hover:bg-[#0066A3] text-white shadow-sm"
+                        aria-label="Ask for a review"
+                    >
+                        <Send className="w-4 h-4" />
+                        <span>Ask Review</span>
+                    </Button>
                 </div>
             </div>
         )
